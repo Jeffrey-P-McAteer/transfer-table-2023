@@ -105,6 +105,11 @@ git clone https://aur.archlinux.org/yay.git
 cd yay
 makepkg -si
 
+## Set processor core affinities;
+sudo vim /etc/systemd/system.conf
+# Set CPUAffinity=0 1 2
+# This leaves CPU 3 free for our code!
+
 
 ###
 ## C Code build below

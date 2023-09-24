@@ -8,14 +8,22 @@
  * gcc -g -o gpio-motor-control gpio-motor-control.c -lpigpio -lrt -lpthread
  *
  */
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 
 #include <sys/time.h>
+#include <sys/resource.h>
+#include <errno.h>
+#include <string.h>
+#include <sched.h>
 
 #include <pigpio.h>
+
+#define PREFERRED_CPU 3
 
 #define L 1024
 #define D 1000
@@ -61,10 +69,28 @@ void hstep2(int x, int y)
   }
   while (elapsed_tv.tv_usec < D && elapsed_tv.tv_sec == 0);
 
+  if (elapsed_tv.tv_usec != D) {
+    printf("elapsed_tv.tv_usec = %d, expected %d\n", elapsed_tv.tv_usec, D);
+  }
+
 }
 
 int main(int argc, char** argv)
 {
+  // First off - set our affinity to PREFERRED_CPU
+  cpu_set_t  mask;
+  CPU_ZERO(&mask);
+  CPU_SET(PREFERRED_CPU, &mask);
+  int result = sched_setaffinity(0, sizeof(mask), &mask);
+  if (result != 0) {
+    printf("Error setting CPU affinity to processor %d: %s\n", PREFERRED_CPU, strerror(errno));
+  }
+  // Then set our priority to -20, as high as possible
+  result = setpriority(PRIO_PROCESS, 0, -20);
+  if (result != 0) {
+    printf("Error setting process priority to -20: %s\n", strerror(errno));
+  }
+
   int x=0;
   int y=0;
 
