@@ -113,8 +113,11 @@ makepkg -si
 yay -Sy pigpio
 sudo systemctl enable --now pigpiod.service
 
-
-gcc -g -o gpio-motor-control gpio-motor-control.c -lpigpio -lrt -lpthread
+cd /home/user
+git clone https://github.com/Jeffrey-P-McAteer/transfer-table-2023.git
+# gcc -g -o gpio-motor-control gpio-motor-control.c -lpigpio -lrt -lpthread
+make gpio-motor-control
+sudo ./gpio-motor-control
 
 
 ```
