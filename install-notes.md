@@ -97,8 +97,7 @@ lsusb # Found "RobotAndRobot.com RNR ECO MOTION 2.0"
 sudo pacman -S ntp
 sudo systemctl enable --now ntpd.service
 
-sudo pacman -Sy git base-devel wget python python-pip
-sudo pacman -Sy xmlto kmod inetutils bc libelf git cpio perl tar xz
+sudo pacman -Sy git base-devel wget python python-pip perl tar xz
 
 ## Yay
 cd /opt/
@@ -112,7 +111,8 @@ makepkg -si
 ###
 
 yay -Sy pigpio
-# Possibly; sudo systemctl enable --now pigpiod.service
+sudo systemctl enable --now pigpiod.service
+
 
 gcc -g -o gpio-motor-control gpio-motor-control.c -lpigpio -lrt -lpthread
 
