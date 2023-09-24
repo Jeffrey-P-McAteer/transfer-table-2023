@@ -12,7 +12,7 @@ mkfs.ext4 /dev/sdX2
 mkdir -p build/sd_root
 mount /dev/sdX2 build/sd_root
 mkdir -p build/sd_root/boot
-mount /dev/sdX2 build/sd_root/boot
+mount /dev/sdX1 build/sd_root/boot
 
 sudo bsdtar -xpf build/ArchLinuxARM-rpi-armv7-latest.tar.gz -C build/sd_root
 sync
