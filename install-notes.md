@@ -98,6 +98,7 @@ sudo pacman -S ntp
 sudo systemctl enable --now ntpd.service
 
 sudo pacman -Sy git base-devel wget python python-pip perl tar xz
+sudo pacman -Sy htop
 
 ## Yay
 cd /opt/
@@ -109,6 +110,14 @@ makepkg -si
 sudo vim /etc/systemd/system.conf
 # Set CPUAffinity=0 1 2
 # This leaves CPU 3 free for our code!
+
+## Install TP-link usb wifi stuff
+yay -S dkms linux-rpi-headers
+yay -S rtl8821au-dkms-git # Needs work, see https://aur.archlinux.org/packages/rtl8821au-dkms-git
+cd /home/user/.cache/yay/rtl8821au-dkms-git
+vim PKGBUILD
+makepkg -si
+
 
 
 ###
