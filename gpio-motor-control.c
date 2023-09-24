@@ -69,9 +69,9 @@ void hstep2(int x, int y)
   }
   while (elapsed_tv.tv_usec < D && elapsed_tv.tv_sec == 0);
 
-  if (elapsed_tv.tv_usec != D) {
+  /*if (elapsed_tv.tv_usec != D) {
     printf("elapsed_tv.tv_usec = %d, expected %d\n", elapsed_tv.tv_usec, D);
-  }
+  }*/
 
 }
 
