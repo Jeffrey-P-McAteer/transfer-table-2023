@@ -118,7 +118,8 @@ cd /home/user/.cache/yay/rtl8821au-dkms-git
 vim PKGBUILD
 makepkg -si
 
-
+# Install misc utils
+yay -S rsync
 
 ###
 ## C Code build below
