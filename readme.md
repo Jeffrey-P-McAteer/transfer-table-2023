@@ -12,4 +12,7 @@ See [`install-notes.md`](install-notes.md).
 
 TODO
 
+# Misc Research
+
+ - https://forums.raspberrypi.com/viewtopic.php?t=106916#p1357530
 
