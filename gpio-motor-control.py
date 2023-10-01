@@ -6,15 +6,18 @@
 #import RPi.GPIO as io
 import RPi.GPIO as GPIO
 
+# See https://raspberrypi.stackexchange.com/questions/12966/what-is-the-difference-between-board-and-bcm-for-gpio-pin-numbering
+#GPIO.setmode(GPIO.BOARD)
 GPIO.setmode(GPIO.BCM)
+
 import sys, tty, termios, time
 
 # This blocks of code defines the three GPIO
 # pins used for the stepper motor
-motor_enable_pin = 0
+motor_enable_pin = 2
 motor_direction_pin = 2
-motor_step_pin = 3
-delay = 0.0003              # By playing with this delay you can influence the rotational speed.
+motor_step_pin = 0
+delay = 0.0001              # By playing with this delay you can influence the rotational speed.
 pulses_per_rev = 8000        # This can be configured on the driver using the DIP-switches
 GPIO.setup(motor_enable_pin, GPIO.OUT)
 GPIO.setup(motor_direction_pin, GPIO.OUT)
