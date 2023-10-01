@@ -29,18 +29,17 @@
 
 #define PREFERRED_CPU 3
 
-#define L 1024
-#define D 1000
+#define INPUT_DEV_FILE "/dev/input/event0"
 
-unsigned m[][4]={
-  {14,15,17,18},
-  {27,22,23,24}
-};
+#define MOTOR_ENABLE_PIN 1
+#define MOTOR_DIRECTION_PIN 1
+#define MOTOR_STEP_PIN 1
 
-int b[8]={0b0001, 0b011, 0b0010, 0b0110, 0b0100, 0b1100, 0b1000, 0b1001};
+// see dip switches, this should match those numbers
+#define PULSES_PER_REV 400
 
-int M=sizeof(m)/sizeof(m[0]);
-int N=sizeof(m[0])/sizeof(m[0][0]);
+#define DELAY 0.0003
+
 
 // We record the .code from struct input_event,
 // incrementing keypress_code_i when current .code
@@ -164,15 +163,18 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  for (int i=0; i<M; ++i) {
-    for (int j=0; j<N; ++j) {
-      gpioSetMode(m[i][j], PI_OUTPUT);
-      gpioWrite(m[i][j], 0);
-    }
-  }
+  gpioSetMode(MOTOR_ENABLE_PIN, PI_OUTPUT);
+  gpioWrite(MOTOR_ENABLE_PIN, 0);
+  gpioSetMode(MOTOR_DIRECTION_PIN, PI_OUTPUT);
+  gpioWrite(MOTOR_DIRECTION_PIN, 0);
+  gpioSetMode(MOTOR_STEP_PIN, PI_OUTPUT);
+  gpioWrite(MOTOR_STEP_PIN, 0);
 
-  keyboard_dev_fd = open("/dev/input/event0", O_RDONLY);
 
+  keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
+
+
+  
 
 
   /*
