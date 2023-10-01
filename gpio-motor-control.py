@@ -18,7 +18,7 @@ motor_enable_pin = 3
 motor_direction_pin = 2
 motor_step_pin = 0
 
-delay = 0.0004              # By playing with this delay you can influence the rotational speed.
+delay = 0.004              # By playing with this delay you can influence the rotational speed.
 pulses_per_rev = 400        # This can be configured on the driver using the DIP-switches
 GPIO.setup(motor_enable_pin, GPIO.OUT)
 GPIO.setup(motor_direction_pin, GPIO.OUT)
