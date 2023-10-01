@@ -8,6 +8,5 @@ export NO_VERBOSE=1
 
 ./sync.sh
 
-#./ssh.sh sh -c "cd /home/user/transfer-table-2023 ; make run"
+./ssh.sh "cd /home/user/transfer-table-2023 && make run"
 
-./ssh.sh bash -c "cd /home/user/transfer-table-2023 && pwd && ls -alh && make && ./gpio-motor-control"

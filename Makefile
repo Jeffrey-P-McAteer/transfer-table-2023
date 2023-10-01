@@ -1,3 +1,5 @@
+.PHONY: all run
+
 all: gpio-motor-control
 
 clean:

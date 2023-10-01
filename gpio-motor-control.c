@@ -19,7 +19,8 @@
 
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <uapi/linux/input-event-codes.h>
+#include <linux/types.h>
+#include <linux/input-event-codes.h>
 #include <errno.h>
 #include <string.h>
 #include <sched.h>
@@ -171,7 +172,7 @@ int main(int argc, char** argv)
   }
 
   keyboard_dev_fd = open("/dev/input/event0", O_RDONLY);
-  
+
 
 
   /*
