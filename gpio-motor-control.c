@@ -51,28 +51,10 @@ int keypress_code_i = 0;
 
 int keyboard_dev_fd = -1;
 
-void gpiosWrite(int *p, unsigned v)
-{
-  for(int i=0; i<N; ++i)
-    gpioWrite( p[i], (v&(1<<i)) ? 1 : 0 );
-}
+// See gpioWrite
 
-void hstep(int mn, unsigned v)
-{
-  gpiosWrite(m[mn], b[v & 0x7]);
-}
-
-void hstep2(int x, int y)
-{
-  struct timeval begin_tv;
-  gettimeofday(&begin_tv,NULL);
-
-  hstep(0,x);
-  hstep(1,y);
-  
-  //usleep(D);
-
-  // We're no longer sleeping, we're polling!
+// Cannot handle num_us > 1_000_000!
+void poll_until_us_elapsed(long num_us) {
   struct timeval now_tv;
   struct timeval elapsed_tv;
   do {
@@ -80,12 +62,7 @@ void hstep2(int x, int y)
     timersub(&now_tv, &begin_tv, &elapsed_tv);
 
   }
-  while (elapsed_tv.tv_usec < D && elapsed_tv.tv_sec == 0);
-
-  /*if (elapsed_tv.tv_usec != D) {
-    printf("elapsed_tv.tv_usec = %d, expected %d\n", elapsed_tv.tv_usec, D);
-  }*/
-
+  while (elapsed_tv.tv_usec < num_us && elapsed_tv.tv_sec == 0);
 }
 
 void async_read_key_data() {
@@ -174,7 +151,7 @@ int main(int argc, char** argv)
   keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
 
 
-  
+
 
 
   /*
