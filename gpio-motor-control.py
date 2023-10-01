@@ -1,20 +1,24 @@
 
 # Experimental script from https://forums.raspberrypi.com/viewtopic.php?t=106916#p1357530
 
-import RPi.GPIO as io
-io.setmode(io.BCM)
+# yay -S python-rpi-gpio
+
+#import RPi.GPIO as io
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
 import sys, tty, termios, time
 
 # This blocks of code defines the three GPIO
 # pins used for the stepper motor
-motor_enable_pin = 17
-motor_direction_pin = 27
-motor_step_pin = 22
+motor_enable_pin = 0
+motor_direction_pin = 2
+motor_step_pin = 3
 delay = 3E-004              # By playing with this delay you can influence the rotational speed.
 pulses_per_rev = 400        # This can be configured on the driver using the DIP-switches
-io.setup(motor_enable_pin, io.OUT)
-io.setup(motor_direction_pin, io.OUT)
-io.setup(motor_step_pin, io.OUT)
+GPIO.setup(motor_enable_pin, GPIO.OUT)
+GPIO.setup(motor_direction_pin, GPIO.OUT)
+GPIO.setup(motor_step_pin, GPIO.OUT)
 
 
 # The getch method can determine which key has been pressed
@@ -41,31 +45,31 @@ def getch():
 #   Pulse low-level width not less than 2.5 micro-s.
 
 def stepper_enable():
-    io.output(motor_enable_pin, False)
+    GPIO.output(motor_enable_pin, False)
 
 def stepper_disable():
-    io.output(motor_enable_pin, True)
+    GPIO.output(motor_enable_pin, True)
 
 def step_once():
-    io.output(motor_step_pin, True)
+    GPIO.output(motor_step_pin, True)
     time.sleep(delay)
-    io.output(motor_step_pin, False)
+    GPIO.output(motor_step_pin, False)
     time.sleep(delay)
 
 def step_forward():
-    io.output(motor_direction_pin, True)
+    GPIO.output(motor_direction_pin, True)
     time.sleep(delay)
     step_once()
 
 def step_reverse():
-    io.output(motor_direction_pin, False)
+    GPIO.output(motor_direction_pin, False)
     time.sleep(delay)
     step_once()
 
 # Setting the stepper pins to false so the motors will not move
 # until the user presses the first key
-io.output(motor_enable_pin, False)
-io.output(motor_step_pin, False)
+GPIO.output(motor_enable_pin, False)
+GPIO.output(motor_step_pin, False)
 
 
 # Print instructions for when the user has an interface
@@ -80,7 +84,7 @@ while True:
     # Keyboard character retrieval method is called and saved
     # into variable
     char = getch()
-    print char  
+    print(char)
 
     # The stepper will be enabled when the "e" key is pressed
     if (char == "e"):
@@ -118,4 +122,4 @@ while True:
     char = ""
 
 # Program will cease all GPIO activity before terminating
-io.cleanup()
+GPIO.cleanup()

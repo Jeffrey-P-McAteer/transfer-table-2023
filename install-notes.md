@@ -121,6 +121,8 @@ makepkg -si
 # Install misc utils
 yay -S rsync
 
+yay -S python-rpi-gpio
+
 ###
 ## C Code build below
 ###
