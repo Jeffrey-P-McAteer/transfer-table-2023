@@ -14,7 +14,7 @@ import sys, tty, termios, time
 
 # This blocks of code defines the three GPIO
 # pins used for the stepper motor
-motor_enable_pin = 2
+motor_enable_pin = 3
 motor_direction_pin = 2
 motor_step_pin = 0
 
