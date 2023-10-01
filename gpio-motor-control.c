@@ -54,7 +54,13 @@ int keyboard_dev_fd = -1;
 // See gpioWrite
 
 // Cannot handle num_us > 1_000_000!
-void poll_until_us_elapsed(long num_us) {
+/* eg
+struct timeval begin_tv;
+gettimeofday(&begin_tv,NULL);
+// Work
+poll_until_us_elapsed(begin_tv, 450)
+*/
+void poll_until_us_elapsed(struct timeval begin_tv, long num_us) {
   struct timeval now_tv;
   struct timeval elapsed_tv;
   do {
