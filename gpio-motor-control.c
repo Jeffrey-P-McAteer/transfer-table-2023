@@ -14,9 +14,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <fcntl.h>
 
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <uapi/linux/input-event-codes.h>
 #include <errno.h>
 #include <string.h>
 #include <sched.h>
@@ -37,6 +40,16 @@ int b[8]={0b0001, 0b011, 0b0010, 0b0110, 0b0100, 0b1100, 0b1000, 0b1001};
 
 int M=sizeof(m)/sizeof(m[0]);
 int N=sizeof(m[0])/sizeof(m[0][0]);
+
+// We record the .code from struct input_event,
+// incrementing keypress_code_i when current .code
+// != the one in the cell.
+// All codes are cleared during perform_keypresses().
+#define NUM_KEYPRESS_CODES 16
+__u16 keypress_codes[NUM_KEYPRESS_CODES];
+int keypress_code_i = 0;
+
+int keyboard_dev_fd = -1;
 
 void gpiosWrite(int *p, unsigned v)
 {
@@ -75,6 +88,57 @@ void hstep2(int x, int y)
 
 }
 
+void async_read_key_data() {
+  if (keyboard_dev_fd >= 0) {
+
+  }
+}
+
+void perform_keypress(__u16 code) {
+  if (code == KEY_0) {
+    printf("Got KEY_0!\n");
+  }
+  else if (code == KEY_1) {
+    printf("Got KEY_1!\n");
+  }
+  else if (code == KEY_2) {
+    printf("Got KEY_2!\n");
+  }
+  
+  else if (code == KEY_NUMERIC_0) {
+    printf("Got KEY_NUMERIC_0!\n");
+  }
+  else if (code == KEY_NUMERIC_1) {
+    printf("Got KEY_NUMERIC_1!\n");
+  }
+  else if (code == KEY_NUMERIC_2) {
+    printf("Got KEY_NUMERIC_2!\n");
+  }
+
+  else if (code == KEY_KP0) {
+    printf("Got KEY_KP0!\n");
+  }
+  else if (code == KEY_KP1) {
+    printf("Got KEY_KP1!\n");
+  }
+  else if (code == KEY_KP2) {
+    printf("Got KEY_KP2!\n");
+  }
+  else if (code == KEY_KPPLUS) {
+    printf("Got KEY_KPPLUS!\n");
+  }
+
+}
+
+void perform_keypresses() {
+  for (keypress_code_i=0; keypress_code_i < NUM_KEYPRESS_CODES; keypress_code_i += 1) {
+    perform_keypress(keypress_codes[keypress_code_i]);
+    keypress_codes[keypress_code_i] = 0;
+  }
+  keypress_code_i = 0;
+}
+
+
 int main(int argc, char** argv)
 {
   // First off - set our affinity to PREFERRED_CPU
@@ -106,6 +170,11 @@ int main(int argc, char** argv)
     }
   }
 
+  keyboard_dev_fd = open("/dev/input/event0", O_RDONLY);
+  
+
+
+  /*
   hstep2(x,y);
 
   for (int i=0; i<L/2; ++i) {
@@ -147,6 +216,7 @@ int main(int argc, char** argv)
   for (int i=0; i<L/2; ++i) {
     hstep2(--x,++y);
   }
-     
+  **/
+
   gpioTerminate();
 }
