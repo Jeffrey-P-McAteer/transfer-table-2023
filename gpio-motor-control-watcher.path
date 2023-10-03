@@ -1,0 +1,5 @@
+[Path]
+PathModified=/home/user/transfer-table-2023
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+
+# sudo cp gpio-motor-control.service /etc/systemd/system/gpio-motor-control.service
+# sudo systemctl enable --now gpio-motor-control.service
+
+[Unit]
+Description=GPIO-based Motor Control
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+Group=root
+WorkingDirectory=/
+ExecStart=/home/user/transfer-table-2023/gpio-motor-control
+RuntimeMaxSec=180m
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,11 @@
+[Unit]
+Description=srv restarter
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart gpio-motor-control.service
+
+[Install]
+WantedBy=multi-user.target
+
+

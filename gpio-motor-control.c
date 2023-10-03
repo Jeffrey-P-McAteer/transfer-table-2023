@@ -31,9 +31,9 @@
 
 #define INPUT_DEV_FILE "/dev/input/event0"
 
-#define MOTOR_ENABLE_PIN 1
-#define MOTOR_DIRECTION_PIN 1
-#define MOTOR_STEP_PIN 1
+#define MOTOR_ENABLE_PIN 15
+#define MOTOR_DIRECTION_PIN 13
+#define MOTOR_STEP_PIN 11
 
 // see dip switches, this should match those numbers
 #define PULSES_PER_REV 400
@@ -157,7 +157,9 @@ int main(int argc, char** argv)
   keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
 
 
-
+  while (true) {
+    
+  }
 
 
   /*
