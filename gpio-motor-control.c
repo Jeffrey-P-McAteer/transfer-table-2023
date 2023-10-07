@@ -58,6 +58,14 @@
 // I don't usually use usec for measurement
 #define MS_SLEEP(ms) usleep((useconds_t) (ms * 1000) )
 
+void niceExit(int exit_val) {
+  gpioTerminate();
+  exit(exit_val);
+}
+
+#define Z_OR_DIE(val) do { if (val != 0) { printf("%s:%d (%s): got %d when expecting 0, exiting!", __FILE__, __LINE__, __func__, val ); niceExit(1); } } while (0)
+
+
 static volatile bool exit_requested = false;
 
 // We record the .code from struct input_event,
@@ -79,10 +87,10 @@ void motorControlSignalHandler(int unused) {
 }
 
 #define WITH_STEPPER_ENABLED(do_stuff) do { \
-    gpioWrite(MOTOR_ENABLE_PIN, MOTOR_ENABLE_SIGNAL); \
+    Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_ENABLE_SIGNAL)); \
     do_stuff; \
-    gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL); \
-}while(0)
+    Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL)); \
+} while(0)
 
 bool file_exists(char *filename) {
   struct stat buffer;   
@@ -111,11 +119,11 @@ void step_once() {
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
 
-  gpioWrite(MOTOR_STEP_PIN, HIGH);
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, HIGH));
 
   poll_until_us_elapsed(begin_tv, DELAY_US);
 
-  gpioWrite(MOTOR_STEP_PIN, LOW);
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
 
   poll_until_us_elapsed(begin_tv, 2 * DELAY_US);
 }
@@ -126,7 +134,7 @@ void step_forward() {
   
   gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD);
   
-  poll_until_us_elapsed(begin_tv, DELAY_US);
+  // poll_until_us_elapsed(begin_tv, DELAY_US);
 
   step_once();
 }
@@ -144,7 +152,7 @@ void step_backward() {
   
   gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD);
   
-  poll_until_us_elapsed(begin_tv, DELAY_US);
+  // poll_until_us_elapsed(begin_tv, DELAY_US);
 
   step_once();
 }
@@ -305,12 +313,14 @@ int main(int argc, char** argv) {
   gpioSetSignalFunc(SIGINT, motorControlSignalHandler);
   gpioSetSignalFunc(SIGTERM, motorControlSignalHandler);
 
-  gpioSetMode(MOTOR_ENABLE_PIN, PI_OUTPUT);
-  gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL);
-  gpioSetMode(MOTOR_DIRECTION_PIN, PI_OUTPUT);
-  gpioWrite(MOTOR_DIRECTION_PIN, LOW);
-  gpioSetMode(MOTOR_STEP_PIN, PI_OUTPUT);
-  gpioWrite(MOTOR_STEP_PIN, LOW);
+
+  Z_OR_DIE(gpioSetMode(MOTOR_ENABLE_PIN,    PI_OUTPUT));
+  Z_OR_DIE(gpioSetMode(MOTOR_DIRECTION_PIN, PI_OUTPUT));
+  Z_OR_DIE(gpioSetMode(MOTOR_STEP_PIN,      PI_OUTPUT));
+
+  Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL));
+  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN,  LOW));
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN,       LOW));
 
   for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
     char input_dev_file[255] = { 0 };
@@ -332,9 +342,9 @@ int main(int argc, char** argv) {
 
   printf("Exiting cleanly...\n");
   
-  gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL);
-  gpioWrite(MOTOR_DIRECTION_PIN, LOW);
-  gpioWrite(MOTOR_STEP_PIN, LOW);
+  Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL));
+  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, LOW));
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
 
   gpioTerminate();
   return 0;
