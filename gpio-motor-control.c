@@ -46,6 +46,7 @@
 
 #define DELAY_US 100
 
+
 // used to make gpioWrite calls nicer
 #define LOW 0
 #define HIGH 1
@@ -62,7 +63,7 @@ static volatile bool exit_requested = false;
 // We record the .code from struct input_event,
 // incrementing keypress_code_i when current .code
 // != the one in the cell.
-// All codes are cleared during perform_keypresses().
+// All codes are cleared during perform_enqueued_keypresses().
 #define NUM_KEYPRESS_CODES 16
 __u16 keypress_codes[NUM_KEYPRESS_CODES];
 int keypress_code_i = 0;
@@ -264,7 +265,7 @@ void perform_keypress(__u16 code) {
 
 }
 
-void perform_keypresses() {
+void perform_enqueued_keypresses() {
   for (keypress_code_i=0; keypress_code_i < NUM_KEYPRESS_CODES; keypress_code_i += 1) {
     perform_keypress(keypress_codes[keypress_code_i]);
     keypress_codes[keypress_code_i] = 0;
@@ -326,10 +327,15 @@ int main(int argc, char** argv) {
     //MS_SLEEP(250);
     //printf("Tick!\n");
     async_read_key_data();
-    perform_keypresses();
+    perform_enqueued_keypresses();
   }
 
   printf("Exiting cleanly...\n");
+  
+  gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL);
+  gpioWrite(MOTOR_DIRECTION_PIN, LOW);
+  gpioWrite(MOTOR_STEP_PIN, LOW);
+
   gpioTerminate();
   return 0;
 }
