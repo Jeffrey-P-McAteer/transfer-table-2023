@@ -14,7 +14,8 @@ TODO
 
 # Misc Research
 
- - https://forums.raspberrypi.com/viewtopic.php?t=106916#p1357530
+ - Python controller + circuits: https://forums.raspberrypi.com/viewtopic.php?t=106916#p1357530
+ - C controller: https://forums.raspberrypi.com/viewtopic.php?t=256740
  - https://www.omc-stepperonline.com/download/DM556T.pdf
 
 

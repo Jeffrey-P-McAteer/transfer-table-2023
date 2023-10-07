@@ -4,6 +4,7 @@
  * git clone https://github.com/joan2937/pigpio
  * cd pigpio
  * sudo make install
+ * // Docs at https://abyz.me.uk/rpi/pigpio/cif.html
  * 
  * gcc -g -o gpio-motor-control gpio-motor-control.c -lpigpio -lrt -lpthread
  *
@@ -41,6 +42,14 @@
 
 #define DELAY 0.0003
 
+// used to make gpioWrite calls nicer
+#define LOW 0
+#define HIGH 1
+#define MOTOR_ENABLE_SIGNAL 0
+#define MOTOR_DISABLE_SIGNAL 1
+#define MOTOR_DIRECTION_FORWARD 1
+#define MOTOR_DIRECTION_BACKWARD 0
+
 // I don't usually use usec for measurement
 #define MS_SLEEP(ms) usleep((useconds_t) (ms * 1000) )
 
@@ -56,9 +65,16 @@ int keypress_code_i = 0;
 
 int keyboard_dev_fd = -1;
 
-void signalHandler(int unused) {
-    exit_requested = true;
+void motorControlSignalHandler(int unused) {
+  printf("Caught signal %d!\n", unused);
+  exit_requested = true;
 }
+
+#define WITH_STEPPER_ENABLED(do_stuff) do { \
+    gpioWrite(MOTOR_ENABLE_PIN, MOTOR_ENABLE_SIGNAL); \
+    do_stuff; \
+    gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL); \
+}while(0)
 
 // Cannot handle num_us > 1_000_000!
 /* eg
@@ -78,9 +94,67 @@ void poll_until_us_elapsed(struct timeval begin_tv, long num_us) {
   while (elapsed_tv.tv_usec < num_us && elapsed_tv.tv_sec == 0);
 }
 
+void step_once() {
+  struct timeval begin_tv;
+  gettimeofday(&begin_tv,NULL);
+
+  gpioWrite(MOTOR_STEP_PIN, HIGH);
+
+  poll_until_us_elapsed(begin_tv, 100 /* 0.1ms wide square wave */);
+
+  gpioWrite(MOTOR_STEP_PIN, LOW);
+
+  poll_until_us_elapsed(begin_tv, 200 /* 0.1ms wide square wave */);
+}
+
+void step_forward() {
+  struct timeval begin_tv;
+  gettimeofday(&begin_tv,NULL);
+  
+  gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD);
+  
+  poll_until_us_elapsed(begin_tv, 100 /* 0.1ms wide square wave */);
+
+  step_once();
+}
+
+void step_forward_n(int n) {
+  for (int i=0; i<n; i+=1) {
+    step_forward();
+  }
+}
+
+
+void step_backward() {
+  struct timeval begin_tv;
+  gettimeofday(&begin_tv,NULL);
+  
+  gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD);
+  
+  poll_until_us_elapsed(begin_tv, 100 /* 0.1ms wide square wave */);
+
+  step_once();
+}
+
+void step_backward_n(int n) {
+  for (int i=0; i<n; i+=1) {
+    step_backward();
+  }
+}
+
+
+
+
+
 void async_read_key_data() {
   if (keyboard_dev_fd >= 0) {
+    // todo
 
+  }
+  else {
+    // attempt to re-open!
+    printf("Attempting to re-open \"%s\" b/c keyboard_dev_fd=%d\n", INPUT_DEV_FILE, keyboard_dev_fd);
+    keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
   }
 }
 
@@ -129,8 +203,10 @@ void perform_keypresses() {
 }
 
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
+
+  exit_requested = false;
+
   // First off - set our affinity to PREFERRED_CPU
   cpu_set_t  mask;
   CPU_ZERO(&mask);
@@ -145,8 +221,9 @@ int main(int argc, char** argv)
     printf("Error setting process priority to -20: %s\n", strerror(errno));
   }
 
-  // Bind to SIGINT
-  signal(SIGINT, signalHandler);
+  // Bind to SIGINT + SIGTERM
+  signal(SIGINT, motorControlSignalHandler);
+  signal(SIGTERM, motorControlSignalHandler);
 
   if (!(gpioInitialise()>=0)) {
     printf("Error in gpioInitialise(), exiting!\n");
@@ -154,17 +231,19 @@ int main(int argc, char** argv)
   }
 
   gpioSetMode(MOTOR_ENABLE_PIN, PI_OUTPUT);
-  gpioWrite(MOTOR_ENABLE_PIN, 0);
+  gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL);
   gpioSetMode(MOTOR_DIRECTION_PIN, PI_OUTPUT);
-  gpioWrite(MOTOR_DIRECTION_PIN, 0);
+  gpioWrite(MOTOR_DIRECTION_PIN, LOW);
   gpioSetMode(MOTOR_STEP_PIN, PI_OUTPUT);
-  gpioWrite(MOTOR_STEP_PIN, 0);
+  gpioWrite(MOTOR_STEP_PIN, LOW);
 
   keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
 
   while (!exit_requested) {
     MS_SLEEP(5);
     printf("Tick!\n");
+    async_read_key_data();
+    perform_keypresses();
 
   }
 
