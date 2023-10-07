@@ -149,12 +149,12 @@ void step_backward_n(int n) {
 void async_read_key_data() {
   if (keyboard_dev_fd >= 0) {
     // todo
-
+    
   }
   else {
     // attempt to re-open!
     printf("Attempting to re-open \"%s\" b/c keyboard_dev_fd=%d\n", INPUT_DEV_FILE, keyboard_dev_fd);
-    keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
+    keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY | O_NONBLOCK);
   }
 }
 
@@ -237,7 +237,7 @@ int main(int argc, char** argv) {
   gpioSetMode(MOTOR_STEP_PIN, PI_OUTPUT);
   gpioWrite(MOTOR_STEP_PIN, LOW);
 
-  keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
+  keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY | O_NONBLOCK);
 
   while (!exit_requested) {
     MS_SLEEP(5);
