@@ -1,5 +1,9 @@
+# sudo cp gpio-motor-control-watcher.path /etc/systemd/system/gpio-motor-control-watcher.path
+# sudo systemctl enable --now gpio-motor-control-watcher
+
 [Path]
 PathModified=/home/user/transfer-table-2023
 
 [Install]
 WantedBy=multi-user.target
+

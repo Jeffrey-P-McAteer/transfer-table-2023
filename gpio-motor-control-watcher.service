@@ -1,5 +1,8 @@
+# sudo cp gpio-motor-control-watcher.service /etc/systemd/system/gpio-motor-control-watcher.service
+# sudo systemctl enable --now gpio-motor-control-watcher
+
 [Unit]
-Description=srv restarter
+Description=gpio-motor-control restarter
 
 [Service]
 Type=oneshot

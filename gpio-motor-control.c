@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sched.h>
+#include <signal.h>
 
 #include <pigpio.h>
 
@@ -40,6 +41,10 @@
 
 #define DELAY 0.0003
 
+// I don't usually use usec for measurement
+#define MS_SLEEP(ms) usleep((useconds_t) (ms * 1000) )
+
+static volatile bool exit_requested = false;
 
 // We record the .code from struct input_event,
 // incrementing keypress_code_i when current .code
@@ -51,7 +56,9 @@ int keypress_code_i = 0;
 
 int keyboard_dev_fd = -1;
 
-// See gpioWrite
+void signalHandler(int unused) {
+    exit_requested = true;
+}
 
 // Cannot handle num_us > 1_000_000!
 /* eg
@@ -138,8 +145,8 @@ int main(int argc, char** argv)
     printf("Error setting process priority to -20: %s\n", strerror(errno));
   }
 
-  int x=0;
-  int y=0;
+  // Bind to SIGINT
+  signal(SIGINT, signalHandler);
 
   if (!(gpioInitialise()>=0)) {
     printf("Error in gpioInitialise(), exiting!\n");
@@ -153,58 +160,15 @@ int main(int argc, char** argv)
   gpioSetMode(MOTOR_STEP_PIN, PI_OUTPUT);
   gpioWrite(MOTOR_STEP_PIN, 0);
 
-
   keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY);
 
+  while (!exit_requested) {
+    MS_SLEEP(5);
+    printf("Tick!\n");
 
-  while (true) {
-    
-  }
-
-
-  /*
-  hstep2(x,y);
-
-  for (int i=0; i<L/2; ++i) {
-    hstep2(x,++y);
-  }
-  for (int i=0; i<L; ++i) {
-    hstep2(x,--y);
-  }
-  for (int i=0; i<L/2; ++i) {
-    hstep2(x,++y);
   }
 
-  for (int i=0; i<L/2; ++i) {
-    hstep2(++x,y);
-  }
-  for (int i=0; i<L; ++i) {
-    hstep2(--x,y);
-  }
-  for (int i=0; i<L/2; ++i) {
-    hstep2(++x,y);
-  }
-     
-  for (int i=0; i<L/2; ++i) {
-    hstep2(++x,++y);
-  }
-  for (int i=0; i<L; ++i) {
-    hstep2(--x,--y);
-  }
-  for (int i=0; i<L/2; ++i) {
-    hstep2(++x,++y);
-  }
-     
-  for (int i=0; i<L/2; ++i) {
-    hstep2(--x,++y);
-  }
-  for (int i=0; i<L; ++i) {
-    hstep2(++x,--y);
-  }
-  for (int i=0; i<L/2; ++i) {
-    hstep2(--x,++y);
-  }
-  **/
-
+  printf("Exiting cleanly...\n");
   gpioTerminate();
+  return 0;
 }
