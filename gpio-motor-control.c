@@ -135,7 +135,7 @@ void step_forward() {
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
   
-  gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD);
+  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD));
   
   // poll_until_us_elapsed(begin_tv, DELAY_US);
 
@@ -153,7 +153,7 @@ void step_backward() {
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
   
-  gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD);
+  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD));
   
   // poll_until_us_elapsed(begin_tv, DELAY_US);
 
