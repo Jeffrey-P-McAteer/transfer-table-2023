@@ -74,6 +74,10 @@ void niceExit(int exit_val) {
 
 static volatile bool exit_requested = false;
 
+// when + or - pressed, step forward/backward this number of steps.
+// When / pressed, divide by 2. When * pressed, multiply by 2.
+static volatile long num_pm_steps = PULSES_PER_REV;
+
 // We record the .code from struct input_event,
 // incrementing keypress_code_i when current .code
 // != the one in the cell.
@@ -265,16 +269,31 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KP9!\n");
   }
   else if (code == KEY_KPPLUS) {
-    printf("Got KEY_KPPLUS, step_forward_n(%d)!\n", PULSES_PER_REV);
+    printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
-      step_forward_n(PULSES_PER_REV);
+      step_forward_n(num_pm_steps);
     });
   }
   else if (code == KEY_KPMINUS) {
-    printf("Got KEY_KPMINUS, step_backward_n(%d)!\n", PULSES_PER_REV);
+    printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
-      step_backward_n(PULSES_PER_REV);
+      step_backward_n(num_pm_steps);
     });
+  }
+  else if (code == 98) { // '/' on keypad
+    num_pm_steps /= 2;
+    if (num_pm_steps < 2) {
+      num_pm_steps = 2;
+    }
+  }
+  else if (code == 55) { // '*' on keypad
+    num_pm_steps *= 2;
+    if (num_pm_steps > PULSES_PER_REV) {
+      num_pm_steps = PULSES_PER_REV;
+    }
+  }
+  else if (code != 0) {
+    printf("Got unknown key, %d!\n", code);
   }
 
 }
