@@ -39,9 +39,12 @@
 //#define MOTOR_ENABLE_PIN 15
 //#define MOTOR_DIRECTION_PIN 13
 //#define MOTOR_STEP_PIN 11
-#define MOTOR_ENABLE_PIN 3
-#define MOTOR_DIRECTION_PIN 2
-#define MOTOR_STEP_PIN 0
+//#define MOTOR_ENABLE_PIN 3
+//#define MOTOR_DIRECTION_PIN 2
+//#define MOTOR_STEP_PIN 0
+#define MOTOR_ENABLE_PIN 22
+#define MOTOR_DIRECTION_PIN 27
+#define MOTOR_STEP_PIN 17
 
 // see dip switches, this should match those numbers
 //#define PULSES_PER_REV 400
