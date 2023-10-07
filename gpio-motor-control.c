@@ -149,7 +149,7 @@ void step_backward_n(int n) {
 void async_read_key_data() {
   if (keyboard_dev_fd >= 0) {
     // todo
-    
+
   }
   else {
     // attempt to re-open!
@@ -221,14 +221,15 @@ int main(int argc, char** argv) {
     printf("Error setting process priority to -20: %s\n", strerror(errno));
   }
 
-  // Bind to SIGINT + SIGTERM
-  signal(SIGINT, motorControlSignalHandler);
-  signal(SIGTERM, motorControlSignalHandler);
-
   if (!(gpioInitialise()>=0)) {
     printf("Error in gpioInitialise(), exiting!\n");
     return 1;
   }
+
+  // Bind to SIGINT + SIGTERM; cannot use signal() directly b/c 
+  // pigpio assumes it can bind to OS events for machine safety reasons
+  gpioSetSignalFunc(SIGINT, motorControlSignalHandler);
+  gpioSetSignalFunc(SIGTERM, motorControlSignalHandler);
 
   gpioSetMode(MOTOR_ENABLE_PIN, PI_OUTPUT);
   gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL);
