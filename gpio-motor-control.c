@@ -20,6 +20,7 @@
 
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <linux/types.h>
 #include <linux/input-event-codes.h>
 #include <errno.h>
@@ -30,8 +31,6 @@
 #include <pigpio.h>
 
 #define PREFERRED_CPU 3
-
-#define INPUT_DEV_FILE "/dev/input/event0"
 
 #define MOTOR_ENABLE_PIN 15
 #define MOTOR_DIRECTION_PIN 13
@@ -63,7 +62,10 @@ static volatile bool exit_requested = false;
 __u16 keypress_codes[NUM_KEYPRESS_CODES];
 int keypress_code_i = 0;
 
-int keyboard_dev_fd = -1;
+// we scan forward for /dev/input/eventN from 0 -> NUM_KEYBOARD_FDS-1
+// values keyboard_dev_fds[N] < 0 are unused fds
+#define NUM_KEYBOARD_FDS 8
+int keyboard_dev_fds[NUM_KEYBOARD_FDS];
 
 void motorControlSignalHandler(int unused) {
   printf("Caught signal %d!\n", unused);
@@ -75,6 +77,11 @@ void motorControlSignalHandler(int unused) {
     do_stuff; \
     gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL); \
 }while(0)
+
+bool file_exists(char *filename) {
+  struct stat buffer;   
+  return (stat (filename, &buffer) == 0);
+}
 
 // Cannot handle num_us > 1_000_000!
 /* eg
@@ -144,17 +151,23 @@ void step_backward_n(int n) {
 
 
 
-
-
-void async_read_key_data() {
-  if (keyboard_dev_fd >= 0) {
-    // todo
-
+void enqueue_keypress(__u16 code) {
+  if (keypress_code_i < NUM_KEYPRESS_CODES) {
+    keypress_codes[keypress_code_i] = code;
+    keypress_code_i += 1;
   }
   else {
-    // attempt to re-open!
-    printf("Attempting to re-open \"%s\" b/c keyboard_dev_fd=%d\n", INPUT_DEV_FILE, keyboard_dev_fd);
-    keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY | O_NONBLOCK);
+    keypress_codes[0] = code;
+    keypress_code_i = 1;
+  }
+}
+
+void async_read_key_data() {
+  for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
+    if (keyboard_dev_fds[i] >= 0) {
+      // todo async read
+      // enqueue_keypress(KEY_0) // or whatever
+    }
   }
 }
 
@@ -206,6 +219,9 @@ void perform_keypresses() {
 int main(int argc, char** argv) {
 
   exit_requested = false;
+  for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
+    keyboard_dev_fds[i] = -1;
+  }
 
   // First off - set our affinity to PREFERRED_CPU
   cpu_set_t  mask;
@@ -238,10 +254,19 @@ int main(int argc, char** argv) {
   gpioSetMode(MOTOR_STEP_PIN, PI_OUTPUT);
   gpioWrite(MOTOR_STEP_PIN, LOW);
 
-  keyboard_dev_fd = open(INPUT_DEV_FILE, O_RDONLY | O_NONBLOCK);
+  for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
+    char input_dev_file[255] = { 0 };
+    snprintf(input_dev_file, 254, "/dev/input/event%d", i);
+
+    if (file_exists(input_dev_file)) {
+      keyboard_dev_fds[i] = open(input_dev_file, O_RDONLY | O_NONBLOCK);
+      printf("Opened \"%s\" as fd %d\n", input_dev_file, keyboard_dev_fds[i]);
+    }
+  }
 
   while (!exit_requested) {
-    MS_SLEEP(5);
+    //MS_SLEEP(5);
+    MS_SLEEP(250);
     printf("Tick!\n");
     async_read_key_data();
     perform_keypresses();
