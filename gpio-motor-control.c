@@ -21,8 +21,12 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/epoll.h> // for epoll_create1(), epoll_ctl(), struct epoll_event
+
 #include <linux/types.h>
+#include <linux/input.h> // for struct input_event
 #include <linux/input-event-codes.h>
+
 #include <errno.h>
 #include <string.h>
 #include <sched.h>
@@ -37,9 +41,10 @@
 #define MOTOR_STEP_PIN 11
 
 // see dip switches, this should match those numbers
-#define PULSES_PER_REV 400
+//#define PULSES_PER_REV 400
+#define PULSES_PER_REV (1600 * 5)
 
-#define DELAY 0.0003
+#define DELAY_US 100
 
 // used to make gpioWrite calls nicer
 #define LOW 0
@@ -107,11 +112,11 @@ void step_once() {
 
   gpioWrite(MOTOR_STEP_PIN, HIGH);
 
-  poll_until_us_elapsed(begin_tv, 100 /* 0.1ms wide square wave */);
+  poll_until_us_elapsed(begin_tv, DELAY_US);
 
   gpioWrite(MOTOR_STEP_PIN, LOW);
 
-  poll_until_us_elapsed(begin_tv, 200 /* 0.1ms wide square wave */);
+  poll_until_us_elapsed(begin_tv, 2 * DELAY_US);
 }
 
 void step_forward() {
@@ -120,7 +125,7 @@ void step_forward() {
   
   gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD);
   
-  poll_until_us_elapsed(begin_tv, 100 /* 0.1ms wide square wave */);
+  poll_until_us_elapsed(begin_tv, DELAY_US);
 
   step_once();
 }
@@ -138,7 +143,7 @@ void step_backward() {
   
   gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD);
   
-  poll_until_us_elapsed(begin_tv, 100 /* 0.1ms wide square wave */);
+  poll_until_us_elapsed(begin_tv, DELAY_US);
 
   step_once();
 }
@@ -165,34 +170,56 @@ void enqueue_keypress(__u16 code) {
 void async_read_key_data() {
   for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
     if (keyboard_dev_fds[i] >= 0) {
-      // todo async read
-      // enqueue_keypress(KEY_0) // or whatever
+      struct input_event ev;
+      ssize_t num_bytes_read = read(keyboard_dev_fds[i], &ev, sizeof(ev));
+      if (num_bytes_read > 0) {
+        if(ev.type == EV_KEY) { // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/input-event-codes.h#n35
+          // Is this up or down?
+          // printf("ev.value = %d\n", ev.value);
+          if (ev.value == 1) { // .value == 1 means key down, we observe this one first.
+            enqueue_keypress(ev.code);
+          }
+        }
+      }
     }
   }
 }
 
 void perform_keypress(__u16 code) {
-  if (code == KEY_0) {
-    printf("Got KEY_0!\n");
+  // Map numbers from _other_ keyboard numbers to KEY_KP0
+  if (code == KEY_0 || code == KEY_NUMERIC_0) {
+    code = KEY_KP0;
   }
-  else if (code == KEY_1) {
-    printf("Got KEY_1!\n");
+  else if (code == KEY_1 || code == KEY_NUMERIC_1) {
+    code = KEY_KP1;
   }
-  else if (code == KEY_2) {
-    printf("Got KEY_2!\n");
+  else if (code == KEY_2 || code == KEY_NUMERIC_2) {
+    code = KEY_KP2;
+  }
+  else if (code == KEY_3 || code == KEY_NUMERIC_3) {
+    code = KEY_KP3;
+  }
+  else if (code == KEY_4 || code == KEY_NUMERIC_4) {
+    code = KEY_KP4;
+  }
+  else if (code == KEY_5 || code == KEY_NUMERIC_5) {
+    code = KEY_KP5;
+  }
+  else if (code == KEY_6 || code == KEY_NUMERIC_6) {
+    code = KEY_KP6;
+  }
+  else if (code == KEY_7 || code == KEY_NUMERIC_7) {
+    code = KEY_KP7;
+  }
+  else if (code == KEY_8 || code == KEY_NUMERIC_8) {
+    code = KEY_KP8;
+  }
+  else if (code == KEY_9 || code == KEY_NUMERIC_9) {
+    code = KEY_KP9;
   }
   
-  else if (code == KEY_NUMERIC_0) {
-    printf("Got KEY_NUMERIC_0!\n");
-  }
-  else if (code == KEY_NUMERIC_1) {
-    printf("Got KEY_NUMERIC_1!\n");
-  }
-  else if (code == KEY_NUMERIC_2) {
-    printf("Got KEY_NUMERIC_2!\n");
-  }
-
-  else if (code == KEY_KP0) {
+  // Now handle key presses
+  if (code == KEY_KP0) {
     printf("Got KEY_KP0!\n");
   }
   else if (code == KEY_KP1) {
@@ -201,8 +228,38 @@ void perform_keypress(__u16 code) {
   else if (code == KEY_KP2) {
     printf("Got KEY_KP2!\n");
   }
+  else if (code == KEY_KP3) {
+    printf("Got KEY_KP3!\n");
+  }
+  else if (code == KEY_KP4) {
+    printf("Got KEY_KP4!\n");
+  }
+  else if (code == KEY_KP5) {
+    printf("Got KEY_KP5!\n");
+  }
+  else if (code == KEY_KP6) {
+    printf("Got KEY_KP6!\n");
+  }
+  else if (code == KEY_KP7) {
+    printf("Got KEY_KP7!\n");
+  }
+  else if (code == KEY_KP8) {
+    printf("Got KEY_KP8!\n");
+  }
+  else if (code == KEY_KP9) {
+    printf("Got KEY_KP9!\n");
+  }
   else if (code == KEY_KPPLUS) {
-    printf("Got KEY_KPPLUS!\n");
+    printf("Got KEY_KPPLUS, step_forward_n(%d)!\n", PULSES_PER_REV);
+    WITH_STEPPER_ENABLED({
+      step_forward_n(PULSES_PER_REV);
+    });
+  }
+  else if (code == KEY_KPMINUS) {
+    printf("Got KEY_KPMINUS, step_backward_n(%d)!\n", PULSES_PER_REV);
+    WITH_STEPPER_ENABLED({
+      step_backward_n(PULSES_PER_REV);
+    });
   }
 
 }
@@ -265,12 +322,11 @@ int main(int argc, char** argv) {
   }
 
   while (!exit_requested) {
-    //MS_SLEEP(5);
-    MS_SLEEP(250);
-    printf("Tick!\n");
+    MS_SLEEP(1);
+    //MS_SLEEP(250);
+    //printf("Tick!\n");
     async_read_key_data();
     perform_keypresses();
-
   }
 
   printf("Exiting cleanly...\n");
