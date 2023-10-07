@@ -8,6 +8,8 @@ control a medium-sized stepper motor.
 
 See [`install-notes.md`](install-notes.md).
 
+Attach to logs with `sudo journalctl -f -u gpio-motor-control`
+
 # Software Control
 
 TODO
