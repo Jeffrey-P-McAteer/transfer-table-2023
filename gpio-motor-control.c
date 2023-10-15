@@ -61,6 +61,11 @@
 #define MOTOR_DIRECTION_FORWARD 1
 #define MOTOR_DIRECTION_BACKWARD 0
 
+// Forward decs
+
+void async_read_key_data();
+
+
 // I don't usually use usec for measurement
 #define MS_SLEEP(ms) usleep((useconds_t) (ms * 1000) )
 
@@ -70,7 +75,6 @@ void niceExit(int exit_val) {
 }
 
 #define Z_OR_DIE(val) do { if (val != 0) { printf("%s:%d (%s): got %d when expecting 0, exiting!", __FILE__, __LINE__, __func__, val ); niceExit(1); } } while (0)
-
 
 static volatile bool exit_requested = false;
 
