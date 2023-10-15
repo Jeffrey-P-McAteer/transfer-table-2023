@@ -210,7 +210,7 @@ void step_forward_n_eased(int n) {
       delay_us = (int) ( (f * (double) fastest_delay_us) + (inv_f * (double) slowest_delay_us) );
     }
     else {
-      // begin fast, ease UP to fastest_delay_us
+      // begin slow, ease DOWN to slowest_delay_us
       double f = (double) ((i-(n/2))+1) / (double) n; // f goes from 0.0 -> 1.0
       double inv_f = 1.0 - f;
       if (inv_f < 0.0) { inv_f = 0.0; }
