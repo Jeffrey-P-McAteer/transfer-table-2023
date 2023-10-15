@@ -174,6 +174,62 @@ void step_forward_n(int n) {
   }
 }
 
+void step_forward_eased(int delay_us) {
+  struct timeval begin_tv;
+  gettimeofday(&begin_tv,NULL);
+  
+  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD));
+  
+  // step_once() w/ timing data
+
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, HIGH));
+
+  poll_until_us_elapsed(begin_tv, delay_us);
+  if (motor_stop_requested) {
+    return;
+  }
+
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
+
+  poll_until_us_elapsed(begin_tv, 2 * delay_us);
+
+}
+
+void step_forward_n_eased(int n) {
+  int slowest_delay_us = 50;
+  int fastest_delay_us = 2;
+  
+  for (int i=0; i<n; i+=1) {
+    //double f = (double) i+1 / (double) n; // f goes from 0.0 -> 1.0
+    int delay_us = 999;
+    if (i < n/2) {
+      // begin slow, ease UP to fastest_delay_us
+      double f = (double) (i+1) / (double) (n/2); // f goes from 0.0 -> 1.0
+      double inv_f = 1.0 - f;
+      if (inv_f < 0.0) { inv_f = 0.0; }
+      delay_us = (int) ( (f * (double) fastest_delay_us) + (inv_f * (double) slowest_delay_us) );
+    }
+    else {
+      // begin fast, ease UP to fastest_delay_us
+      double f = (double) ((i-(n/2))+1) / (double) n; // f goes from 0.0 -> 1.0
+      double inv_f = 1.0 - f;
+      if (inv_f < 0.0) { inv_f = 0.0; }
+      delay_us = (int) ( (f * (double) slowest_delay_us) + (inv_f * (double) fastest_delay_us) );
+    }
+
+    // printf("n=%d i=%d delay_us=%d\n", n, i, delay_us);
+
+    step_forward_eased(delay_us);
+
+    async_read_key_data();
+    
+    if (motor_stop_requested) {
+      printf("step_forward_n exiting b/c motor_stop_requested == true\n");
+      return;
+    }
+  }
+}
+
 
 void step_backward() {
   struct timeval begin_tv;
@@ -303,7 +359,8 @@ void perform_keypress(__u16 code) {
   else if (code == KEY_KPPLUS) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
-      step_forward_n(num_pm_steps);
+      //step_forward_n(num_pm_steps);
+      step_forward_n_eased(num_pm_steps);
     });
   }
   else if (code == KEY_KPMINUS) {
