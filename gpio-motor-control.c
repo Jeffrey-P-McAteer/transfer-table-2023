@@ -55,7 +55,7 @@
 //#define DELAY_US 50
 //#define DELAY_US 25
 //#define DELAY_US 10 // Looks _real_ good
-#define DELAY_US 5
+#define DELAY_US 1
 
 
 // used to make gpioWrite calls nicer
@@ -196,8 +196,8 @@ void step_forward_eased(int delay_us) {
 }
 
 void step_forward_n_eased(int n) {
-  int slowest_delay_us = 50;
-  int fastest_delay_us = 2;
+  int slowest_delay_us = 30;
+  int fastest_delay_us = 1;
   
   for (int i=0; i<n; i+=1) {
     //double f = (double) i+1 / (double) n; // f goes from 0.0 -> 1.0
