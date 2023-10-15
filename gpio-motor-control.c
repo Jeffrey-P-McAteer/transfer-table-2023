@@ -50,7 +50,10 @@
 //#define PULSES_PER_REV 400
 #define PULSES_PER_REV (1600 * 5)
 
-#define DELAY_US 100
+// 100 is approx 120s/12 positions
+//#define DELAY_US 100
+//#define DELAY_US 50
+#define DELAY_US 25
 
 
 // used to make gpioWrite calls nicer
