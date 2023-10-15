@@ -74,6 +74,8 @@ void niceExit(int exit_val) {
 
 static volatile bool exit_requested = false;
 
+static volatile bool motor_stop_requested = false;
+
 // when + or - pressed, step forward/backward this number of steps.
 // When / pressed, divide by 2. When * pressed, multiply by 2.
 static volatile long num_pm_steps = PULSES_PER_REV;
@@ -88,7 +90,7 @@ int keypress_code_i = 0;
 
 // we scan forward for /dev/input/eventN from 0 -> NUM_KEYBOARD_FDS-1
 // values keyboard_dev_fds[N] < 0 are unused fds
-#define NUM_KEYBOARD_FDS 8
+#define NUM_KEYBOARD_FDS 24
 int keyboard_dev_fds[NUM_KEYBOARD_FDS];
 
 void motorControlSignalHandler(int unused) {
@@ -152,6 +154,10 @@ void step_forward() {
 void step_forward_n(int n) {
   for (int i=0; i<n; i+=1) {
     step_forward();
+    async_read_key_data();
+    if (motor_stop_requested) {
+      break;
+    }
   }
 }
 
@@ -170,6 +176,10 @@ void step_backward() {
 void step_backward_n(int n) {
   for (int i=0; i<n; i+=1) {
     step_backward();
+    async_read_key_data();
+    if (motor_stop_requested) {
+      break;
+    }
   }
 }
 
@@ -186,6 +196,12 @@ void enqueue_keypress(__u16 code) {
   }
 }
 
+void immediate_keycode_perform(__u16 code) {
+  if (code == 1 || code == 15) {
+    motor_stop_requested = true;
+  }
+}
+
 void async_read_key_data() {
   for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
     if (keyboard_dev_fds[i] >= 0) {
@@ -197,6 +213,7 @@ void async_read_key_data() {
           // printf("ev.value = %d\n", ev.value);
           if (ev.value == 1) { // .value == 1 means key down, we observe this one first.
             enqueue_keypress(ev.code);
+            immediate_keycode_perform(ev.code);
           }
         }
       }
@@ -288,9 +305,12 @@ void perform_keypress(__u16 code) {
   }
   else if (code == 55) { // '*' on keypad
     num_pm_steps *= 2;
-    if (num_pm_steps > PULSES_PER_REV) {
-      num_pm_steps = PULSES_PER_REV;
+    if (num_pm_steps > PULSES_PER_REV * 16) { // allow up to 16 revs
+      num_pm_steps = PULSES_PER_REV * 16;
     }
+  }
+  else if (code == 1 /* esc */ || code == 15 /* tab */) {
+    motor_stop_requested = true;
   }
   else if (code != 0) {
     printf("Got unknown key, %d!\n", code);
@@ -359,10 +379,9 @@ int main(int argc, char** argv) {
 
   while (!exit_requested) {
     MS_SLEEP(1);
-    //MS_SLEEP(250);
-    //printf("Tick!\n");
     async_read_key_data();
     perform_enqueued_keypresses();
+    motor_stop_requested = false;
   }
 
   printf("Exiting cleanly...\n");
