@@ -126,7 +126,7 @@ void poll_until_us_elapsed(struct timeval begin_tv, long num_us) {
   do {
     gettimeofday(&now_tv,NULL);
     timersub(&now_tv, &begin_tv, &elapsed_tv);
-
+    async_read_key_data();
   }
   while (elapsed_tv.tv_usec < num_us && elapsed_tv.tv_sec == 0);
 }
@@ -138,6 +138,9 @@ void step_once() {
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, HIGH));
 
   poll_until_us_elapsed(begin_tv, DELAY_US);
+  if (motor_stop_requested) {
+    return;
+  }
 
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
 
@@ -160,7 +163,8 @@ void step_forward_n(int n) {
     step_forward();
     async_read_key_data();
     if (motor_stop_requested) {
-      break;
+      printf("step_forward_n exiting b/c motor_stop_requested == true\n");
+      return;
     }
   }
 }
@@ -182,7 +186,8 @@ void step_backward_n(int n) {
     step_backward();
     async_read_key_data();
     if (motor_stop_requested) {
-      break;
+      printf("step_backward_n exiting b/c motor_stop_requested == true\n");
+      return;
     }
   }
 }
@@ -203,6 +208,7 @@ void enqueue_keypress(__u16 code) {
 void immediate_keycode_perform(__u16 code) {
   if (code == 1 || code == 15) {
     motor_stop_requested = true;
+    printf("Motor stop requested! (code=%d)\n", code);
   }
 }
 
@@ -315,6 +321,7 @@ void perform_keypress(__u16 code) {
   }
   else if (code == 1 /* esc */ || code == 15 /* tab */) {
     motor_stop_requested = true;
+    printf("Motor stop requested! (code=%d)\n", code);
   }
   else if (code != 0) {
     printf("Got unknown key, %d!\n", code);
