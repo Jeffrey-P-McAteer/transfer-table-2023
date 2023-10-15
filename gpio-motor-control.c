@@ -53,7 +53,9 @@
 // 100 is approx 120s/12 positions
 //#define DELAY_US 100
 //#define DELAY_US 50
-#define DELAY_US 25
+//#define DELAY_US 25
+//#define DELAY_US 10 // Looks _real_ good
+#define DELAY_US 5
 
 
 // used to make gpioWrite calls nicer
