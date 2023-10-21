@@ -302,7 +302,7 @@ void step_forward_eased(int delay_us) {
 void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 #define EXIT_IF_STOP_REQ() { async_read_key_data(); \
     if (motor_stop_requested) { \
-      printf("step_forward_n exiting b/c motor_stop_requested == true\n"); \
+      printf("step_n_eased exiting b/c motor_stop_requested == true\n"); \
       return; \
     } }
 
