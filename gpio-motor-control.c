@@ -505,8 +505,8 @@ void async_read_key_data() {
     if (keyboard_dev_fds[i] >= 0) {
       struct input_event ev;
       ssize_t num_bytes_read = read(keyboard_dev_fds[i], &ev, sizeof(ev));
-      if (num_bytes_read == -1) {
-        printf("Keyboard read error: %s\n", strerror(errno));
+      if (num_bytes_read == -1 && errno != 11 /* 11 means data not here, poll again */) {
+        printf("Keyboard read error: %d %s\n", errno, strerror(errno));
         keyboard_dev_fds[i] = -1;
         continue;
       }
