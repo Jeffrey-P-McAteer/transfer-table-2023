@@ -78,8 +78,8 @@ void async_read_key_data();
 void enqueue_keypress(__u16 code);
 void step_forward_n(int n);
 void step_backward_n(int n);
-void step_forward_n_eased(int n);
-void step_backward_n_eased(int n);
+void step_forward_n_eased(int n, int ramp_up_end_n);
+void step_backward_n_eased(int n, int ramp_up_end_n);
 void begin_sonar_read();
 
 
@@ -119,20 +119,17 @@ int keypress_code_i = 0;
 
 // we scan forward for /dev/input/eventN from 0 -> NUM_KEYBOARD_FDS-1
 // values keyboard_dev_fds[N] < 0 are unused fds
-#define NUM_KEYBOARD_FDS 24
+#define NUM_KEYBOARD_FDS 32
 int keyboard_dev_fds[NUM_KEYBOARD_FDS];
 
 // Used to determine when a low signal should be sent
-bool sonar_sending_trigger = false;
+bool           sonar_sending_trigger = false;
 struct timeval sonar_trigger_begin_tv;
 
-bool sonar_reading_echo_pin_pt1 = false;
+bool           sonar_reading_echo_pin_pt1 = false;
 struct timeval sonar_echo_begin_tv;
-bool sonar_reading_echo_pin_pt2 = false;
+bool           sonar_reading_echo_pin_pt2 = false;
 struct timeval sonar_echo_end_tv;
-
-bool sonar_bump_in_progress = false;
-bool sonar_bump_may_occur = true;
 
 // Update these with measured min/max values off sensor
 //#define TABLE_BEGIN_CM 10.5
@@ -187,55 +184,19 @@ void do_sonar_bookkeeping() {
         last_sonar_pulse_us = sonar_echo_end_tv.tv_usec - sonar_echo_begin_tv.tv_usec;
         position_cm = convert_pulse_to_cm(last_sonar_pulse_us);
         
-        // We _usually_ don't do anything here; the rest of the program is probably currently
-        // trying to move the motor. We do however check for safety, and ABORT whatever motor controls are happening ASAP.
-        if (!sonar_bump_in_progress) {
-          if (position_cm <= TABLE_BEGIN_CM && table_state == TABLE_MOVING_FORWARDS) {
-            motor_stop_requested = true;
-            printf("TABLE HAS HIT BEGINNING! Stopping motor!\n");
-          }
-          if (position_cm >= TABLE_END_CM && table_state == TABLE_MOVING_BACKWARDS) {
-            motor_stop_requested = true;
-            printf("TABLE HAS HIT END! Stopping motor!\n");
-          }
+        double dist_to_begin = position_cm - TABLE_BEGIN_CM;
+        if (dist_to_begin < 15.0) { // Begin applying a speed limiting force
+
+        }
+        double dist_to_end = TABLE_END_CM - position_cm;
+        if (dist_to_end < 15.0) { // Begin applying a speed limiting force
+
         }
 
       }
     }
   }
 }
-
-// SAFETY: do not call within a WITH_STEPPER_ENABLED block!
-void do_sonar_bumps() {
-  if (!sonar_bump_may_occur) {
-    return; // sonar_bump_may_occur is set when the user hits an emergency key
-  }
-  if (table_state == TABLE_STOPPED) {
-    sonar_bump_in_progress = true;
-    if (position_cm <= TABLE_BEGIN_CM) {
-      // Bump forwards 1 rotation
-      begin_sonar_read();
-      printf("Table is still near beginning (%.2f cm), moving forward...\n", position_cm);
-      WITH_STEPPER_ENABLED({
-        table_state = TABLE_MOVING_BACKWARDS;
-        step_backward_n_eased(1800);
-        table_state = TABLE_STOPPED;
-      });
-    }
-    else if (position_cm >= TABLE_END_CM) {
-      // Bump forwards 1 rotation
-      begin_sonar_read();
-      printf("Table is still near end (%.2f cm), moving backward...\n", position_cm);
-      WITH_STEPPER_ENABLED({
-        table_state = TABLE_MOVING_FORWARDS;
-        step_forward_n_eased(1800);
-        table_state = TABLE_STOPPED;
-      });
-    }
-  }
-  sonar_bump_in_progress = false;
-}
-
 
 void begin_sonar_read() {
   if (sonar_sending_trigger || sonar_reading_echo_pin_pt1 || sonar_reading_echo_pin_pt2) {
@@ -337,7 +298,7 @@ void step_forward_eased(int delay_us) {
 
 }
 
-void step_forward_n_eased(int n) {
+void step_forward_n_eased(int n, int ramp_up_end_n) {
   int slowest_delay_us = 30;
   int fastest_delay_us = 1;
   
@@ -417,7 +378,7 @@ void step_backward_eased(int delay_us) {
 
 }
 
-void step_backward_n_eased(int n) {
+void step_backward_n_eased(int n, int ramp_up_end_n) {
   int slowest_delay_us = 30;
   int fastest_delay_us = 1;
   
@@ -479,13 +440,18 @@ void async_read_key_data() {
     if (keyboard_dev_fds[i] >= 0) {
       struct input_event ev;
       ssize_t num_bytes_read = read(keyboard_dev_fds[i], &ev, sizeof(ev));
+      if (num_bytes_read == -1) {
+        printf("Keyboard read error: %s\n", strerror(errno));
+        keyboard_dev_fds[i] = -1;
+        continue;
+      }
       if (num_bytes_read > 0) {
         if(ev.type == EV_KEY) { // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/input-event-codes.h#n35
           // Is this up or down?
           // printf("ev.value = %d\n", ev.value);
           if (ev.value == 1) { // .value == 1 means key down, we observe this one first.
-            enqueue_keypress(ev.code);
             immediate_keycode_perform(ev.code);
+            enqueue_keypress(ev.code);
           }
         }
       }
@@ -561,7 +527,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_forward_n_eased(num_pm_steps);
+      step_forward_n_eased(num_pm_steps, 1800);
       table_state = TABLE_STOPPED;
     });
   }
@@ -569,7 +535,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_backward_n_eased(num_pm_steps);
+      step_backward_n_eased(num_pm_steps, 1800);
       table_state = TABLE_STOPPED;
     });
   }
@@ -601,6 +567,20 @@ void perform_enqueued_keypresses() {
     keypress_codes[keypress_code_i] = 0;
   }
   keypress_code_i = 0;
+}
+
+void open_input_event_fds() {
+  for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
+    if (keyboard_dev_fds[i] < 0) {
+      char input_dev_file[255] = { 0 };
+      snprintf(input_dev_file, 254, "/dev/input/event%d", i);
+
+      if (file_exists(input_dev_file)) {
+        keyboard_dev_fds[i] = open(input_dev_file, O_RDONLY | O_NONBLOCK);
+        printf("Opened \"%s\" as fd %d\n", input_dev_file, keyboard_dev_fds[i]);
+      }
+    }
+  }
 }
 
 
@@ -647,34 +627,32 @@ int main(int argc, char** argv) {
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN,       LOW));
   Z_OR_DIE(gpioWrite(SONAR_TRIGGER_PIN,    LOW));
 
-  for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
-    char input_dev_file[255] = { 0 };
-    snprintf(input_dev_file, 254, "/dev/input/event%d", i);
-
-    if (file_exists(input_dev_file)) {
-      keyboard_dev_fds[i] = open(input_dev_file, O_RDONLY | O_NONBLOCK);
-      printf("Opened \"%s\" as fd %d\n", input_dev_file, keyboard_dev_fds[i]);
-    }
-  }
+  open_input_event_fds();
 
   long loop_i = 0;
   struct timeval loop_now_tv;
   while (!exit_requested) {
 
     gettimeofday(&loop_now_tv,NULL);
-    poll_until_us_elapsed(loop_now_tv, 1000); // 1ms delay
+    poll_until_us_elapsed(loop_now_tv, 1000); // 1ms delay between high-level keypress stuff
 
     async_read_key_data();
-    perform_enqueued_keypresses();
-    if (loop_i % 250 == 0) { // Approx 4x a second, begin reads to update table global position data
+    
+    perform_enqueued_keypresses(); // This function blocks to perform user-requested tasks!
+
+    if (loop_i % 100 == 0) { // Approx 10x a second, begin reads to update table global position data
       begin_sonar_read();
       if (loop_i % 1000 == 0) {
         printf("last position_cm = %.3f\n", position_cm);
       }
     }
+    if (loop_i % 2000 == 0) { // Approx every 2s, open new keyboards.
+      open_input_event_fds();
+    }
+
     do_sonar_bookkeeping();
+
     motor_stop_requested = false;
-    do_sonar_bumps();
     loop_i += 1;
   }
 
