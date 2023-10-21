@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <math.h>
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -299,6 +300,69 @@ void step_forward_eased(int delay_us) {
 }
 
 void step_forward_n_eased(int n, int ramp_up_end_n) {
+#define EXIT_IF_STOP_REQ() { async_read_key_data(); \
+    if (motor_stop_requested) { \
+      printf("step_forward_n exiting b/c motor_stop_requested == true\n"); \
+      return; \
+    } }
+
+  // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
+  int slowest_us = 800;
+  int fastest_us = 2;
+  
+  // For very short steps, limit top speed & change ramp up bounds.
+  if (n < ramp_up_end_n) {
+    ramp_up_end_n = n / 2;
+    fastest_us = 300; // TODO calculate ideal off N + some math
+  }
+  int ramp_down_begin_n = n - ramp_up_end_n;
+  int slow_fast_us_dist = slowest_us - fastest_us;
+  double half_pi = M_PI / 2.0;
+  double wavelength = (M_PI) / ((double) ramp_up_end_n); // formula is actually 2pi/wavelength, but I want to double ramp_up_end_n so instead removed the existing 2.0.
+
+  // Ramp up on a sinusoid
+  for (int i=0; i<ramp_up_end_n; i+=1) {
+    
+    double delay_us_d = fastest_us + (
+      slow_fast_us_dist * (sin((wavelength * (double) i) + half_pi) + 1.0)
+    );
+
+    printf("[ramp up] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
+
+    int delay_us = (int) delay_us_d;
+    if (delay_us <= 0) {
+      delay_us = 1; // fastest possible
+    }
+    step_forward_eased(delay_us);
+    EXIT_IF_STOP_REQ();
+  }
+
+  // Constant speed @ fastest_us
+  for (int i=ramp_up_end_n; i<ramp_down_begin_n; i+=1) {
+    step_forward_eased(fastest_us);
+    EXIT_IF_STOP_REQ();
+  }
+
+  // Ramp down on a sinusoid
+  for (int i=ramp_down_begin_n; i<n; i+=1) {
+    int j = i - ramp_down_begin_n; // j was same domain as original i value
+
+    double delay_us_d = fastest_us + (
+      slow_fast_us_dist * ((-sin((wavelength * (double) j)) + half_pi) + 1.0)
+    );
+
+    printf("[ramp down] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
+
+    int delay_us = (int) delay_us_d;
+    if (delay_us <= 0) {
+      delay_us = 1; // fastest possible
+    }
+    step_forward_eased(delay_us);
+    EXIT_IF_STOP_REQ();
+  }
+
+
+  /*
   int slowest_delay_us = 30;
   int fastest_delay_us = 1;
   
@@ -331,6 +395,8 @@ void step_forward_n_eased(int n, int ramp_up_end_n) {
       return;
     }
   }
+  */
+#undef EXIT_IF_STOP_REQ
 }
 
 
