@@ -110,6 +110,7 @@ struct timeval sonar_echo_begin_tv;
 bool sonar_reading_echo_pin_pt2 = false;
 struct timeval sonar_echo_end_tv;
 
+// Update these with measured min/max values off sensor
 #define TABLE_BEGIN_CM 10.5
 #define TABLE_END_CM 68.5
 
