@@ -342,7 +342,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 
   // Constant speed @ fastest_us
   for (int i=ramp_up_end_n; i<ramp_down_begin_n; i+=1) {
-    /*if (i % 10 == 0) {
+    /*if (i % 40 == 0) {
       printf("[constant] fastest_us = %d i = %d  \n", fastest_us, i);
     }// */
     step_func(fastest_us);
