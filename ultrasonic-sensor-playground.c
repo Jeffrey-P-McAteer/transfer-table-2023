@@ -47,6 +47,38 @@ void niceExit(int exit_val) {
 
 #define Z_OR_DIE(val) do { if (val != 0) { printf("%s:%d (%s): got %d when expecting 0, exiting!", __FILE__, __LINE__, __func__, val ); niceExit(1); } } while (0)
 
+// returns the pulse's width in us
+long read_distance_time_sync() {
+  // send trigger
+  Z_OR_DIE(gpioWrite(GPIO_TRIGGER_PIN, HIGH));
+  US_SLEEP(10);
+  Z_OR_DIE(gpioWrite(GPIO_TRIGGER_PIN, LOW));
+
+  struct timeval begin_tv;
+  struct timeval end_tv;
+
+  // Record now_rv until until gpioRead(GPIO_ECHO_PIN) is no longer zero 0 (beginning of signal)
+  while (gpioRead(GPIO_ECHO_PIN) == 0) {
+    gettimeofday(&begin_tv,NULL);
+  }
+  // gpioRead(GPIO_ECHO_PIN) == 1
+
+  while (gpioRead(GPIO_ECHO_PIN) == 1) {
+    gettimeofday(&end_tv,NULL);
+  }
+
+  // begin_tv - end_tv in us is our time distance!
+
+  return end_tv.tv_usec - begin_tv.tv_usec;
+}
+
+double convert_pulse_to_cm(long pulse_us) {
+  // sound moves 34300 cm/s and we have us
+  // divide by 2 b/c it moved to target and back
+  double pulse_s = (double) pulse_us * 0.000001;
+  return (pulse_s * 34300.0) / 2.0;
+}
+
 
 int main(int argc, char** argv) {
   bool exit_requested = false;
@@ -76,16 +108,14 @@ int main(int argc, char** argv) {
   
 
   while (!exit_requested) {
-    MS_SLEEP(250);
+    MS_SLEEP(1000);
     
-    // send trigger
-    Z_OR_DIE(gpioWrite(GPIO_TRIGGER_PIN, HIGH));
-    US_SLEEP(10);
-    Z_OR_DIE(gpioWrite(GPIO_TRIGGER_PIN, LOW));
+    long pulse_time_us = read_distance_time_sync();
+    double distance_cm = convert_pulse_to_cm(pulse_time_us);
 
-    // Wait for pulse back, measure, report time & calculated distance
-
-
+    printf("Pulse width: %ld us\n", pulse_time_us);
+    printf("Distance: %.2f cm\n", distance_cm);
+    printf("\n");
 
   }
 
