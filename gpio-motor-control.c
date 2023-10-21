@@ -164,37 +164,37 @@ void do_sonar_bookkeeping() {
       gettimeofday(&sonar_echo_begin_tv,NULL);
       sonar_reading_echo_pin_pt1 = true;
     }
+    
   }
-  else {
-    if (sonar_reading_echo_pin_pt1) {
-      if (gpioRead(SONAR_ECHO_PIN) == 0) {
-        gettimeofday(&sonar_echo_begin_tv,NULL);
-      }
-      else {
-        sonar_reading_echo_pin_pt1 = false;
-        sonar_reading_echo_pin_pt2 = true;
-      }
+  else if (sonar_reading_echo_pin_pt1) {
+    if (gpioRead(SONAR_ECHO_PIN) == 0) {
+      gettimeofday(&sonar_echo_begin_tv,NULL);
     }
-    if (sonar_reading_echo_pin_pt2) {
-      if (gpioRead(SONAR_ECHO_PIN) == 1) {
-        gettimeofday(&sonar_echo_end_tv,NULL);
-      }
-      else {
-        // Echo ended!
-        sonar_reading_echo_pin_pt2 = false;
-        last_sonar_pulse_us = sonar_echo_end_tv.tv_usec - sonar_echo_begin_tv.tv_usec;
-        position_cm = convert_pulse_to_cm(last_sonar_pulse_us);
+    else {
+      sonar_reading_echo_pin_pt1 = false;
+      sonar_reading_echo_pin_pt2 = true;
+    }
+
+  }
+  else if (sonar_reading_echo_pin_pt2) {
+    if (gpioRead(SONAR_ECHO_PIN) == 1) {
+      gettimeofday(&sonar_echo_end_tv,NULL);
+    }
+    else {
+      // Echo ended!
+      sonar_reading_echo_pin_pt2 = false;
+      last_sonar_pulse_us = sonar_echo_end_tv.tv_usec - sonar_echo_begin_tv.tv_usec;
+      position_cm = convert_pulse_to_cm(last_sonar_pulse_us);
+      
+      double dist_to_begin = position_cm - TABLE_BEGIN_CM;
+      if (dist_to_begin < 15.0) { // Begin applying a speed limiting force
         
-        double dist_to_begin = position_cm - TABLE_BEGIN_CM;
-        if (dist_to_begin < 15.0) { // Begin applying a speed limiting force
-
-        }
-        double dist_to_end = TABLE_END_CM - position_cm;
-        if (dist_to_end < 15.0) { // Begin applying a speed limiting force
-
-        }
-
       }
+      double dist_to_end = TABLE_END_CM - position_cm;
+      if (dist_to_end < 15.0) { // Begin applying a speed limiting force
+        
+      }
+
     }
   }
 }
