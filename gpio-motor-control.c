@@ -239,7 +239,7 @@ void do_sonar_bumps() {
 
 void begin_sonar_read() {
   if (sonar_sending_trigger || sonar_reading_echo_pin_pt1 || sonar_reading_echo_pin_pt2) {
-    printf("Not beginning a sonar read b/c sonar_sending_trigger=%d, sonar_reading_echo_pin_pt1=%d, sonar_reading_echo_pin_pt2=%d.\n", sonar_sending_trigger, sonar_reading_echo_pin_pt1, sonar_reading_echo_pin_pt2);
+    // printf("Not beginning a sonar read b/c sonar_sending_trigger=%d, sonar_reading_echo_pin_pt1=%d, sonar_reading_echo_pin_pt2=%d.\n", sonar_sending_trigger, sonar_reading_echo_pin_pt1, sonar_reading_echo_pin_pt2);
     return;
   }
   gettimeofday(&sonar_trigger_begin_tv,NULL);
