@@ -75,14 +75,14 @@ long table_state = TABLE_STOPPED;
 
 // Forward decs
 
+typedef void (*DirectionedStepFunc)(int delay_us);
+
 void async_read_key_data();
 void enqueue_keypress(__u16 code);
-void step_forward_n(int n);
-void step_backward_n(int n);
-void step_forward_n_eased(int n, int ramp_up_end_n);
-void step_backward_n_eased(int n, int ramp_up_end_n);
+//void step_forward_n(int n);
+//void step_backward_n(int n);
+void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func);
 void begin_sonar_read();
-
 
 // I don't usually use usec for measurement
 #define MS_SLEEP(ms) usleep((useconds_t) (ms * 1000) )
@@ -299,7 +299,7 @@ void step_forward_eased(int delay_us) {
 
 }
 
-void step_forward_n_eased(int n, int ramp_up_end_n) {
+void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 #define EXIT_IF_STOP_REQ() { async_read_key_data(); \
     if (motor_stop_requested) { \
       printf("step_forward_n exiting b/c motor_stop_requested == true\n"); \
@@ -307,8 +307,8 @@ void step_forward_n_eased(int n, int ramp_up_end_n) {
     } }
 
   // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
-  int slowest_us = 600;
-  int fastest_us = 3;
+  int slowest_us = 500;
+  int fastest_us = 4;
   
   // For very short steps, limit top speed & change ramp up bounds.
   if (n < ramp_up_end_n) {
@@ -316,48 +316,55 @@ void step_forward_n_eased(int n, int ramp_up_end_n) {
     fastest_us = 200; // TODO calculate ideal off N + some math
   }
   int ramp_down_begin_n = n - ramp_up_end_n;
-  int slow_fast_us_dist = slowest_us - fastest_us;
+  double slow_fast_us_dist = ((double) slowest_us - (double) fastest_us);
   double half_pi = M_PI / 2.0;
   double wavelength = (M_PI) / ((double) ramp_up_end_n); // formula is actually 2pi/wavelength, but I want to double ramp_up_end_n so instead removed the existing 2.0.
 
   // Ramp up on a sinusoid
   for (int i=0; i<ramp_up_end_n; i+=1) {
     
-    double delay_us_d = fastest_us + (
+    double delay_us_d = ((double) fastest_us) + (
       slow_fast_us_dist * (sin((wavelength * (double) i) + half_pi) + 1.0)
     );
 
-    // printf("[ramp up] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
+    if (i % 10 == 0) {
+      printf("[ramp up] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
+    }
 
     int delay_us = (int) delay_us_d;
     if (delay_us <= 0) {
       delay_us = 1; // fastest possible
     }
-    step_forward_eased(delay_us);
+    step_func(delay_us);
     EXIT_IF_STOP_REQ();
   }
 
   // Constant speed @ fastest_us
   for (int i=ramp_up_end_n; i<ramp_down_begin_n; i+=1) {
-    step_forward_eased(fastest_us);
+    if (i % 10 == 0) {
+      printf("[constant] fastest_us = %d i = %d  \n", fastest_us, i);
+    }
+    step_func(fastest_us);
     EXIT_IF_STOP_REQ();
   }
 
   // Ramp down on a sinusoid
   for (int i=ramp_down_begin_n; i<n; i+=1) {
-    int j = i - ramp_down_begin_n; // j was same domain as original i value
+    int j = i - ramp_down_begin_n; // j has same domain as original i value
 
-    double delay_us_d = fastest_us + (
+    double delay_us_d = ((double) fastest_us) + (
       slow_fast_us_dist * ((-sin((wavelength * (double) j)) + half_pi) + 1.0)
     );
 
-    // printf("[ramp down] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
+    if (i % 10 == 0) {
+      printf("[ramp down] delay_us_d = %.2f i = %d j = %d  \n", delay_us_d, i, j);
+    }
 
     int delay_us = (int) delay_us_d;
     if (delay_us <= 0) {
       delay_us = 1; // fastest possible
     }
-    step_forward_eased(delay_us);
+    step_func(delay_us);
     EXIT_IF_STOP_REQ();
   }
 #undef EXIT_IF_STOP_REQ
@@ -407,72 +414,6 @@ void step_backward_eased(int delay_us) {
   poll_until_us_elapsed(begin_tv, 2 * delay_us);
 
 }
-
-void step_backward_n_eased(int n, int ramp_up_end_n) {
-  #define EXIT_IF_STOP_REQ() { async_read_key_data(); \
-    if (motor_stop_requested) { \
-      printf("step_forward_n exiting b/c motor_stop_requested == true\n"); \
-      return; \
-    } }
-
-  // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
-  int slowest_us = 600;
-  int fastest_us = 3;
-  
-  // For very short steps, limit top speed & change ramp up bounds.
-  if (n < ramp_up_end_n) {
-    ramp_up_end_n = n / 2;
-    fastest_us = 200; // TODO calculate ideal off N + some math
-  }
-  int ramp_down_begin_n = n - ramp_up_end_n;
-  int slow_fast_us_dist = slowest_us - fastest_us;
-  double half_pi = M_PI / 2.0;
-  double wavelength = (M_PI) / ((double) ramp_up_end_n); // formula is actually 2pi/wavelength, but I want to double ramp_up_end_n so instead removed the existing 2.0.
-
-  // Ramp up on a sinusoid
-  for (int i=0; i<ramp_up_end_n; i+=1) {
-    
-    double delay_us_d = fastest_us + (
-      slow_fast_us_dist * (sin((wavelength * (double) i) + half_pi) + 1.0)
-    );
-
-    //printf("[ramp up] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
-
-    int delay_us = (int) delay_us_d;
-    if (delay_us <= 0) {
-      delay_us = 1; // fastest possible
-    }
-    step_backward_eased(delay_us);
-    EXIT_IF_STOP_REQ();
-  }
-
-  // Constant speed @ fastest_us
-  for (int i=ramp_up_end_n; i<ramp_down_begin_n; i+=1) {
-    step_backward_eased(fastest_us);
-    EXIT_IF_STOP_REQ();
-  }
-
-  // Ramp down on a sinusoid
-  for (int i=ramp_down_begin_n; i<n; i+=1) {
-    int j = i - ramp_down_begin_n; // j was same domain as original i value
-
-    double delay_us_d = fastest_us + (
-      slow_fast_us_dist * ((-sin((wavelength * (double) j)) + half_pi) + 1.0)
-    );
-
-    //printf("[ramp down] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
-
-    int delay_us = (int) delay_us_d;
-    if (delay_us <= 0) {
-      delay_us = 1; // fastest possible
-    }
-    step_backward_eased(delay_us);
-    EXIT_IF_STOP_REQ();
-  }
-#undef EXIT_IF_STOP_REQ
-}
-
-
 
 
 void enqueue_keypress(__u16 code) {
@@ -585,7 +526,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_forward_n_eased(num_pm_steps, 3200);
+      step_n_eased(num_pm_steps, 3200, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
   }
@@ -593,7 +534,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_backward_n_eased(num_pm_steps, 3200);
+      step_n_eased(num_pm_steps, 3200, step_backward_eased);
       table_state = TABLE_STOPPED;
     });
   }
