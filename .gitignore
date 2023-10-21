@@ -7,5 +7,6 @@ bin/*
 build
 build/*
 gpio-motor-control
+ultrasonic-sensor-playground
 
 
