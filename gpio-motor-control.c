@@ -36,15 +36,14 @@
 
 #define PREFERRED_CPU 3
 
-//#define MOTOR_ENABLE_PIN 15
-//#define MOTOR_DIRECTION_PIN 13
-//#define MOTOR_STEP_PIN 11
-//#define MOTOR_ENABLE_PIN 3
-//#define MOTOR_DIRECTION_PIN 2
-//#define MOTOR_STEP_PIN 0
 #define MOTOR_ENABLE_PIN 22
 #define MOTOR_DIRECTION_PIN 27
 #define MOTOR_STEP_PIN 17
+
+// 23 is north-most (closest to ground), 24 is south-most pin (closest to USB ports)
+#define SONAR_TRIGGER_PIN 23
+#define SONAR_ECHO_PIN 24
+
 
 // see dip switches, this should match those numbers
 //#define PULSES_PER_REV 400
@@ -254,6 +253,64 @@ void step_backward_n(int n) {
 }
 
 
+void step_backward_eased(int delay_us) {
+  struct timeval begin_tv;
+  gettimeofday(&begin_tv,NULL);
+  
+  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD));
+  
+  // step_once() w/ timing data
+
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, HIGH));
+
+  poll_until_us_elapsed(begin_tv, delay_us);
+  if (motor_stop_requested) {
+    return;
+  }
+
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
+
+  poll_until_us_elapsed(begin_tv, 2 * delay_us);
+
+}
+
+void step_backward_n_eased(int n) {
+  int slowest_delay_us = 30;
+  int fastest_delay_us = 1;
+  
+  for (int i=0; i<n; i+=1) {
+    //double f = (double) i+1 / (double) n; // f goes from 0.0 -> 1.0
+    int delay_us = 999;
+    if (i < n/2) {
+      // begin slow, ease UP to fastest_delay_us
+      double f = (double) (i+1) / (double) (n/2); // f goes from 0.0 -> 1.0
+      double inv_f = 1.0 - f;
+      if (inv_f < 0.0) { inv_f = 0.0; }
+      delay_us = (int) ( (f * (double) fastest_delay_us) + (inv_f * (double) slowest_delay_us) );
+    }
+    else {
+      // begin slow, ease DOWN to slowest_delay_us
+      double f = (double) ((i-(n/2))+1) / (double) n; // f goes from 0.0 -> 1.0
+      double inv_f = 1.0 - f;
+      if (inv_f < 0.0) { inv_f = 0.0; }
+      delay_us = (int) ( (f * (double) slowest_delay_us) + (inv_f * (double) fastest_delay_us) );
+    }
+
+    // printf("n=%d i=%d delay_us=%d\n", n, i, delay_us);
+
+    step_backward_eased(delay_us);
+
+    async_read_key_data();
+    
+    if (motor_stop_requested) {
+      printf("step_forward_n exiting b/c motor_stop_requested == true\n");
+      return;
+    }
+  }
+}
+
+
+
 
 void enqueue_keypress(__u16 code) {
   if (keypress_code_i < NUM_KEYPRESS_CODES) {
@@ -267,7 +324,7 @@ void enqueue_keypress(__u16 code) {
 }
 
 void immediate_keycode_perform(__u16 code) {
-  if (code == 1 || code == 15) {
+  if (code == 1 || code == 15 || code == KEY_ENTER) {
     motor_stop_requested = true;
     printf("Motor stop requested! (code=%d)\n", code);
   }
@@ -359,14 +416,13 @@ void perform_keypress(__u16 code) {
   else if (code == KEY_KPPLUS) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
-      //step_forward_n(num_pm_steps);
       step_forward_n_eased(num_pm_steps);
     });
   }
   else if (code == KEY_KPMINUS) {
     printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
-      step_backward_n(num_pm_steps);
+      step_backward_n_eased(num_pm_steps);
     });
   }
   else if (code == 98) { // '/' on keypad
@@ -381,7 +437,7 @@ void perform_keypress(__u16 code) {
       num_pm_steps = PULSES_PER_REV * 16;
     }
   }
-  else if (code == 1 /* esc */ || code == 15 /* tab */) {
+  else if (code == 1 /* esc */ || code == 15 /* tab */ || code == KEY_ENTER) {
     motor_stop_requested = true;
     printf("Motor stop requested! (code=%d)\n", code);
   }
@@ -431,14 +487,17 @@ int main(int argc, char** argv) {
   gpioSetSignalFunc(SIGINT, motorControlSignalHandler);
   gpioSetSignalFunc(SIGTERM, motorControlSignalHandler);
 
+  // Initialize GPIOs
+  Z_OR_DIE(gpioSetMode(MOTOR_ENABLE_PIN,     PI_OUTPUT));
+  Z_OR_DIE(gpioSetMode(MOTOR_DIRECTION_PIN,  PI_OUTPUT));
+  Z_OR_DIE(gpioSetMode(MOTOR_STEP_PIN,       PI_OUTPUT));
+  Z_OR_DIE(gpioSetMode(SONAR_TRIGGER_PIN,    PI_OUTPUT));
+  Z_OR_DIE(gpioSetMode(SONAR_ECHO_PIN,       PI_INPUT));
 
-  Z_OR_DIE(gpioSetMode(MOTOR_ENABLE_PIN,    PI_OUTPUT));
-  Z_OR_DIE(gpioSetMode(MOTOR_DIRECTION_PIN, PI_OUTPUT));
-  Z_OR_DIE(gpioSetMode(MOTOR_STEP_PIN,      PI_OUTPUT));
-
-  Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL));
+  Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL));
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN,  LOW));
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN,       LOW));
+  Z_OR_DIE(gpioWrite(SONAR_TRIGGER_PIN,    LOW));
 
   for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
     char input_dev_file[255] = { 0 };
@@ -459,9 +518,10 @@ int main(int argc, char** argv) {
 
   printf("Exiting cleanly...\n");
   
-  Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL));
-  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, LOW));
-  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
+  Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL));
+  Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN,  LOW));
+  Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN,       LOW));
+  Z_OR_DIE(gpioWrite(SONAR_TRIGGER_PIN,    LOW));
 
   gpioTerminate();
   return 0;
