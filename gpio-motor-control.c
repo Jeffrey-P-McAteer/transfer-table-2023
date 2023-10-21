@@ -330,7 +330,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     /*if (i % 10 == 0) {
       printf("[ramp up] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
       printf("[ramp up fn] %.2f = %d + (%.3f * (sin((%.3f * %d) + (pi/2) ) + 1.0)   \n", delay_us_d, fastest_us, slow_fast_us_dist, wavelength, i );
-    }/**/
+    }// */
 
     int delay_us = (int) delay_us_d;
     if (delay_us <= 0) {
@@ -344,7 +344,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
   for (int i=ramp_up_end_n; i<ramp_down_begin_n; i+=1) {
     /*if (i % 10 == 0) {
       printf("[constant] fastest_us = %d i = %d  \n", fastest_us, i);
-    }/**/
+    }// */
     step_func(fastest_us);
     EXIT_IF_STOP_REQ();
   }
@@ -360,7 +360,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     /*if (i % 10 == 0) {
       printf("[ramp down] delay_us_d = %.2f i = %d j = %d  \n", delay_us_d, i, j);
       printf("[ramp down fn] %.2f = %d + (%.3f * (sin((%.3f * %d) + (pi/2) ) + 1.0)   \n", delay_us_d, fastest_us, slow_fast_us_dist, wavelength, j );
-    }/**/
+    }// */
 
     int delay_us = (int) delay_us_d;
     if (delay_us <= 0) {
@@ -528,7 +528,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_n_eased(num_pm_steps, 3200, step_forward_eased);
+      step_n_eased(num_pm_steps, 5200, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
   }
@@ -536,7 +536,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_n_eased(num_pm_steps, 3200, step_backward_eased);
+      step_n_eased(num_pm_steps, 5200, step_backward_eased);
       table_state = TABLE_STOPPED;
     });
   }
