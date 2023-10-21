@@ -313,7 +313,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
   // For very short steps, limit top speed & change ramp up bounds.
   if (n < ramp_up_end_n) {
     ramp_up_end_n = n / 2;
-    fastest_us = 200; // TODO calculate ideal off N + some math
+    fastest_us = 100; // TODO calculate ideal off N + some math
   }
   int ramp_down_begin_n = n - ramp_up_end_n;
   double slow_fast_us_dist = ((double) slowest_us - (double) fastest_us);
@@ -327,9 +327,10 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
       slow_fast_us_dist * (sin((wavelength * (double) i) + half_pi) + 1.0)
     );
 
-    if (i % 10 == 0) {
+    /*if (i % 10 == 0) {
       printf("[ramp up] delay_us_d = %.2f i = %d  \n", delay_us_d, i);
-    }
+      printf("[ramp up fn] %.2f = %d + (%.3f * (sin((%.3f * %d) + (pi/2) ) + 1.0)   \n", delay_us_d, fastest_us, slow_fast_us_dist, wavelength, i );
+    }/**/
 
     int delay_us = (int) delay_us_d;
     if (delay_us <= 0) {
@@ -341,24 +342,25 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 
   // Constant speed @ fastest_us
   for (int i=ramp_up_end_n; i<ramp_down_begin_n; i+=1) {
-    if (i % 10 == 0) {
+    /*if (i % 10 == 0) {
       printf("[constant] fastest_us = %d i = %d  \n", fastest_us, i);
-    }
+    }/**/
     step_func(fastest_us);
     EXIT_IF_STOP_REQ();
   }
 
   // Ramp down on a sinusoid
   for (int i=ramp_down_begin_n; i<n; i+=1) {
-    int j = i - ramp_down_begin_n; // j has same domain as original i value
+    int j = n - i; // j goes in reverse of i, use same fn for delay amounts
 
     double delay_us_d = ((double) fastest_us) + (
-      slow_fast_us_dist * ((-sin((wavelength * (double) j)) + half_pi) + 1.0)
+      slow_fast_us_dist * (sin((wavelength * (double) j) + half_pi) + 1.0)
     );
 
-    if (i % 10 == 0) {
+    /*if (i % 10 == 0) {
       printf("[ramp down] delay_us_d = %.2f i = %d j = %d  \n", delay_us_d, i, j);
-    }
+      printf("[ramp down fn] %.2f = %d + (%.3f * (sin((%.3f * %d) + (pi/2) ) + 1.0)   \n", delay_us_d, fastest_us, slow_fast_us_dist, wavelength, j );
+    }/**/
 
     int delay_us = (int) delay_us_d;
     if (delay_us <= 0) {
