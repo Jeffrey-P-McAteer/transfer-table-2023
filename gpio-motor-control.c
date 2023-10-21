@@ -496,7 +496,6 @@ void enqueue_keypress(__u16 code) {
 void immediate_keycode_perform(__u16 code) {
   if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
     motor_stop_requested = true;
-    sonar_bump_may_occur = false;
     printf("Motor stop requested! (code=%d)\n", code);
   }
 }
