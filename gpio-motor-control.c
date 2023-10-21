@@ -307,8 +307,8 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     } }
 
   // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
-  int slowest_us = 500;
-  int fastest_us = 4;
+  int slowest_us = 400;
+  int fastest_us = 8;
   
   // For very short steps, limit top speed & change ramp up bounds.
   if (n < ramp_up_end_n) {
@@ -643,7 +643,7 @@ int main(int argc, char** argv) {
 
     if (loop_i % 100 == 0) { // Approx 10x a second, begin reads to update table global position data
       begin_sonar_read();
-      if (loop_i % 2000 == 0) {
+      if (loop_i % 4000 == 0) {
         printf("last position_cm = %.3f\n", position_cm);
       }
     }
