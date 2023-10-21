@@ -65,9 +65,22 @@
 #define MOTOR_DIRECTION_FORWARD 1
 #define MOTOR_DIRECTION_BACKWARD 0
 
+// Poor man's enum
+#define TABLE_MOVING_FORWARDS 2
+#define TABLE_MOVING_BACKWARDS 1
+#define TABLE_STOPPED 0
+
+long table_state = TABLE_STOPPED;
+
 // Forward decs
 
 void async_read_key_data();
+void enqueue_keypress(__u16 code);
+void step_forward_n(int n);
+void step_backward_n(int n);
+void step_forward_n_eased(int n);
+void step_backward_n_eased(int n);
+void begin_sonar_read();
 
 
 // I don't usually use usec for measurement
@@ -80,13 +93,21 @@ void niceExit(int exit_val) {
 
 #define Z_OR_DIE(val) do { if (val != 0) { printf("%s:%d (%s): got %d when expecting 0, exiting!", __FILE__, __LINE__, __func__, val ); niceExit(1); } } while (0)
 
-static volatile bool exit_requested = false;
+#define WITH_STEPPER_ENABLED(do_stuff) do { \
+    Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_ENABLE_SIGNAL)); \
+    do_stuff; \
+    Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL)); \
+    table_state = TABLE_STOPPED; \
+} while(0)
 
-static volatile bool motor_stop_requested = false;
+
+volatile bool exit_requested = false;
+
+volatile bool motor_stop_requested = false;
 
 // when + or - pressed, step forward/backward this number of steps.
 // When / pressed, divide by 2. When * pressed, multiply by 2.
-static volatile long num_pm_steps = PULSES_PER_REV;
+volatile long num_pm_steps = PULSES_PER_REV;
 
 // We record the .code from struct input_event,
 // incrementing keypress_code_i when current .code
@@ -110,13 +131,20 @@ struct timeval sonar_echo_begin_tv;
 bool sonar_reading_echo_pin_pt2 = false;
 struct timeval sonar_echo_end_tv;
 
+bool sonar_bump_in_progress = false;
+bool sonar_bump_may_occur = true;
+
 // Update these with measured min/max values off sensor
-#define TABLE_BEGIN_CM 10.5
-#define TABLE_END_CM 68.5
+//#define TABLE_BEGIN_CM 10.5
+//#define TABLE_END_CM 68.5
+
+// Super safe values to test safety
+#define TABLE_BEGIN_CM 23.0
+#define TABLE_END_CM 52.0
 
 // (incorrect) Measured position offset from TABLE_BEGIN_CM (at one end of the table) to TABLE_END_CM
 long last_sonar_pulse_us = 0;
-double position_cm = 15.0;
+double position_cm = (TABLE_END_CM - TABLE_BEGIN_CM) / 2.0; // assume center if no other data
 
 double convert_pulse_to_cm(long pulse_us) {
   // sound moves 34300 cm/s and we have us
@@ -158,13 +186,62 @@ void do_sonar_bookkeeping() {
         sonar_reading_echo_pin_pt2 = false;
         last_sonar_pulse_us = sonar_echo_end_tv.tv_usec - sonar_echo_begin_tv.tv_usec;
         position_cm = convert_pulse_to_cm(last_sonar_pulse_us);
+        
+        // We _usually_ don't do anything here; the rest of the program is probably currently
+        // trying to move the motor. We do however check for safety, and ABORT whatever motor controls are happening ASAP.
+        if (!sonar_bump_in_progress) {
+          if (position_cm <= TABLE_BEGIN_CM && table_state == TABLE_MOVING_FORWARDS) {
+            motor_stop_requested = true;
+            printf("TABLE HAS HIT BEGINNING! Stopping motor!\n");
+          }
+          if (position_cm >= TABLE_END_CM && table_state == TABLE_MOVING_BACKWARDS) {
+            motor_stop_requested = true;
+            printf("TABLE HAS HIT END! Stopping motor!\n");
+          }
+        }
+
       }
     }
   }
 }
 
+// SAFETY: do not call within a WITH_STEPPER_ENABLED block!
+void do_sonar_bumps() {
+  if (!sonar_bump_may_occur) {
+    return; // sonar_bump_may_occur is set when the user hits an emergency key
+  }
+  if (table_state == TABLE_STOPPED) {
+    sonar_bump_in_progress = true;
+    if (position_cm <= TABLE_BEGIN_CM) {
+      // Bump forwards 1 rotation
+      begin_sonar_read();
+      printf("Table is still near beginning (%.2f cm), moving forward...\n", position_cm);
+      WITH_STEPPER_ENABLED({
+        table_state = TABLE_MOVING_BACKWARDS;
+        step_backward_n_eased(1800);
+        table_state = TABLE_STOPPED;
+      });
+    }
+    else if (position_cm >= TABLE_END_CM) {
+      // Bump forwards 1 rotation
+      begin_sonar_read();
+      printf("Table is still near end (%.2f cm), moving backward...\n", position_cm);
+      WITH_STEPPER_ENABLED({
+        table_state = TABLE_MOVING_FORWARDS;
+        step_forward_n_eased(1800);
+        table_state = TABLE_STOPPED;
+      });
+    }
+  }
+  sonar_bump_in_progress = false;
+}
+
 
 void begin_sonar_read() {
+  if (sonar_sending_trigger || sonar_reading_echo_pin_pt1 || sonar_reading_echo_pin_pt2) {
+    printf("Not beginning a sonar read b/c sonar_sending_trigger=%d, sonar_reading_echo_pin_pt1=%d, sonar_reading_echo_pin_pt2=%d.\n", sonar_sending_trigger, sonar_reading_echo_pin_pt1, sonar_reading_echo_pin_pt2);
+    return;
+  }
   gettimeofday(&sonar_trigger_begin_tv,NULL);
   gpioWrite(SONAR_TRIGGER_PIN, HIGH);
   sonar_sending_trigger = true;
@@ -178,12 +255,6 @@ void motorControlSignalHandler(int unused) {
   printf("Caught signal %d!\n", unused);
   exit_requested = true;
 }
-
-#define WITH_STEPPER_ENABLED(do_stuff) do { \
-    Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_ENABLE_SIGNAL)); \
-    do_stuff; \
-    Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN, MOTOR_DISABLE_SIGNAL)); \
-} while(0)
 
 bool file_exists(char *filename) {
   struct stat buffer;   
@@ -231,8 +302,6 @@ void step_forward() {
   
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD));
   
-  // poll_until_us_elapsed(begin_tv, DELAY_US);
-
   step_once();
 }
 
@@ -400,6 +469,7 @@ void enqueue_keypress(__u16 code) {
 void immediate_keycode_perform(__u16 code) {
   if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
     motor_stop_requested = true;
+    sonar_bump_may_occur = false;
     printf("Motor stop requested! (code=%d)\n", code);
   }
 }
@@ -490,13 +560,17 @@ void perform_keypress(__u16 code) {
   else if (code == KEY_KPPLUS) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
+      table_state = TABLE_MOVING_FORWARDS;
       step_forward_n_eased(num_pm_steps);
+      table_state = TABLE_STOPPED;
     });
   }
   else if (code == KEY_KPMINUS) {
     printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", num_pm_steps);
     WITH_STEPPER_ENABLED({
+      table_state = TABLE_MOVING_BACKWARDS;
       step_backward_n_eased(num_pm_steps);
+      table_state = TABLE_STOPPED;
     });
   }
   else if (code == 98) { // '/' on keypad
@@ -600,6 +674,7 @@ int main(int argc, char** argv) {
     }
     do_sonar_bookkeeping();
     motor_stop_requested = false;
+    do_sonar_bumps();
     loop_i += 1;
   }
 
