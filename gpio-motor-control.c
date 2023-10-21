@@ -101,6 +101,78 @@ int keypress_code_i = 0;
 #define NUM_KEYBOARD_FDS 24
 int keyboard_dev_fds[NUM_KEYBOARD_FDS];
 
+// Used to determine when a low signal should be sent
+bool sonar_sending_trigger = false;
+struct timeval sonar_trigger_begin_tv;
+
+bool sonar_reading_echo_pin_pt1 = false;
+struct timeval sonar_echo_begin_tv;
+bool sonar_reading_echo_pin_pt2 = false;
+struct timeval sonar_echo_end_tv;
+
+#define TABLE_BEGIN_CM 10.5
+#define TABLE_END_CM 68.5
+
+// (incorrect) Measured position offset from TABLE_BEGIN_CM (at one end of the table) to TABLE_END_CM
+long last_sonar_pulse_us = 0;
+double position_cm = 15.0;
+
+double convert_pulse_to_cm(long pulse_us) {
+  // sound moves 34300 cm/s and we have us
+  // divide by 2 b/c it moved to target and back
+  double pulse_s = (double) pulse_us * 0.000001;
+  return (pulse_s * 34300.0) / 2.0;
+}
+
+// Called everywhere to update position_cm
+void do_sonar_bookkeeping() {
+  struct timeval now_tv;
+  if (sonar_sending_trigger) {
+    // Should we pull low b/c 10us have elapsed?
+    gettimeofday(&now_tv,NULL);
+    long elapsed_trigger_pulse_us = now_tv.tv_usec - sonar_trigger_begin_tv.tv_usec;
+    if (elapsed_trigger_pulse_us >= 10) {
+      gpioWrite(SONAR_TRIGGER_PIN, LOW);
+      sonar_sending_trigger = false;
+      gettimeofday(&sonar_echo_begin_tv,NULL);
+      sonar_reading_echo_pin_pt1 = true;
+    }
+  }
+  else {
+    if (sonar_reading_echo_pin_pt1) {
+      if (gpioRead(SONAR_ECHO_PIN) == 0) {
+        gettimeofday(&sonar_echo_begin_tv,NULL);
+      }
+      else {
+        sonar_reading_echo_pin_pt1 = false;
+        sonar_reading_echo_pin_pt2 = true;
+      }
+    }
+    if (sonar_reading_echo_pin_pt2) {
+      if (gpioRead(SONAR_ECHO_PIN) == 1) {
+        gettimeofday(&sonar_echo_end_tv,NULL);
+      }
+      else {
+        // Echo ended!
+        sonar_reading_echo_pin_pt2 = false;
+        last_sonar_pulse_us = sonar_echo_end_tv.tv_usec - sonar_echo_begin_tv.tv_usec;
+        position_cm = convert_pulse_to_cm(last_sonar_pulse_us);
+      }
+    }
+  }
+}
+
+
+void begin_sonar_read() {
+  gettimeofday(&sonar_trigger_begin_tv,NULL);
+  gpioWrite(SONAR_TRIGGER_PIN, HIGH);
+  sonar_sending_trigger = true;
+  sonar_reading_echo_pin_pt1 = false;
+  sonar_reading_echo_pin_pt2 = false;
+}
+
+
+
 void motorControlSignalHandler(int unused) {
   printf("Caught signal %d!\n", unused);
   exit_requested = true;
@@ -131,6 +203,7 @@ void poll_until_us_elapsed(struct timeval begin_tv, long num_us) {
     gettimeofday(&now_tv,NULL);
     timersub(&now_tv, &begin_tv, &elapsed_tv);
     async_read_key_data();
+    do_sonar_bookkeeping();
   }
   while (elapsed_tv.tv_usec < num_us && elapsed_tv.tv_sec == 0);
 }
@@ -324,7 +397,7 @@ void enqueue_keypress(__u16 code) {
 }
 
 void immediate_keycode_perform(__u16 code) {
-  if (code == 1 || code == 15 || code == KEY_ENTER) {
+  if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
     motor_stop_requested = true;
     printf("Motor stop requested! (code=%d)\n", code);
   }
@@ -437,7 +510,7 @@ void perform_keypress(__u16 code) {
       num_pm_steps = PULSES_PER_REV * 16;
     }
   }
-  else if (code == 1 /* esc */ || code == 15 /* tab */ || code == KEY_ENTER) {
+  else if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
     motor_stop_requested = true;
     printf("Motor stop requested! (code=%d)\n", code);
   }
@@ -509,11 +582,24 @@ int main(int argc, char** argv) {
     }
   }
 
+  long loop_i = 0;
+  struct timeval loop_now_tv;
   while (!exit_requested) {
-    MS_SLEEP(1);
+
+    gettimeofday(&loop_now_tv,NULL);
+    poll_until_us_elapsed(loop_now_tv, 1000); // 1ms delay
+
     async_read_key_data();
     perform_enqueued_keypresses();
+    if (loop_i % 250 == 0) { // Approx 4x a second, begin reads to update table global position data
+      begin_sonar_read();
+      if (loop_i % 1000 == 0) {
+        printf("last position_cm = %.3f\n", position_cm);
+      }
+    }
+    do_sonar_bookkeeping();
     motor_stop_requested = false;
+    loop_i += 1;
   }
 
   printf("Exiting cleanly...\n");
