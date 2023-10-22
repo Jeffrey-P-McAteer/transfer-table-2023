@@ -137,4 +137,32 @@ make gpio-motor-control
 sudo ./gpio-motor-control
 
 
+
+# Reduce writes to sdd by editing journald.conf and setting:
+vim /etc/systemd/journald.conf <<EOF
+Storage=volatile
+
+EOF
+
+
+```
+
+# USB used for wear-friendly persistent memory
+
+```
+sudo fdisk /dev/sdf <<EOF
+g
+n
+w
+EOF
+
+sudo mkfs.ext4 /dev/sdf1
+
+blkid /dev/sdf1
+
+sudo vim /etc/fstab <<EOF
+
+
+EOF
+
 ```

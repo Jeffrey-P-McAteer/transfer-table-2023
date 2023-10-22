@@ -73,9 +73,55 @@
 
 long table_state = TABLE_STOPPED;
 
-// Forward decs
 
 typedef void (*DirectionedStepFunc)(int delay_us);
+
+// The pmem struct holds persistent-memory data, and is read/written off of a file
+// on startup + modifications.
+typedef struct Pmem {
+  int position;
+  long num_pm_steps;
+} __attribute__((packed)) Pmem;
+
+Pmem pmem; // and this is the global variable that holds persistent memory
+long last_written_pmem_hash = -1;
+
+
+long pmem_hash(Pmem* p) {
+  return p->position + (p->num_pm_steps * 128);
+}
+
+void read_pmem_from_file() {
+  int fd = open("/mnt/usb1/pmem.bin", O_RDONLY);
+  if (fd < 0) {
+    printf("Error opening pmem file: %d %s\n", errno, strerror(errno));
+    pmem.position = 0;
+    pmem.num_pm_steps = PULSES_PER_REV;
+  }
+  else {
+    read(fd, &pmem, sizeof(pmem));
+    close(fd);
+  }
+  last_written_pmem_hash = pmem_hash(&pmem);
+  printf("Read pmem:\n");
+  printf("       .position = %d\n", pmem.position);
+  printf("       .num_pm_steps = %ld\n", pmem.num_pm_steps);
+  printf("\n");
+}
+
+void write_pmem_to_file_iff_diff() {
+  long hash = pmem_hash(&pmem);
+  if (hash != last_written_pmem_hash) {
+    int fd = open("/mnt/usb1/pmem.bin", O_RDWR | O_CREAT);
+    if (fd < 0) {
+      printf("Error opening pmem file: %d %s\n", errno, strerror(errno));
+      return;
+    }
+    write(fd, &pmem, sizeof(pmem));
+    close(fd);
+    last_written_pmem_hash = pmem_hash(&pmem);
+  }
+}
 
 void async_read_key_data();
 void enqueue_keypress(__u16 code);
@@ -83,6 +129,8 @@ void enqueue_keypress(__u16 code);
 //void step_backward_n(int n);
 void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func);
 void begin_sonar_read();
+void step_forward_eased(int delay_us);
+void step_backward_eased(int delay_us);
 
 // I don't usually use usec for measurement
 #define MS_SLEEP(ms) usleep((useconds_t) (ms * 1000) )
@@ -106,9 +154,62 @@ volatile bool exit_requested = false;
 
 volatile bool motor_stop_requested = false;
 
-// when + or - pressed, step forward/backward this number of steps.
-// When / pressed, divide by 2. When * pressed, multiply by 2.
-volatile long num_pm_steps = PULSES_PER_REV;
+
+
+// Table Position Data (hard-coded)
+
+#define NUM_POSITIONS 12
+typedef struct PosDat {
+  long steps_from_0;
+  double cm_from_0_expected;
+
+} PosDat;
+PosDat position_data[NUM_POSITIONS] = {
+  {0,   0.0},
+  {1,   5.0},
+  {2,  10.0},
+  {3,  15.0},
+  {4,  20.0},
+  {5,  25.0},
+  {6,  30.0},
+  {7,  35.0},
+  {8,  40.0},
+  {9,  45.0},
+  {10, 45.0},
+  {11, 45.0},
+};
+
+void move_to_position(int pos_num) {
+  printf("Moving to position %d...\n", pos_num);
+  if (pmem.position == pos_num) {
+    printf("Already at %d!\n", pmem.position);
+    return; // we're there!
+  }
+  int pos_delta = pmem.position - pos_num;
+
+  printf("Moving %d steps from %d!\n", pos_delta, pmem.position);
+  
+
+  // TODO real motion
+  WITH_STEPPER_ENABLED({
+    table_state = TABLE_MOVING_FORWARDS;
+    step_n_eased(400, 5200, step_forward_eased);
+    table_state = TABLE_MOVING_BACKWARDS;
+    step_n_eased(400, 5200, step_backward_eased);
+    table_state = TABLE_STOPPED;
+  });
+
+  // TODO real location
+  pmem.position = pos_num;;
+
+}
+
+
+
+
+
+
+
 
 // We record the .code from struct input_event,
 // incrementing keypress_code_i when current .code
@@ -144,6 +245,12 @@ struct timeval sonar_echo_end_tv;
 long last_sonar_pulse_us = 0;
 double position_cm = (TABLE_END_CM - TABLE_BEGIN_CM) / 2.0; // assume center if no other data
 
+// We record here & write averages to position_cm; trade-off a little delay (.5s) for higher accuracy.
+#define NUM_POSITION_CM_HIST 4
+double position_cm_hist[NUM_POSITION_CM_HIST];
+int position_cm_hist_i = 0;
+
+
 double convert_pulse_to_cm(long pulse_us) {
   // sound moves 34300 cm/s and we have us
   // divide by 2 b/c it moved to target and back
@@ -164,7 +271,7 @@ void do_sonar_bookkeeping() {
       gettimeofday(&sonar_echo_begin_tv,NULL);
       sonar_reading_echo_pin_pt1 = true;
     }
-    
+
   }
   else if (sonar_reading_echo_pin_pt1) {
     if (gpioRead(SONAR_ECHO_PIN) == 0) {
@@ -184,15 +291,28 @@ void do_sonar_bookkeeping() {
       // Echo ended!
       sonar_reading_echo_pin_pt2 = false;
       last_sonar_pulse_us = sonar_echo_end_tv.tv_usec - sonar_echo_begin_tv.tv_usec;
-      position_cm = convert_pulse_to_cm(last_sonar_pulse_us);
+      
+      if (position_cm_hist_i >= NUM_POSITION_CM_HIST) {
+        position_cm_hist_i = 0;
+      }
+      position_cm_hist[position_cm_hist_i] = convert_pulse_to_cm(last_sonar_pulse_us);
+      position_cm_hist_i += 1;
+
+      // Calc average
+      position_cm = 0.0;
+      for (int i=0; i<NUM_POSITION_CM_HIST; i+=1) {
+        position_cm += position_cm_hist[i];
+      }
+      position_cm /= (double) NUM_POSITION_CM_HIST;
+
       
       double dist_to_begin = position_cm - TABLE_BEGIN_CM;
       if (dist_to_begin < 15.0) { // Begin applying a speed limiting force
-        
+
       }
       double dist_to_end = TABLE_END_CM - position_cm;
       if (dist_to_end < 15.0) { // Begin applying a speed limiting force
-        
+
       }
 
     }
@@ -443,6 +563,7 @@ void async_read_key_data() {
       ssize_t num_bytes_read = read(keyboard_dev_fds[i], &ev, sizeof(ev));
       if (num_bytes_read == -1 && errno != 11 /* 11 means data not here, poll again */) {
         printf("Keyboard read error: %d %s\n", errno, strerror(errno));
+        close(keyboard_dev_fds[i]);
         keyboard_dev_fds[i] = -1;
         continue;
       }
@@ -495,61 +616,71 @@ void perform_keypress(__u16 code) {
   
   // Now handle key presses
   if (code == KEY_KP0) {
-    printf("Got KEY_KP0!\n");
+    //printf("Got KEY_KP0!\n");
+    move_to_position(0);
   }
   else if (code == KEY_KP1) {
-    printf("Got KEY_KP1!\n");
+    //printf("Got KEY_KP1!\n");
+    move_to_position(1);
   }
   else if (code == KEY_KP2) {
-    printf("Got KEY_KP2!\n");
+    //printf("Got KEY_KP2!\n");
+    move_to_position(2);
   }
   else if (code == KEY_KP3) {
-    printf("Got KEY_KP3!\n");
+    //printf("Got KEY_KP3!\n");
+    move_to_position(3);
   }
   else if (code == KEY_KP4) {
-    printf("Got KEY_KP4!\n");
+    //printf("Got KEY_KP4!\n");
+    move_to_position(4);
   }
   else if (code == KEY_KP5) {
-    printf("Got KEY_KP5!\n");
+    //printf("Got KEY_KP5!\n");
+    move_to_position(5);
   }
   else if (code == KEY_KP6) {
-    printf("Got KEY_KP6!\n");
+    //printf("Got KEY_KP6!\n");
+    move_to_position(6);
   }
   else if (code == KEY_KP7) {
-    printf("Got KEY_KP7!\n");
+    //printf("Got KEY_KP7!\n");
+    move_to_position(7);
   }
   else if (code == KEY_KP8) {
-    printf("Got KEY_KP8!\n");
+    //printf("Got KEY_KP8!\n");
+    move_to_position(8);
   }
   else if (code == KEY_KP9) {
-    printf("Got KEY_KP9!\n");
+    //printf("Got KEY_KP9!\n");
+    move_to_position(9);
   }
   else if (code == KEY_KPPLUS) {
-    printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", num_pm_steps);
+    printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_n_eased(num_pm_steps, 5200, step_forward_eased);
+      step_n_eased(pmem.num_pm_steps, 5200, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
   }
   else if (code == KEY_KPMINUS) {
-    printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", num_pm_steps);
+    printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_n_eased(num_pm_steps, 5200, step_backward_eased);
+      step_n_eased(pmem.num_pm_steps, 5200, step_backward_eased);
       table_state = TABLE_STOPPED;
     });
   }
   else if (code == 98) { // '/' on keypad
-    num_pm_steps /= 2;
-    if (num_pm_steps < 2) {
-      num_pm_steps = 2;
+    pmem.num_pm_steps /= 2;
+    if (pmem.num_pm_steps < 2) {
+      pmem.num_pm_steps = 2;
     }
   }
   else if (code == 55) { // '*' on keypad
-    num_pm_steps *= 2;
-    if (num_pm_steps > PULSES_PER_REV * 16) { // allow up to 16 revs
-      num_pm_steps = PULSES_PER_REV * 16;
+    pmem.num_pm_steps *= 2;
+    if (pmem.num_pm_steps > PULSES_PER_REV * 16) { // allow up to 16 revs
+      pmem.num_pm_steps = PULSES_PER_REV * 16;
     }
   }
   else if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
@@ -630,8 +761,21 @@ int main(int argc, char** argv) {
 
   open_input_event_fds();
 
+  read_pmem_from_file();
+
   long loop_i = 0;
   struct timeval loop_now_tv;
+
+  // We also measure the initial table distance for 4 seconds & use that to assign pmem.position
+  // on the assumption the table may have moved while powered off.
+  begin_sonar_read();
+  gettimeofday(&loop_now_tv,NULL);
+  poll_until_us_elapsed(loop_now_tv, 4000 * 1000); /* 4,000ms == 4s */
+
+  printf("TODO assign position_cm!\n");
+  // position_cm;
+
+
   while (!exit_requested) {
 
     gettimeofday(&loop_now_tv,NULL);
@@ -650,8 +794,11 @@ int main(int argc, char** argv) {
     if (loop_i % 2000 == 0) { // Approx every 2s, open new keyboards.
       open_input_event_fds();
     }
+    if (loop_i % 6000 == 250) {
+      write_pmem_to_file_iff_diff();
+    }
 
-    do_sonar_bookkeeping();
+    do_sonar_bookkeeping(); // this is unecessary but why not? Just for fun, make it easier to guarantee the state machine never stops.
 
     motor_stop_requested = false;
     loop_i += 1;

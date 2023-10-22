@@ -8,5 +8,7 @@ build
 build/*
 gpio-motor-control
 ultrasonic-sensor-playground
+pmem.bin
+
 
 
