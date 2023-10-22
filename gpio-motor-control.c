@@ -166,17 +166,17 @@ typedef struct PosDat {
 } PosDat;
 PosDat position_data[NUM_POSITIONS] = {
   {0,   0.0},
-  {1,   5.0},
-  {2,  10.0},
-  {3,  15.0},
-  {4,  20.0},
-  {5,  25.0},
-  {6,  30.0},
-  {7,  35.0},
-  {8,  40.0},
-  {9,  45.0},
-  {10, 45.0},
-  {11, 45.0},
+  {1 * 3200,   5.0},
+  {2 * 3200,  10.0},
+  {3 * 3200,  15.0},
+  {4 * 3200,  20.0},
+  {5 * 3200,  25.0},
+  {6 * 3200,  30.0},
+  {7 * 3200,  35.0},
+  {8 * 3200,  40.0},
+  {9 * 3200,  45.0},
+  {10 * 3200, 45.0},
+  {11 * 3200, 45.0},
 };
 
 void move_to_position(int pos_num) {
@@ -188,18 +188,26 @@ void move_to_position(int pos_num) {
   int pos_delta = pmem.position - pos_num;
 
   printf("Moving %d steps from %d!\n", pos_delta, pmem.position);
+
+  long num_steps_to_move = position_data[pmem.position].steps_from_0 - position_data[pos_num].steps_from_0;
+
+  printf("Sending abs(%ld) steps to motor in direction of magnitude\n", num_steps_to_move);
+
+  if (num_steps_to_move < 0) {
+    WITH_STEPPER_ENABLED({
+      table_state = TABLE_MOVING_BACKWARDS;
+      step_n_eased(llabs(num_steps_to_move), 5200, step_backward_eased);
+      table_state = TABLE_STOPPED;
+    });
+  }
+  else {
+    WITH_STEPPER_ENABLED({
+      table_state = TABLE_MOVING_FORWARDS;
+      step_n_eased(llabs(num_steps_to_move), 5200, step_forward_eased);
+      table_state = TABLE_STOPPED;
+    });
+  }
   
-
-  // TODO real motion
-  WITH_STEPPER_ENABLED({
-    table_state = TABLE_MOVING_FORWARDS;
-    step_n_eased(400, 5200, step_forward_eased);
-    table_state = TABLE_MOVING_BACKWARDS;
-    step_n_eased(400, 5200, step_backward_eased);
-    table_state = TABLE_STOPPED;
-  });
-
-  // TODO real location
   pmem.position = pos_num;;
 
 }
