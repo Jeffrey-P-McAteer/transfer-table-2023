@@ -181,7 +181,12 @@ PosDat position_data[NUM_POSITIONS] = {
 };
 
 void move_to_position(int pos_num) {
-  printf("Moving to position %d...\n", pos_num);
+  printf("Moving to position %d (index %d)...\n", pos_num, pos_num-1);
+  pos_num = pos_num-1; // Go from human number to index number
+  if (pos_num < 0 || pos_num > NUM_POSITIONS) {
+    printf("%d is an invalid position number at the moment! (0 to %d allowed!)\n", pos_num, NUM_POSITIONS);
+    return;
+  }
   if (pmem.position == pos_num) {
     printf("Already at %d!\n", pmem.position);
     return; // we're there!
@@ -230,7 +235,7 @@ int keypress_code_i = 0;
 
 // we scan forward for /dev/input/eventN from 0 -> NUM_KEYBOARD_FDS-1
 // values keyboard_dev_fds[N] < 0 are unused fds
-#define NUM_KEYBOARD_FDS 32
+#define NUM_KEYBOARD_FDS 52
 int keyboard_dev_fds[NUM_KEYBOARD_FDS];
 
 // Used to determine when a low signal should be sent
@@ -339,6 +344,11 @@ void begin_sonar_read() {
   sonar_reading_echo_pin_pt1 = false;
   sonar_reading_echo_pin_pt2 = false;
 }
+
+
+// Used to record keys to an int before getting <enter>
+int num_input_buffer = 0;
+int num_input_place_val = 1; // Moves from 1, 10, 100; input num is multiplied by this and added to num_input_buffer.
 
 
 
@@ -559,7 +569,8 @@ void enqueue_keypress(__u16 code) {
 }
 
 void immediate_keycode_perform(__u16 code) {
-  if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
+  //if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
+  if (code == 1 /* esc */ || code == 15 /* tab */ || code == 51 /* 000 key */ || code == 83 /* decimal place */) {
     motor_stop_requested = true;
     printf("Motor stop requested! (code=%d)\n", code);
   }
@@ -626,43 +637,63 @@ void perform_keypress(__u16 code) {
   // Now handle key presses
   if (code == KEY_KP0) {
     //printf("Got KEY_KP0!\n");
-    move_to_position(0);
+    //move_to_position(0);
+    num_input_buffer += 0 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP1) {
     //printf("Got KEY_KP1!\n");
-    move_to_position(1);
+    //move_to_position(1);
+    num_input_buffer += 1 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP2) {
     //printf("Got KEY_KP2!\n");
-    move_to_position(2);
+    //move_to_position(2);
+    num_input_buffer += 2 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP3) {
     //printf("Got KEY_KP3!\n");
-    move_to_position(3);
+    //move_to_position(3);
+    num_input_buffer += 3 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP4) {
     //printf("Got KEY_KP4!\n");
-    move_to_position(4);
+    //move_to_position(4);
+    num_input_buffer += 4 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP5) {
     //printf("Got KEY_KP5!\n");
-    move_to_position(5);
+    //move_to_position(5);
+    num_input_buffer += 5 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP6) {
     //printf("Got KEY_KP6!\n");
-    move_to_position(6);
+    //move_to_position(6);
+    num_input_buffer += 6 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP7) {
     //printf("Got KEY_KP7!\n");
-    move_to_position(7);
+    //move_to_position(7);
+    num_input_buffer += 7 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP8) {
     //printf("Got KEY_KP8!\n");
-    move_to_position(8);
+    //move_to_position(8);
+    num_input_buffer += 8 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KP9) {
     //printf("Got KEY_KP9!\n");
-    move_to_position(9);
+    //move_to_position(9);
+    num_input_buffer += 9 * (num_input_place_val);
+    num_input_place_val *= 10;
   }
   else if (code == KEY_KPPLUS) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", pmem.num_pm_steps);
@@ -692,9 +723,26 @@ void perform_keypress(__u16 code) {
       pmem.num_pm_steps = PULSES_PER_REV * 16;
     }
   }
-  else if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
+  //else if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
+  else if (code == 1 /* esc */ || code == 15 /* tab */ || code == 51 /* 000 key */ || code == 83 /* decimal place */) {
     motor_stop_requested = true;
     printf("Motor stop requested! (code=%d)\n", code);
+  }
+  else if (code == 14 /* backspace */) {
+    printf("Got Backspace, TODO enter assignment for next number input! (code=%d)\n", code);
+
+  }
+  else if (code == 96 /* enter */) {
+    // Turn number buffer into an int, move position based on int.
+    if (num_input_buffer >= 1 && num_input_buffer <= 12) {
+      move_to_position(num_input_buffer);
+    }
+    else {
+      printf("Got un-used number in, num_input_buffer=%d!\n", num_input_buffer);
+    }
+    // Back to beginning
+    num_input_buffer = 0;
+    num_input_place_val = 1;
   }
   else if (code != 0) {
     printf("Got unknown key, %d!\n", code);
