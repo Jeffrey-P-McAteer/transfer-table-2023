@@ -636,64 +636,44 @@ void perform_keypress(__u16 code) {
   
   // Now handle key presses
   if (code == KEY_KP0) {
-    //printf("Got KEY_KP0!\n");
-    //move_to_position(0);
-    num_input_buffer += 0 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 0;
   }
   else if (code == KEY_KP1) {
-    //printf("Got KEY_KP1!\n");
-    //move_to_position(1);
-    num_input_buffer += 1 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 1;
   }
   else if (code == KEY_KP2) {
-    //printf("Got KEY_KP2!\n");
-    //move_to_position(2);
-    num_input_buffer += 2 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 2;
   }
   else if (code == KEY_KP3) {
-    //printf("Got KEY_KP3!\n");
-    //move_to_position(3);
-    num_input_buffer += 3 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 3;
   }
   else if (code == KEY_KP4) {
-    //printf("Got KEY_KP4!\n");
-    //move_to_position(4);
-    num_input_buffer += 4 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 4;
   }
   else if (code == KEY_KP5) {
-    //printf("Got KEY_KP5!\n");
-    //move_to_position(5);
-    num_input_buffer += 5 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 5;
   }
   else if (code == KEY_KP6) {
-    //printf("Got KEY_KP6!\n");
-    //move_to_position(6);
-    num_input_buffer += 6 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 6;
   }
   else if (code == KEY_KP7) {
-    //printf("Got KEY_KP7!\n");
-    //move_to_position(7);
-    num_input_buffer += 7 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 7;
   }
   else if (code == KEY_KP8) {
-    //printf("Got KEY_KP8!\n");
-    //move_to_position(8);
-    num_input_buffer += 8 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 8;
   }
   else if (code == KEY_KP9) {
-    //printf("Got KEY_KP9!\n");
-    //move_to_position(9);
-    num_input_buffer += 9 * (num_input_place_val);
-    num_input_place_val *= 10;
+    num_input_buffer *= 10;
+    num_input_buffer += 9;
   }
   else if (code == KEY_KPPLUS) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", pmem.num_pm_steps);
