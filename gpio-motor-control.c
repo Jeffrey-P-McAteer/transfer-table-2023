@@ -86,6 +86,9 @@ typedef struct Pmem {
 Pmem pmem; // and this is the global variable that holds persistent memory
 long last_written_pmem_hash = -1;
 
+// type in a number from 1001 -> 2000 to assign 1 -> 1000 to this.
+int dial_num_steps_per_click = 100;
+
 
 long pmem_hash(Pmem* p) {
   return p->position + (p->num_pm_steps * 128);
@@ -714,11 +717,43 @@ void perform_keypress(__u16 code) {
     if (num_input_buffer >= 1 && num_input_buffer <= 12) {
       move_to_position(num_input_buffer);
     }
+    else if (num_input_buffer >= 1001 && num_input_buffer <= 2000) {
+      dial_num_steps_per_click = num_input_buffer - 1000;
+      printf("user typed in %d, so set dial_num_steps_per_click=%d \n", num_input_buffer, dial_num_steps_per_click);
+      if (dial_num_steps_per_click <= 1) {
+        dial_num_steps_per_click = 1;
+      }
+      if (dial_num_steps_per_click >= 1000) {
+        dial_num_steps_per_click = 1000;
+      }
+    }
     else {
       printf("Got un-used number in, num_input_buffer=%d!\n", num_input_buffer);
     }
     // Back to beginning
     num_input_buffer = 0;
+  }
+  else if (code == 115 /* clockwise */) {
+    WITH_STEPPER_ENABLED({
+      table_state = TABLE_MOVING_FORWARDS;
+      for (int x=0; x<dial_num_steps_per_click; x+=1) {
+        step_forward_eased(120);
+      }
+      table_state = TABLE_STOPPED;
+    });
+  }
+  else if (code == 114 /* counter-clockwise */) {
+    WITH_STEPPER_ENABLED({
+      table_state = TABLE_MOVING_BACKWARDS;
+      for (int x=0; x<dial_num_steps_per_click; x+=1) {
+        step_backward_eased(120);
+      }
+      table_state = TABLE_STOPPED;
+    });
+  }
+  else if (code == 113 /* push */) {
+    motor_stop_requested = true;
+    printf("Dial motor stop requested! (code=%d)\n", code);
   }
   else if (code != 0) {
     printf("Got unknown key, %d!\n", code);
