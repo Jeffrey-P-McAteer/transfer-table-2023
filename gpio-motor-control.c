@@ -348,9 +348,6 @@ void begin_sonar_read() {
 
 // Used to record keys to an int before getting <enter>
 int num_input_buffer = 0;
-int num_input_place_val = 1; // Moves from 1, 10, 100; input num is multiplied by this and added to num_input_buffer.
-
-
 
 void motorControlSignalHandler(int unused) {
   printf("Caught signal %d!\n", unused);
@@ -722,7 +719,6 @@ void perform_keypress(__u16 code) {
     }
     // Back to beginning
     num_input_buffer = 0;
-    num_input_place_val = 1;
   }
   else if (code != 0) {
     printf("Got unknown key, %d!\n", code);
