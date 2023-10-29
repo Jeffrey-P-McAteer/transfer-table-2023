@@ -791,6 +791,7 @@ void perform_keypress(__u16 code) {
     perform_num_input_buffer(num_input_buffer);
     // Back to beginning
     num_input_buffer = 0;
+    write_pmem_to_file_iff_diff();
   }
   else if (code == 115 /* clockwise */) {
     WITH_STEPPER_ENABLED({
