@@ -230,14 +230,14 @@ void move_to_position(int pos_num) {
   if (num_steps_to_move < 0) {
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_n_eased(llabs(num_steps_to_move), 5200, step_backward_eased);
+      step_n_eased(llabs(num_steps_to_move), 5200, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
   }
   else {
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_n_eased(llabs(num_steps_to_move), 5200, step_forward_eased);
+      step_n_eased(llabs(num_steps_to_move), 5200, step_backward_eased);
       table_state = TABLE_STOPPED;
     });
   }
