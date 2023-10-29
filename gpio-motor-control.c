@@ -157,6 +157,7 @@ void read_pmem_from_file() {
   printf("       .num_pm_steps = %ld\n", pmem.num_pm_steps);
   for (int i=0; i<NUM_POSITIONS; i+=1) {
     printf("       .position_data[%d].steps_from_0 = %ld\n", i, pmem.position_data[i].steps_from_0);
+    printf("       .position_data[%d].cm_from_0_expected = %f\n", i, pmem.position_data[i].cm_from_0_expected);
   }
   printf("       .table_steps_from_0 = %ld\n", pmem.table_steps_from_0);
   printf("\n");
