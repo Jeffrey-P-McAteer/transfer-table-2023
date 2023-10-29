@@ -119,20 +119,32 @@ void read_pmem_from_file() {
     printf("Error opening pmem file: %d %s\n", errno, strerror(errno));
     pmem.position = 0;
     pmem.num_pm_steps = PULSES_PER_REV;
-    pmem.position_data = { // Initial hard-coded guesses; TODO manually tune, save to .bin, and read out steps_from_0 values.
-      {0 * (3100 * 8),   0.0},
-      {1 * (3100 * 8),   5.0},
-      {2 * (3100 * 8),  10.0},
-      {3 * (3100 * 8),  15.0},
-      {4 * (3100 * 8),  20.0},
-      {5 * (3100 * 8),  25.0},
-      {6 * (3100 * 8),  30.0},
-      {7 * (3100 * 8),  35.0},
-      {8 * (3100 * 8),  40.0},
-      {9 * (3100 * 8),  45.0},
-      {10 * (3100 * 8), 45.0},
-      {11 * (3100 * 8), 45.0},
-    };
+    // Initial hard-coded guesses; TODO manually tune, save to .bin, and read out steps_from_0 values.
+    pmem.position_data[0].steps_from_0 = 0 * (3100 * 8);
+    pmem.position_data[0].cm_from_0_expected = 0.0;
+    pmem.position_data[1].steps_from_0 = 1 * (3100 * 8);
+    pmem.position_data[1].cm_from_0_expected = 5.0;
+    pmem.position_data[2].steps_from_0 = 2 * (3100 * 8);
+    pmem.position_data[2].cm_from_0_expected = 10.0;
+    pmem.position_data[3].steps_from_0 = 3 * (3100 * 8);
+    pmem.position_data[3].cm_from_0_expected = 15.0;
+    pmem.position_data[4].steps_from_0 = 4 * (3100 * 8);
+    pmem.position_data[4].cm_from_0_expected = 20.0;
+    pmem.position_data[5].steps_from_0 = 5 * (3100 * 8);
+    pmem.position_data[5].cm_from_0_expected = 25.0;
+    pmem.position_data[6].steps_from_0 = 6 * (3100 * 8);
+    pmem.position_data[6].cm_from_0_expected = 30.0;
+    pmem.position_data[7].steps_from_0 = 7 * (3100 * 8);
+    pmem.position_data[7].cm_from_0_expected = 35.0;
+    pmem.position_data[8].steps_from_0 = 8 * (3100 * 8);
+    pmem.position_data[8].cm_from_0_expected = 40.0;
+    pmem.position_data[9].steps_from_0 = 9 * (3100 * 8);
+    pmem.position_data[9].cm_from_0_expected = 45.0;
+    pmem.position_data[10].steps_from_0 = 10 * (3100 * 8);
+    pmem.position_data[10].cm_from_0_expected = 45.0;
+    pmem.position_data[11].steps_from_0 = 11 * (3100 * 8);
+    pmem.position_data[11].cm_from_0_expected = 45.0;
+
     pmem.table_steps_from_0 = 0; // On first run TABLE MUST BE AT 0!
   }
   else {
