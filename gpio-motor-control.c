@@ -123,17 +123,17 @@ void read_pmem_from_file() {
     pmem.num_pm_steps = PULSES_PER_REV;
     // Initial hard-coded guesses; TODO manually tune, save to .bin, and read out steps_from_0 values.
     pmem.position_data[0].steps_from_0 = 0;
-    pmem.position_data[0].cm_from_0_expected = 0.0;
-    pmem.position_data[1].steps_from_0 = 39500;
-    pmem.position_data[1].cm_from_0_expected = 5.0;
-    pmem.position_data[2].steps_from_0 = 79900;
-    pmem.position_data[2].cm_from_0_expected = 10.0;
-    pmem.position_data[3].steps_from_0 = 120300;
-    pmem.position_data[3].cm_from_0_expected = 15.0;
-    pmem.position_data[4].steps_from_0 = 161800;
-    pmem.position_data[4].cm_from_0_expected = 48.688850;
-    pmem.position_data[5].steps_from_0 = 124000;
-    pmem.position_data[5].cm_from_0_expected = 25.0;
+    pmem.position_data[0].cm_from_0_expected = 54.043937;
+    pmem.position_data[1].steps_from_0 = 40600;
+    pmem.position_data[1].cm_from_0_expected = 66.546288;
+    pmem.position_data[2].steps_from_0 = 81700;
+    pmem.position_data[2].cm_from_0_expected = 60.741012;
+    pmem.position_data[3].steps_from_0 = 122500;
+    pmem.position_data[3].cm_from_0_expected = 54.271175;
+    pmem.position_data[4].steps_from_0 = 163300;
+    pmem.position_data[4].cm_from_0_expected = 49.237650;
+    pmem.position_data[5].steps_from_0 = 222400;
+    pmem.position_data[5].cm_from_0_expected = 54.043937;
     pmem.position_data[6].steps_from_0 = 262644;
     pmem.position_data[6].cm_from_0_expected = 37.288387;
     pmem.position_data[7].steps_from_0 = 303840;
@@ -155,13 +155,13 @@ void read_pmem_from_file() {
   }
   last_written_pmem_hash = pmem_hash(&pmem);
   printf("Read pmem:\n");
-  printf("  pmem.position = %d\n", pmem.position);
-  printf("  pmem..num_pm_steps = %ld\n", pmem.num_pm_steps);
+  printf("  pmem.position = %d;\n", pmem.position);
+  printf("  pmem.num_pm_steps = %ld;\n", pmem.num_pm_steps);
   for (int i=0; i<NUM_POSITIONS; i+=1) {
-    printf("  pmem.position_data[%d].steps_from_0 = %ld\n", i, pmem.position_data[i].steps_from_0);
-    printf("  pmem.position_data[%d].cm_from_0_expected = %f\n", i, pmem.position_data[i].cm_from_0_expected);
+    printf("  pmem.position_data[%d].steps_from_0 = %ld;\n", i, pmem.position_data[i].steps_from_0);
+    printf("  pmem.position_data[%d].cm_from_0_expected = %f;\n", i, pmem.position_data[i].cm_from_0_expected);
   }
-  printf("  pmem.table_steps_from_0 = %ld\n", pmem.table_steps_from_0);
+  printf("  pmem.table_steps_from_0 = %ld;\n", pmem.table_steps_from_0);
   printf("\n");
 }
 
