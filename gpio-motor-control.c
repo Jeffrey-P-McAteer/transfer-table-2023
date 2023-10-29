@@ -77,11 +77,22 @@ long table_state = TABLE_STOPPED;
 
 typedef void (*DirectionedStepFunc)(int delay_us);
 
+#define NUM_POSITIONS 12
+typedef struct PosDat {
+  long steps_from_0;
+  double cm_from_0_expected;
+
+} PosDat;
+
+
 // The pmem struct holds persistent-memory data, and is read/written off of a file
 // on startup + modifications.
 typedef struct Pmem {
   int position;
   long num_pm_steps;
+  PosDat position_data[NUM_POSITIONS];
+  long table_steps_from_0; // changed whenever we move the table, by any means.
+
 } __attribute__((packed)) Pmem;
 
 Pmem pmem; // and this is the global variable that holds persistent memory
@@ -92,7 +103,14 @@ int dial_num_steps_per_click = 100;
 
 
 long pmem_hash(Pmem* p) {
-  return p->position + (p->num_pm_steps * 128);
+  long h = 0;
+  h += p->position;
+  h += p->num_pm_steps * 128;
+  for (int i=0; i<NUM_POSITIONS; i+=1) {
+    h += ( p->position_data[i].steps_from_0 * 1024 );
+  }
+  h += p->table_steps_from_0 * 2048;
+  return h;
 }
 
 void read_pmem_from_file() {
@@ -101,6 +119,21 @@ void read_pmem_from_file() {
     printf("Error opening pmem file: %d %s\n", errno, strerror(errno));
     pmem.position = 0;
     pmem.num_pm_steps = PULSES_PER_REV;
+    pmem.position_data = { // Initial hard-coded guesses; TODO manually tune, save to .bin, and read out steps_from_0 values.
+      {0 * (3100 * 8),   0.0},
+      {1 * (3100 * 8),   5.0},
+      {2 * (3100 * 8),  10.0},
+      {3 * (3100 * 8),  15.0},
+      {4 * (3100 * 8),  20.0},
+      {5 * (3100 * 8),  25.0},
+      {6 * (3100 * 8),  30.0},
+      {7 * (3100 * 8),  35.0},
+      {8 * (3100 * 8),  40.0},
+      {9 * (3100 * 8),  45.0},
+      {10 * (3100 * 8), 45.0},
+      {11 * (3100 * 8), 45.0},
+    };
+    pmem.table_steps_from_0 = 0; // On first run TABLE MUST BE AT 0!
   }
   else {
     read(fd, &pmem, sizeof(pmem));
@@ -110,6 +143,10 @@ void read_pmem_from_file() {
   printf("Read pmem:\n");
   printf("       .position = %d\n", pmem.position);
   printf("       .num_pm_steps = %ld\n", pmem.num_pm_steps);
+  for (int i=0; i<NUM_POSITIONS; i+=1) {
+    printf("       .position_data[%d].steps_from_0 = %ld\n", i, pmem.position_data[i].steps_from_0);
+  }
+  printf("       .table_steps_from_0 = %ld\n", pmem.table_steps_from_0);
   printf("\n");
 }
 
@@ -136,9 +173,6 @@ void begin_sonar_read();
 void step_forward_eased(int delay_us);
 void step_backward_eased(int delay_us);
 
-// I don't usually use usec for measurement
-#define MS_SLEEP(ms) usleep((useconds_t) (ms * 1000) )
-
 void niceExit(int exit_val) {
   gpioTerminate();
   exit(exit_val);
@@ -159,31 +193,6 @@ volatile bool exit_requested = false;
 volatile bool motor_stop_requested = false;
 
 
-
-// Table Position Data (hard-coded)
-
-#define NUM_POSITIONS 12
-typedef struct PosDat {
-  long steps_from_0;
-  double cm_from_0_expected;
-
-} PosDat;
-
-PosDat position_data[NUM_POSITIONS] = {
-  {0 * (3100 * 8),   0.0},
-  {1 * (3100 * 8),   5.0},
-  {2 * (3100 * 8),  10.0},
-  {3 * (3100 * 8),  15.0},
-  {4 * (3100 * 8),  20.0},
-  {5 * (3100 * 8),  25.0},
-  {6 * (3100 * 8),  30.0},
-  {7 * (3100 * 8),  35.0},
-  {8 * (3100 * 8),  40.0},
-  {9 * (3100 * 8),  45.0},
-  {10 * (3100 * 8), 45.0},
-  {11 * (3100 * 8), 45.0},
-};
-
 void move_to_position(int pos_num) {
   printf("Moving to position %d (index %d)...\n", pos_num, pos_num-1);
   pos_num = pos_num-1; // Go from human number to index number
@@ -199,7 +208,10 @@ void move_to_position(int pos_num) {
 
   printf("Moving %d steps from %d!\n", pos_delta, pmem.position);
 
-  long num_steps_to_move = position_data[pmem.position].steps_from_0 - position_data[pos_num].steps_from_0;
+  //long num_steps_to_move = pmem->position_data[pmem.position].steps_from_0 - pmem->position_data[pos_num].steps_from_0;
+
+  // We use the actual table steps now, so a manual move won't leave the table not knowing where it is.
+  long num_steps_to_move = pmem->table_steps_from_0 - pmem->position_data[pos_num].steps_from_0;
 
   printf("Sending abs(%ld) steps to motor in direction of magnitude\n", num_steps_to_move);
 
@@ -218,7 +230,8 @@ void move_to_position(int pos_num) {
     });
   }
   
-  pmem.position = pos_num;;
+  // Even if we're emergency-stopped, record where we think we are.
+  pmem.position = pos_num;
 
 }
 
@@ -413,6 +426,8 @@ void step_forward() {
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD));
   
   step_once();
+
+  pmem.table_steps_from_0 += 1;
 }
 
 void step_forward_n(int n) {
@@ -444,6 +459,8 @@ void step_forward_eased(int delay_us) {
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
 
   poll_until_us_elapsed(begin_tv, 2 * delay_us);
+
+  pmem.table_steps_from_0 += 1;
 
 }
 
@@ -530,6 +547,8 @@ void step_backward() {
   // poll_until_us_elapsed(begin_tv, DELAY_US);
 
   step_once();
+
+  pmem.table_steps_from_0 -= 1;
 }
 
 void step_backward_n(int n) {
@@ -562,6 +581,8 @@ void step_backward_eased(int delay_us) {
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, LOW));
 
   poll_until_us_elapsed(begin_tv, 2 * delay_us);
+
+  pmem.table_steps_from_0 -= 1;
 
 }
 
@@ -704,7 +725,7 @@ void perform_keypress(__u16 code) {
     num_input_buffer *= 10;
     num_input_buffer += 9;
   }
-  else if (code == KEY_KPPLUS) {
+  else if (code == KEY_KPPLUS) { // forward == towards 99999, by wall.
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
@@ -712,7 +733,7 @@ void perform_keypress(__u16 code) {
       table_state = TABLE_STOPPED;
     });
   }
-  else if (code == KEY_KPMINUS) {
+  else if (code == KEY_KPMINUS) { // backward == towards 0, by work table
     printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
