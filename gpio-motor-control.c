@@ -379,11 +379,11 @@ void do_sonar_bookkeeping() {
       if (safety_system_on) {
         double cm_to_0 = position_cm - pmem.position_data[0].cm_from_0_expected;
         double cm_to_12 = pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm;
-        if (cm_to_0 < 0.0) {
+        if (cm_to_0 < -0.1) {
           printf("position_cm = %f cm_to_0 = %f, stopping!\n", position_cm, cm_to_0);
           motor_stop_requested = true;
         }
-        if (cm_to_12 < 0.0) {
+        if (cm_to_12 < -0.1) {
           printf("position_cm = %f cm_to_12 = %f, stopping!\n", position_cm, cm_to_12);
           motor_stop_requested = true;
         }
@@ -554,7 +554,10 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     }
     step_func(delay_us);
     EXIT_IF_STOP_REQ();
-    begin_sonar_read();
+    if (i % 500 == 0) {
+      begin_sonar_read();
+      printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+    }
     do_sonar_bookkeeping();
   }
 
@@ -565,7 +568,10 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     }// */
     step_func(fastest_us);
     EXIT_IF_STOP_REQ();
-    begin_sonar_read();
+    if (i % 500 == 0) {
+      begin_sonar_read();
+      printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+    }
     do_sonar_bookkeeping();
   }
 
@@ -588,7 +594,10 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     }
     step_func(delay_us);
     EXIT_IF_STOP_REQ();
-    begin_sonar_read();
+    if (i % 500 == 0) {
+      begin_sonar_read();
+      printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+    }
     do_sonar_bookkeeping();
   }
 #undef EXIT_IF_STOP_REQ
@@ -699,9 +708,11 @@ void perform_num_input_buffer(int num) {
     move_to_position(num);
   }
   else if (num == 100) {
+    printf("Turning safety system ON!\n");
     safety_system_on = true;
   }
   else if (num == 101) {
+    printf("Turning safety system OFF!\n");
     safety_system_on = false;
   }
   else if (num >= 1001 && num <= 2000) {
