@@ -155,13 +155,13 @@ void read_pmem_from_file() {
   }
   last_written_pmem_hash = pmem_hash(&pmem);
   printf("Read pmem:\n");
-  printf("       .position = %d\n", pmem.position);
-  printf("       .num_pm_steps = %ld\n", pmem.num_pm_steps);
+  printf("  pmem.position = %d\n", pmem.position);
+  printf("  pmem..num_pm_steps = %ld\n", pmem.num_pm_steps);
   for (int i=0; i<NUM_POSITIONS; i+=1) {
-    printf("       .position_data[%d].steps_from_0 = %ld\n", i, pmem.position_data[i].steps_from_0);
-    printf("       .position_data[%d].cm_from_0_expected = %f\n", i, pmem.position_data[i].cm_from_0_expected);
+    printf("  pmem.position_data[%d].steps_from_0 = %ld\n", i, pmem.position_data[i].steps_from_0);
+    printf("  pmem.position_data[%d].cm_from_0_expected = %f\n", i, pmem.position_data[i].cm_from_0_expected);
   }
-  printf("       .table_steps_from_0 = %ld\n", pmem.table_steps_from_0);
+  printf("  pmem.table_steps_from_0 = %ld\n", pmem.table_steps_from_0);
   printf("\n");
 }
 
