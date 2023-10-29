@@ -436,7 +436,7 @@ void poll_until_us_elapsed(struct timeval begin_tv, long num_us) {
     gettimeofday(&now_tv,NULL);
     timersub(&now_tv, &begin_tv, &elapsed_tv);
     do_sonar_bookkeeping();
-    if (poll_i % 900 == 0) {
+    if (poll_i % 1400 == 0) {
       async_read_key_data();
     }
     poll_i += 1;
@@ -555,6 +555,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     step_func(delay_us);
     EXIT_IF_STOP_REQ();
     begin_sonar_read();
+    do_sonar_bookkeeping();
   }
 
   // Constant speed @ fastest_us
@@ -565,6 +566,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     step_func(fastest_us);
     EXIT_IF_STOP_REQ();
     begin_sonar_read();
+    do_sonar_bookkeeping();
   }
 
   // Ramp down on a sinusoid
@@ -587,6 +589,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     step_func(delay_us);
     EXIT_IF_STOP_REQ();
     begin_sonar_read();
+    do_sonar_bookkeeping();
   }
 #undef EXIT_IF_STOP_REQ
 }
