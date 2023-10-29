@@ -539,7 +539,9 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     EXIT_IF_STOP_REQ();
     if (i % 500 == 0) {
       begin_sonar_read();
-      printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+      if (i % 4000 == 0) {
+        printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+      }
     }
     do_sonar_bookkeeping();
   }
@@ -553,7 +555,9 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     EXIT_IF_STOP_REQ();
     if (i % 500 == 0) {
       begin_sonar_read();
-      printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+      if (i % 4000 == 0) {
+        printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+      }
     }
     do_sonar_bookkeeping();
   }
@@ -579,7 +583,9 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     EXIT_IF_STOP_REQ();
     if (i % 500 == 0) {
       begin_sonar_read();
-      printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+      if (i % 4000 == 0) {
+        printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
+      }
     }
     do_sonar_bookkeeping();
   }
