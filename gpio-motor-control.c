@@ -507,7 +507,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 
   // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
   int slowest_us = 400;
-  int fastest_us = 42;
+  int fastest_us = 78;
   
   // For very short steps, limit top speed & change ramp up bounds.
   if (n < ramp_up_end_n) {
