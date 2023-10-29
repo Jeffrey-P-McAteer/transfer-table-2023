@@ -58,6 +58,8 @@
 //#define DELAY_US 10 // Looks _real_ good
 #define DELAY_US 1
 
+//#define RAMP_UP_STEPS 5200
+#define RAMP_UP_STEPS 6400
 
 // used to make gpioWrite calls nicer
 #define LOW 0
@@ -231,14 +233,14 @@ void move_to_position(int pos_num) {
   if (num_steps_to_move < 0) {
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_n_eased(llabs(num_steps_to_move), 5200, step_forward_eased);
+      step_n_eased(llabs(num_steps_to_move), RAMP_UP_STEPS, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
   }
   else {
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_n_eased(llabs(num_steps_to_move), 5200, step_backward_eased);
+      step_n_eased(llabs(num_steps_to_move), RAMP_UP_STEPS, step_backward_eased);
       table_state = TABLE_STOPPED;
     });
   }
@@ -744,7 +746,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_n_eased(pmem.num_pm_steps, 5200, step_forward_eased);
+      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
   }
@@ -752,7 +754,7 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_n_eased(pmem.num_pm_steps, 5200, step_backward_eased);
+      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_backward_eased);
       table_state = TABLE_STOPPED;
     });
   }
