@@ -359,26 +359,6 @@ void do_sonar_bookkeeping() {
       }
       position_cm /= (double) NUM_POSITION_CM_HIST;
 
-      /*
-      safety_smallest_us = 0; // reset here, always adjust below
-      double dist_to_begin = fabs(position_cm - pmem.position_data[0].cm_from_0_expected);
-      if (dist_to_begin < 8.0) { // Begin applying a speed limiting force
-        safety_smallest_us = (int) ((8.0 - dist_to_begin) * 10.0);
-      }
-      double dist_to_end = fabs(pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm);
-      if (dist_to_end < 8.0) { // Begin applying a speed limiting force
-        safety_smallest_us = (int) ((8.0 - dist_to_end) * 10.0);
-      }
-
-      if (safety_smallest_us < 0) {
-        safety_smallest_us = 0;
-      }
-      else if (safety_smallest_us > 100) {
-        safety_smallest_us = 100;
-      }
-      */
-
-      // Simple safety; if table ever moves > 
       if (safety_system_on) {
         double cm_to_0 = position_cm - pmem.position_data[0].cm_from_0_expected;
         double cm_to_12 = pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm;
