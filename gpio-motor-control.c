@@ -300,6 +300,8 @@ int position_cm_hist_i = 0;
 
 int safety_smallest_us = 1; // If a step ever happens in less than this many us, set the step delay to this many us.
 
+bool safety_system_on = true;
+
 double convert_pulse_to_cm(long pulse_us) {
   // sound moves 34300 cm/s and we have us
   // divide by 2 b/c it moved to target and back
@@ -372,6 +374,21 @@ void do_sonar_bookkeeping() {
         safety_smallest_us = 100;
       }
       */
+
+      // Simple safety; if table ever moves > 
+      if (safety_system_on) {
+        double cm_to_0 = position_cm - pmem.position_data[0].cm_from_0_expected;
+        double cm_to_12 = pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm;
+        if (cm_to_0 < 0.0) {
+          printf("position_cm = %f cm_to_0 = %f, stopping!\n", position_cm, cm_to_0);
+          motor_stop_requested = true;
+        }
+        if (cm_to_12 < 0.0) {
+          printf("position_cm = %f cm_to_12 = %f, stopping!\n", position_cm, cm_to_12);
+          motor_stop_requested = true;
+        }
+      }
+
 
     }
   }
@@ -678,6 +695,12 @@ void perform_num_input_buffer(int num) {
   if (num >= 1 && num <= 12) {
     move_to_position(num);
   }
+  else if (num == 100) {
+    safety_system_on = true;
+  }
+  else if (num == 101) {
+    safety_system_on = false;
+  }
   else if (num >= 1001 && num <= 2000) {
     dial_num_steps_per_click = num - 1000;
     printf("user typed in %d, so set dial_num_steps_per_click=%d \n", num, dial_num_steps_per_click);
@@ -868,6 +891,7 @@ void open_input_event_fds() {
 int main(int argc, char** argv) {
 
   exit_requested = false;
+  safety_system_on = true;
   for (int i=0; i<NUM_KEYBOARD_FDS; i+=1) {
     keyboard_dev_fds[i] = -1;
   }
@@ -951,6 +975,9 @@ int main(int argc, char** argv) {
 
     motor_stop_requested = false;
     loop_i += 1;
+    if (loop_i > 1000000) {
+      loop_i = 0;
+    }
   }
 
   printf("Exiting cleanly...\n");
