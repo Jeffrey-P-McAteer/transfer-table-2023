@@ -758,7 +758,7 @@ void perform_keypress(__u16 code) {
     motor_stop_requested = true;
     printf("Motor stop requested! (code=%d)\n", code);
   }
-  else if (code == KEY_BACKSPACE || code == 14 /* backspace */) {
+  else if (code == KEY_BACKSPACE || code == 14 /* backspace */ || code == KEY_EQUAL) {
     //printf("Got Backspace, TODO enter assignment for next number input! (code=%d)\n", code);
     if (pmem.position >= 0 && pmem.position < NUM_POSITIONS) {
       pmem.position_data[pmem.position].steps_from_0 = pmem.table_steps_from_0;
