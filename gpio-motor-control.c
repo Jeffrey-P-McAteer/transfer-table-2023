@@ -223,7 +223,7 @@ void move_to_position(int pos_num) {
   //long num_steps_to_move = pmem->position_data[pmem.position].steps_from_0 - pmem->position_data[pos_num].steps_from_0;
 
   // We use the actual table steps now, so a manual move won't leave the table not knowing where it is.
-  long num_steps_to_move = pmem->table_steps_from_0 - pmem->position_data[pos_num].steps_from_0;
+  long num_steps_to_move = pmem.table_steps_from_0 - pmem.position_data[pos_num].steps_from_0;
 
   printf("Sending abs(%ld) steps to motor in direction of magnitude\n", num_steps_to_move);
 
