@@ -743,18 +743,18 @@ void perform_keypress(__u16 code) {
     num_input_buffer += 9;
   }
   else if (code == KEY_KPPLUS) { // forward == towards 99999, by wall.
-    printf("Got KEY_KPPLUS, step_forward_n(%ld)!\n", pmem.num_pm_steps);
+    printf("Got KEY_KPPLUS, stepping backwards %ld !\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
-      table_state = TABLE_MOVING_FORWARDS;
-      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_forward_eased);
+      table_state = TABLE_MOVING_BACKWARDS;
+      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_backward_eased);
       table_state = TABLE_STOPPED;
     });
   }
   else if (code == KEY_KPMINUS) { // backward == towards 0, by work table
-    printf("Got KEY_KPMINUS, step_backward_n(%ld)!\n", pmem.num_pm_steps);
+    printf("Got KEY_KPMINUS, stepping forwards %ld !\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
-      table_state = TABLE_MOVING_BACKWARDS;
-      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_backward_eased);
+      table_state = TABLE_MOVING_FORWARDS;
+      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
   }
