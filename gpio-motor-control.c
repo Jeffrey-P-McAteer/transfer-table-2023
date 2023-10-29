@@ -59,7 +59,7 @@
 #define DELAY_US 1
 
 //#define RAMP_UP_STEPS 5200
-#define RAMP_UP_STEPS 6400
+#define RAMP_UP_STEPS 14200
 
 // used to make gpioWrite calls nicer
 #define LOW 0
