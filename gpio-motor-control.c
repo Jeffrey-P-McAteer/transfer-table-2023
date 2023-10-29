@@ -346,8 +346,11 @@ void do_sonar_bookkeeping() {
       if (position_cm_hist_i >= NUM_POSITION_CM_HIST) {
         position_cm_hist_i = 0;
       }
-      position_cm_hist[position_cm_hist_i] = convert_pulse_to_cm(last_sonar_pulse_us);
-      position_cm_hist_i += 1;
+      double measured_cm = convert_pulse_to_cm(last_sonar_pulse_us);
+      if (measured_cm >= 0.0 && measured_cm <= 500.0) { // ignore values hugely out-of-line because we stepped over a second.
+        position_cm_hist[position_cm_hist_i] = measured_cm;
+        position_cm_hist_i += 1;
+      }
 
       // Calc average
       position_cm = 0.0;
