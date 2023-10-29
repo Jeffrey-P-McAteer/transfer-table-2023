@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <math.h>
+#include <stdint.h>
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -372,13 +373,21 @@ poll_until_us_elapsed(begin_tv, 450)
 void poll_until_us_elapsed(struct timeval begin_tv, long num_us) {
   struct timeval now_tv;
   struct timeval elapsed_tv;
+  uint32_t poll_i = 0;
+  async_read_key_data(); // Guarantee that we run this _at_least_ once, even if loop below terminates fast
   do {
     gettimeofday(&now_tv,NULL);
     timersub(&now_tv, &begin_tv, &elapsed_tv);
-    async_read_key_data();
     do_sonar_bookkeeping();
+    if (poll_i % 900 == 0) {
+      async_read_key_data();
+    }
+    poll_i += 1;
   }
   while (elapsed_tv.tv_usec < num_us && elapsed_tv.tv_sec == 0);
+
+  printf("num_us = %ld poll_i = %d\n", num_us, poll_i); // Debugging todo rm me
+
 }
 
 void step_once() {
@@ -447,7 +456,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 
   // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
   int slowest_us = 400;
-  int fastest_us = 32;
+  int fastest_us = 34;
   
   // For very short steps, limit top speed & change ramp up bounds.
   if (n < ramp_up_end_n) {
@@ -601,6 +610,26 @@ void async_read_key_data() {
   }
 }
 
+
+void perform_num_input_buffer(int num) {
+  if (num >= 1 && num <= 12) {
+    move_to_position(num);
+  }
+  else if (num >= 1001 && num <= 2000) {
+    dial_num_steps_per_click = num - 1000;
+    printf("user typed in %d, so set dial_num_steps_per_click=%d \n", num, dial_num_steps_per_click);
+    if (dial_num_steps_per_click <= 1) {
+      dial_num_steps_per_click = 1;
+    }
+    if (dial_num_steps_per_click >= 1000) {
+      dial_num_steps_per_click = 1000;
+    }
+  }
+  else {
+    printf("Got un-used number in, num=%d!\n", num);
+  }
+}
+
 void perform_keypress(__u16 code) {
   // Map numbers from _other_ keyboard numbers to KEY_KP0
   if (code == KEY_0 || code == KEY_NUMERIC_0) {
@@ -714,22 +743,7 @@ void perform_keypress(__u16 code) {
   }
   else if (code == 96 /* enter */) {
     // Turn number buffer into an int, move position based on int.
-    if (num_input_buffer >= 1 && num_input_buffer <= 12) {
-      move_to_position(num_input_buffer);
-    }
-    else if (num_input_buffer >= 1001 && num_input_buffer <= 2000) {
-      dial_num_steps_per_click = num_input_buffer - 1000;
-      printf("user typed in %d, so set dial_num_steps_per_click=%d \n", num_input_buffer, dial_num_steps_per_click);
-      if (dial_num_steps_per_click <= 1) {
-        dial_num_steps_per_click = 1;
-      }
-      if (dial_num_steps_per_click >= 1000) {
-        dial_num_steps_per_click = 1000;
-      }
-    }
-    else {
-      printf("Got un-used number in, num_input_buffer=%d!\n", num_input_buffer);
-    }
+    perform_num_input_buffer(num_input_buffer);
     // Back to beginning
     num_input_buffer = 0;
   }
