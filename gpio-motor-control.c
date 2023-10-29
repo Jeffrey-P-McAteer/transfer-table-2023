@@ -354,21 +354,24 @@ void do_sonar_bookkeeping() {
       }
       position_cm /= (double) NUM_POSITION_CM_HIST;
 
+      /*
       safety_smallest_us = 0; // reset here, always adjust below
       double dist_to_begin = fabs(position_cm - pmem.position_data[0].cm_from_0_expected);
       if (dist_to_begin < 8.0) { // Begin applying a speed limiting force
-        safety_smallest_us = 60;
-        if (dist_to_begin < 4.0) {
-          safety_smallest_us = 90;
-        }
+        safety_smallest_us = (int) ((8.0 - dist_to_begin) * 10.0);
       }
       double dist_to_end = fabs(pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm);
       if (dist_to_end < 8.0) { // Begin applying a speed limiting force
-        safety_smallest_us = 60;
-        if (dist_to_end < 4.0) {
-          safety_smallest_us = 90;
-        }
+        safety_smallest_us = (int) ((8.0 - dist_to_end) * 10.0);
       }
+
+      if (safety_smallest_us < 0) {
+        safety_smallest_us = 0;
+      }
+      else if (safety_smallest_us > 100) {
+        safety_smallest_us = 100;
+      }
+      */
 
     }
   }
@@ -468,7 +471,7 @@ void step_forward_n(int n) {
 }
 
 void step_forward_eased(int delay_us) {
-  
+
   if (delay_us < safety_smallest_us) {
     delay_us = safety_smallest_us;
   }
@@ -534,6 +537,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     }
     step_func(delay_us);
     EXIT_IF_STOP_REQ();
+    begin_sonar_read();
   }
 
   // Constant speed @ fastest_us
@@ -543,6 +547,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     }// */
     step_func(fastest_us);
     EXIT_IF_STOP_REQ();
+    begin_sonar_read();
   }
 
   // Ramp down on a sinusoid
@@ -564,6 +569,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
     }
     step_func(delay_us);
     EXIT_IF_STOP_REQ();
+    begin_sonar_read();
   }
 #undef EXIT_IF_STOP_REQ
 }
