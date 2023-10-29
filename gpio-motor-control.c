@@ -132,10 +132,10 @@ void read_pmem_from_file() {
     pmem.position_data[3].cm_from_0_expected = 54.271175;
     pmem.position_data[4].steps_from_0 = 163300;
     pmem.position_data[4].cm_from_0_expected = 49.237650;
-    pmem.position_data[5].steps_from_0 = 222400;
-    pmem.position_data[5].cm_from_0_expected = 54.043937;
-    pmem.position_data[6].steps_from_0 = 262644;
-    pmem.position_data[6].cm_from_0_expected = 37.288387;
+    pmem.position_data[5].steps_from_0 = 204300;
+    pmem.position_data[5].cm_from_0_expected = 37.198350;
+    pmem.position_data[6].steps_from_0 = 244544;
+    pmem.position_data[6].cm_from_0_expected = 44.071213;
     pmem.position_data[7].steps_from_0 = 303840;
     pmem.position_data[7].cm_from_0_expected = 33.206688;
     pmem.position_data[8].steps_from_0 = 344164;
@@ -446,7 +446,7 @@ void step_forward() {
   
   step_once();
 
-  pmem.table_steps_from_0 += 1;
+  pmem.table_steps_from_0 -= 1;
 }
 
 void step_forward_n(int n) {
@@ -479,7 +479,7 @@ void step_forward_eased(int delay_us) {
 
   poll_until_us_elapsed(begin_tv, 2 * delay_us);
 
-  pmem.table_steps_from_0 += 1;
+  pmem.table_steps_from_0 -= 1;
 
 }
 
@@ -567,7 +567,7 @@ void step_backward() {
 
   step_once();
 
-  pmem.table_steps_from_0 -= 1;
+  pmem.table_steps_from_0 += 1;
 }
 
 void step_backward_n(int n) {
@@ -601,7 +601,7 @@ void step_backward_eased(int delay_us) {
 
   poll_until_us_elapsed(begin_tv, 2 * delay_us);
 
-  pmem.table_steps_from_0 -= 1;
+  pmem.table_steps_from_0 += 1;
 
 }
 
@@ -913,8 +913,8 @@ int main(int argc, char** argv) {
 
     if (loop_i % 100 == 0) { // Approx 10x a second, begin reads to update table global position data
       begin_sonar_read();
-      if (loop_i % 4000 == 0) {
-        printf("last position_cm = %.3f\n", position_cm);
+      if (loop_i % 4500 == 0) {
+        printf("last position_cm = %.3f pmem.table_steps_from_0 = %ld\n", position_cm, pmem.table_steps_from_0);
       }
     }
     if (loop_i % 2000 == 0) { // Approx every 2s, open new keyboards.
