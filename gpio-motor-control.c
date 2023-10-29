@@ -132,17 +132,17 @@ void read_pmem_from_file() {
     pmem.position_data[4].cm_from_0_expected = 20.0;
     pmem.position_data[5].steps_from_0 = 124000;
     pmem.position_data[5].cm_from_0_expected = 25.0;
-    pmem.position_data[6].steps_from_0 = (6 * (40400)) + 1200;
+    pmem.position_data[6].steps_from_0 = 262644;
     pmem.position_data[6].cm_from_0_expected = 30.0;
-    pmem.position_data[7].steps_from_0 = (7 * (40400)) + 1200;
+    pmem.position_data[7].steps_from_0 = 303840;
     pmem.position_data[7].cm_from_0_expected = 35.0;
-    pmem.position_data[8].steps_from_0 = (8 * (40400)) + 1200;
+    pmem.position_data[8].steps_from_0 = 344164;
     pmem.position_data[8].cm_from_0_expected = 40.0;
-    pmem.position_data[9].steps_from_0 = (9 * (40400)) + 1200;
+    pmem.position_data[9].steps_from_0 = 385244;
     pmem.position_data[9].cm_from_0_expected = 45.0;
-    pmem.position_data[10].steps_from_0 = (10 * (40400)) + 1200;
+    pmem.position_data[10].steps_from_0 = 425700;
     pmem.position_data[10].cm_from_0_expected = 45.0;
-    pmem.position_data[11].steps_from_0 = (11 * (40400)) + 1200;
+    pmem.position_data[11].steps_from_0 = 466534;
     pmem.position_data[11].cm_from_0_expected = 45.0;
 
     pmem.table_steps_from_0 = 0; // On first run TABLE MUST BE AT 0!
