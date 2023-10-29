@@ -780,6 +780,9 @@ void perform_keypress(__u16 code) {
     if (pmem.position >= 0 && pmem.position < NUM_POSITIONS) {
       pmem.position_data[pmem.position].steps_from_0 = pmem.table_steps_from_0;
       pmem.position_data[pmem.position].cm_from_0_expected = position_cm;
+      printf("Saving: \n");
+      printf("pmem.position_data[%d].steps_from_0 = %ld\n", pmem.position, pmem.table_steps_from_0);
+      printf("pmem.position_data[%d].cm_from_0_expected = %f\n", pmem.position, position_cm);
     }
     write_pmem_to_file_iff_diff();
   }
