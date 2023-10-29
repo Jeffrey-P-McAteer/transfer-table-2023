@@ -762,6 +762,7 @@ void perform_keypress(__u16 code) {
     //printf("Got Backspace, TODO enter assignment for next number input! (code=%d)\n", code);
     if (pmem.position >= 0 && pmem.position < NUM_POSITIONS) {
       pmem.position_data[pmem.position].steps_from_0 = pmem.table_steps_from_0;
+      pmem.position_data[pmem.position].cm_from_0_expected = position_cm;
     }
     write_pmem_to_file_iff_diff();
   }
