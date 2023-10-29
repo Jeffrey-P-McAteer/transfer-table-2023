@@ -215,10 +215,10 @@ void move_to_position(int pos_num) {
     printf("%d is an invalid position number at the moment! (0 to %d allowed!)\n", pos_num, NUM_POSITIONS);
     return;
   }
-  if (pmem.position == pos_num) {
+  /*if (pmem.position == pos_num) {
     printf("Already at %d!\n", pmem.position);
     return; // we're there!
-  }
+  }*/
   int pos_delta = pmem.position - pos_num;
 
   printf("Moving %d steps from %d!\n", pos_delta, pmem.position);
