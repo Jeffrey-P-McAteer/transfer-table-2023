@@ -763,6 +763,7 @@ void perform_keypress(__u16 code) {
     if (pmem.position >= 0 && pmem.position < NUM_POSITIONS) {
       pmem.position_data[pmem.position].steps_from_0 = pmem.table_steps_from_0;
     }
+    write_pmem_to_file_iff_diff();
   }
   else if (code == 96 /* enter */) {
     // Turn number buffer into an int, move position based on int.
