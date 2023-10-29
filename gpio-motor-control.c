@@ -129,21 +129,21 @@ void read_pmem_from_file() {
     pmem.position_data[3].steps_from_0 = 120300;
     pmem.position_data[3].cm_from_0_expected = 15.0;
     pmem.position_data[4].steps_from_0 = 161800;
-    pmem.position_data[4].cm_from_0_expected = 20.0;
+    pmem.position_data[4].cm_from_0_expected = 48.688850;
     pmem.position_data[5].steps_from_0 = 124000;
     pmem.position_data[5].cm_from_0_expected = 25.0;
     pmem.position_data[6].steps_from_0 = 262644;
-    pmem.position_data[6].cm_from_0_expected = 30.0;
+    pmem.position_data[6].cm_from_0_expected = 37.288387;
     pmem.position_data[7].steps_from_0 = 303840;
-    pmem.position_data[7].cm_from_0_expected = 35.0;
+    pmem.position_data[7].cm_from_0_expected = 33.206688;
     pmem.position_data[8].steps_from_0 = 344164;
-    pmem.position_data[8].cm_from_0_expected = 40.0;
+    pmem.position_data[8].cm_from_0_expected = 27.924487;
     pmem.position_data[9].steps_from_0 = 385244;
-    pmem.position_data[9].cm_from_0_expected = 45.0;
+    pmem.position_data[9].cm_from_0_expected = 23.032450;
     pmem.position_data[10].steps_from_0 = 425700;
-    pmem.position_data[10].cm_from_0_expected = 45.0;
+    pmem.position_data[10].cm_from_0_expected = 18.937887;
     pmem.position_data[11].steps_from_0 = 466534;
-    pmem.position_data[11].cm_from_0_expected = 45.0;
+    pmem.position_data[11].cm_from_0_expected = 12.832487;
 
     pmem.table_steps_from_0 = 0; // On first run TABLE MUST BE AT 0!
   }
