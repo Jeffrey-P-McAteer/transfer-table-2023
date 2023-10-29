@@ -123,29 +123,29 @@ void read_pmem_from_file() {
     pmem.num_pm_steps = PULSES_PER_REV;
     
     pmem.position_data[0].steps_from_0 = 0;
-    pmem.position_data[0].cm_from_0_expected = 54.043937;
+    pmem.position_data[0].cm_from_0_expected = 13.509912;
     pmem.position_data[1].steps_from_0 = 40600;
-    pmem.position_data[1].cm_from_0_expected = 66.546288;
+    pmem.position_data[1].cm_from_0_expected = 18.856425;
     pmem.position_data[2].steps_from_0 = 81700;
-    pmem.position_data[2].cm_from_0_expected = 60.741012;
+    pmem.position_data[2].cm_from_0_expected = 23.028162;
     pmem.position_data[3].steps_from_0 = 122500;
-    pmem.position_data[3].cm_from_0_expected = 54.271175;
+    pmem.position_data[3].cm_from_0_expected = 27.684387;
     pmem.position_data[4].steps_from_0 = 163300;
-    pmem.position_data[4].cm_from_0_expected = 49.237650;
-    pmem.position_data[5].steps_from_0 = 204300;
-    pmem.position_data[5].cm_from_0_expected = 37.198350;
+    pmem.position_data[4].cm_from_0_expected = 31.834687;
+    pmem.position_data[5].steps_from_0 = 204700;
+    pmem.position_data[5].cm_from_0_expected = 37.309825;
     pmem.position_data[6].steps_from_0 = 244544;
-    pmem.position_data[6].cm_from_0_expected = 44.071213;
+    pmem.position_data[6].cm_from_0_expected = 44.778650;
     pmem.position_data[7].steps_from_0 = 303840;
-    pmem.position_data[7].cm_from_0_expected = 33.206688;
+    pmem.position_data[7].cm_from_0_expected = 49.246225;
     pmem.position_data[8].steps_from_0 = 344164;
-    pmem.position_data[8].cm_from_0_expected = 27.924487;
+    pmem.position_data[8].cm_from_0_expected = 54.348350;
     pmem.position_data[9].steps_from_0 = 385244;
-    pmem.position_data[9].cm_from_0_expected = 23.032450;
+    pmem.position_data[9].cm_from_0_expected = 61.122600;
     pmem.position_data[10].steps_from_0 = 425700;
-    pmem.position_data[10].cm_from_0_expected = 18.937887;
+    pmem.position_data[10].cm_from_0_expected = 67.073650;
     pmem.position_data[11].steps_from_0 = 466534;
-    pmem.position_data[11].cm_from_0_expected = 12.832487;
+    pmem.position_data[11].cm_from_0_expected = 70.486500;
 
     pmem.table_steps_from_0 = 0; // On first run TABLE MUST BE AT 0!
   }
@@ -298,6 +298,7 @@ double position_cm = (TABLE_END_CM - TABLE_BEGIN_CM) / 2.0; // assume center if 
 double position_cm_hist[NUM_POSITION_CM_HIST];
 int position_cm_hist_i = 0;
 
+int safety_smallest_us = 1; // If a step ever happens in less than this many us, set the step delay to this many us.
 
 double convert_pulse_to_cm(long pulse_us) {
   // sound moves 34300 cm/s and we have us
@@ -353,14 +354,20 @@ void do_sonar_bookkeeping() {
       }
       position_cm /= (double) NUM_POSITION_CM_HIST;
 
-      
-      double dist_to_begin = position_cm - TABLE_BEGIN_CM;
-      if (dist_to_begin < 15.0) { // Begin applying a speed limiting force
-
+      safety_smallest_us = 0; // reset here, always adjust below
+      double dist_to_begin = fabs(position_cm - pmem.position_data[0].cm_from_0_expected);
+      if (dist_to_begin < 8.0) { // Begin applying a speed limiting force
+        safety_smallest_us = 60;
+        if (dist_to_begin < 4.0) {
+          safety_smallest_us = 90;
+        }
       }
-      double dist_to_end = TABLE_END_CM - position_cm;
-      if (dist_to_end < 15.0) { // Begin applying a speed limiting force
-
+      double dist_to_end = fabs(pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm);
+      if (dist_to_end < 8.0) { // Begin applying a speed limiting force
+        safety_smallest_us = 60;
+        if (dist_to_end < 4.0) {
+          safety_smallest_us = 90;
+        }
       }
 
     }
@@ -461,6 +468,11 @@ void step_forward_n(int n) {
 }
 
 void step_forward_eased(int delay_us) {
+  
+  if (delay_us < safety_smallest_us) {
+    delay_us = safety_smallest_us;
+  }
+
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
   
@@ -583,6 +595,11 @@ void step_backward_n(int n) {
 
 
 void step_backward_eased(int delay_us) {
+
+  if (delay_us < safety_smallest_us) {
+    delay_us = safety_smallest_us;
+  }
+
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
   
