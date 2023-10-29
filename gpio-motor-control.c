@@ -362,11 +362,11 @@ void do_sonar_bookkeeping() {
       if (safety_system_on) {
         double cm_to_0 = position_cm - pmem.position_data[0].cm_from_0_expected;
         double cm_to_12 = pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm;
-        if (cm_to_0 < -0.06) {
+        if (table_state == TABLE_MOVING_FORWARDS && cm_to_0 < -0.06) {
           printf("position_cm = %f cm_to_0 = %f, stopping!\n", position_cm, cm_to_0);
           motor_stop_requested = true;
         }
-        if (cm_to_12 < -0.06) {
+        if (table_state == TABLE_MOVING_BACKWARDS && cm_to_12 < -0.06) {
           printf("position_cm = %f cm_to_12 = %f, stopping!\n", position_cm, cm_to_12);
           motor_stop_requested = true;
         }
