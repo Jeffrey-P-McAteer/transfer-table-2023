@@ -221,12 +221,14 @@ void move_to_position(int pos_num) {
   }*/
   int pos_delta = pmem.position - pos_num;
 
-  printf("Moving %d steps from %d!\n", pos_delta, pmem.position);
+  printf("Moving %d logical steps from %d!\n", pos_delta, pmem.position);
 
   //long num_steps_to_move = pmem->position_data[pmem.position].steps_from_0 - pmem->position_data[pos_num].steps_from_0;
 
   // We use the actual table steps now, so a manual move won't leave the table not knowing where it is.
   long num_steps_to_move = pmem.table_steps_from_0 - pmem.position_data[pos_num].steps_from_0;
+
+  printf("pmem.table_steps_from_0 = %ld - pmem.position_data[pos_num].steps_from_0 = %ld = %ld \n", pmem.table_steps_from_0, pmem.position_data[pos_num].steps_from_0, num_steps_to_move);
 
   printf("Sending abs(%ld) steps to motor in direction of magnitude\n", num_steps_to_move);
 
