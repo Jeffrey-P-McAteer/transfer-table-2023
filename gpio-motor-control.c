@@ -363,11 +363,11 @@ void do_sonar_bookkeeping() {
         double cm_to_0 = position_cm - pmem.position_data[0].cm_from_0_expected;
         double cm_to_12 = pmem.position_data[NUM_POSITIONS-1].cm_from_0_expected - position_cm;
         if (table_state == TABLE_MOVING_FORWARDS && cm_to_0 < -0.06) {
-          printf("position_cm = %f cm_to_0 = %f, stopping!\n", position_cm, cm_to_0);
+          printf("[SAFETY STOP] position_cm = %f cm_to_0 = %f, stopping!\n", position_cm, cm_to_0);
           motor_stop_requested = true;
         }
         if (table_state == TABLE_MOVING_BACKWARDS && cm_to_12 < -0.06) {
-          printf("position_cm = %f cm_to_12 = %f, stopping!\n", position_cm, cm_to_12);
+          printf("[SAFETY STOP] position_cm = %f cm_to_12 = %f, stopping!\n", position_cm, cm_to_12);
           motor_stop_requested = true;
         }
       }
@@ -507,7 +507,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 
   // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
   int slowest_us = 400;
-  int fastest_us = 64;
+  int fastest_us = 62;
   
   // For very short steps, limit top speed & change ramp up bounds.
   if (n < ramp_up_end_n) {
