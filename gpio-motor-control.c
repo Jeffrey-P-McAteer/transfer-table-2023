@@ -411,7 +411,9 @@ void poll_until_us_elapsed(struct timeval begin_tv, long num_us) {
   }
   while (elapsed_tv.tv_usec < num_us && elapsed_tv.tv_sec == 0);
 
-  printf("num_us = %ld poll_i = %d\n", num_us, poll_i); // Debugging todo rm me
+  // printf("num_us = %ld poll_i = %d\n", num_us, poll_i); // Debugging todo rm me
+  // Saw values like
+  //    num_us = 1000 poll_i = 1811
 
 }
 
