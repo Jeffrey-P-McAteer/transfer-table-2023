@@ -793,12 +793,12 @@ void perform_keypress(__u16 code) {
     num_input_buffer *= 10;
     num_input_buffer += 9;
   }
-  else if (code == KEY_KPPLUS) { // forward == towards 99999, by wall.
+  /*else if (code == KEY_KPPLUS) { // forward == towards 99999, by wall.
     printf("Got KEY_KPPLUS, stepping backwards %ld !\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
       int ending_location = pmem.table_steps_from_0 + pmem.num_pm_steps;
-      printf("[KEY_KPPLUS] pmem.table_steps_from_0=%ld ending_location=%d pmem.position_data[NUM_POSITIONS-1].steps_from_0 = %ld \n", pmem.table_steps_from_0, ending_location, pmem.position_data[NUM_POSITIONS-1].steps_from_0);
+      //printf("[KEY_KPPLUS] pmem.table_steps_from_0=%ld ending_location=%d pmem.position_data[NUM_POSITIONS-1].steps_from_0 = %ld \n", pmem.table_steps_from_0, ending_location, pmem.position_data[NUM_POSITIONS-1].steps_from_0);
       if (ending_location > pmem.position_data[NUM_POSITIONS-1].steps_from_0) {
         long num_steps_to_take = pmem.position_data[NUM_POSITIONS-1].steps_from_0 - pmem.table_steps_from_0;
         if (num_steps_to_take > 0) {
@@ -815,11 +815,23 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPMINUS, stepping forwards %ld !\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_FORWARDS;
-      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_forward_eased);
+      int ending_location = pmem.table_steps_from_0 - pmem.num_pm_steps;
+      printf("[KEY_KPMINUS] pmem.table_steps_from_0=%ld ending_location=%d pmem.position_data[NUM_POSITIONS-1].steps_from_0 = %ld \n", pmem.table_steps_from_0, ending_location, pmem.position_data[NUM_POSITIONS-1].steps_from_0);
+      if (ending_location < pmem.position_data[0].steps_from_0) {
+        long num_steps_to_take = pmem.table_steps_from_0 - pmem.position_data[0].steps_from_0;
+        if (num_steps_to_take > 0) {
+          step_n_eased(num_steps_to_take, RAMP_UP_STEPS, step_forward_eased);
+        }
+      }
+      else {
+        step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_forward_eased);
+      }
+
+      // step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_forward_eased);
       table_state = TABLE_STOPPED;
     });
-  }
-  else if (code == 98) { // '/' on keypad
+  }*/
+  /*else if (code == 98) { // '/' on keypad
     pmem.num_pm_steps /= 2;
     if (pmem.num_pm_steps < 2) {
       pmem.num_pm_steps = 2;
@@ -830,7 +842,7 @@ void perform_keypress(__u16 code) {
     if (pmem.num_pm_steps > PULSES_PER_REV * 16) { // allow up to 16 revs
       pmem.num_pm_steps = PULSES_PER_REV * 16;
     }
-  }
+  }*/
   //else if (code == 1 /* esc */ || code == 15 /* tab */ || code == 96 /* enter */) {
   else if (code == 1 /* esc */ || code == 15 /* tab */ || code == 51 /* 000 key */ || code == 83 /* decimal place */) {
     motor_stop_requested = true;
