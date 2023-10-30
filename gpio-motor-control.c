@@ -797,7 +797,17 @@ void perform_keypress(__u16 code) {
     printf("Got KEY_KPPLUS, stepping backwards %ld !\n", pmem.num_pm_steps);
     WITH_STEPPER_ENABLED({
       table_state = TABLE_MOVING_BACKWARDS;
-      step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_backward_eased);
+      int ending_location = pmem.table_steps_from_0 + pmem.num_pm_steps;
+      printf("[KEY_KPPLUS] pmem.table_steps_from_0=%ld ending_location=%d pmem.position_data[NUM_POSITIONS-1].steps_from_0 = %ld \n", pmem.table_steps_from_0, ending_location, pmem.position_data[NUM_POSITIONS-1].steps_from_0);
+      if (ending_location > pmem.position_data[NUM_POSITIONS-1].steps_from_0) {
+        long num_steps_to_take = pmem.position_data[NUM_POSITIONS-1].steps_from_0 - pmem.table_steps_from_0;
+        if (num_steps_to_take > 0) {
+          step_n_eased(num_steps_to_take, RAMP_UP_STEPS, step_backward_eased);
+        }
+      }
+      else {
+        step_n_eased(pmem.num_pm_steps, RAMP_UP_STEPS, step_backward_eased);
+      }
       table_state = TABLE_STOPPED;
     });
   }
