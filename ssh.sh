@@ -6,4 +6,10 @@ if [[ -z "$pi_ip" ]] ; then
   echo "Pi IP = $pi_ip"
 fi
 
-exec ssh user@$pi_ip "$@"
+if ! [ -z "$@" ] ; then
+  exec ssh user@$pi_ip "$@"
+else
+  exec ssh -t user@$pi_ip "cd /home/user/transfer-table-2023 ; bash --login"
+fi
+
+
