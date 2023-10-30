@@ -366,7 +366,7 @@ void do_sonar_bookkeeping() {
           printf("[SAFETY STOP] position_cm = %f cm_to_0 = %f, stopping!\n", position_cm, cm_to_0);
           motor_stop_requested = true;
         }
-        if (table_state == TABLE_MOVING_BACKWARDS && cm_to_12 < -0.06) {
+        if (table_state == TABLE_MOVING_BACKWARDS && cm_to_12 < -0.02) {
           printf("[SAFETY STOP] position_cm = %f cm_to_12 = %f, stopping!\n", position_cm, cm_to_12);
           motor_stop_requested = true;
         }
