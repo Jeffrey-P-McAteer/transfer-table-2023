@@ -10,6 +10,11 @@ gpio-motor-control
 gpio-motor-control.o
 ultrasonic-sensor-playground
 pmem.bin
+zig-out
+zig-out/*
+zig-cache
+zig-cache/*
+
 
 
 
