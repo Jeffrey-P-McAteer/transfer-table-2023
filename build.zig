@@ -10,6 +10,7 @@ pub fn build(b: *std.build.Builder) void {
         .root_source_file = .{ .path = "gpio-motor-control.zig" },
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
     motor_control_exe.linkSystemLibrary("c");
 

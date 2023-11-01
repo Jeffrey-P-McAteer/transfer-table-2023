@@ -9,4 +9,5 @@ const c = @cImport({
 pub fn main() !void {
     std.debug.print("Hello, World!\n", .{});
     _ = c.printf("hello\n");
+    std.debug.print("Hello2\n", .{});
 }
