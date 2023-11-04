@@ -6,8 +6,14 @@ const cstdio = @cImport({
     @cInclude("stdio.h");
 });
 
-const cstdlib = @cImport({
-    @cInclude("stdlib.h");
+const csystypes = @cImport({
+    @cInclude("sys/types.h");
+});
+const csysstat = @cImport({
+    @cInclude("sys/stat.h");
+});
+const cfcntl = @cImport({
+    @cInclude("fcntl.h");
 });
 
 const csignal = @cImport({
@@ -35,11 +41,21 @@ pub fn main() !void {
         keyboard_fds[i] = -1;
     }
 
-    openAnyNewKeyboardFds();
-
+    var evt_loop_i: u32 = 0;
     while (!exit_requested) {
-        std.time.sleep(512000000); // 512ms
-        std.debug.print("Tick!\n", .{});
+        // Course do-nothing at 6ms increments until we get keypresses (evt_loop_i += 166 / second)
+        std.time.sleep(6000000); // 6ms
+
+        // Every other second, open new keyboard devices
+        if (evt_loop_i % 333 == 0) {
+            openAnyNewKeyboardFds();
+        }
+
+        // Handle event loop incrementing
+        evt_loop_i += 1;
+        if (evt_loop_i > 1000000) {
+            evt_loop_i = 0;
+        }
     }
     std.debug.print("main() exiting!\n", .{});
 }
@@ -52,16 +68,22 @@ pub fn motorControlSignalHandler(sig_val: c_int) callconv(.C) void {
 pub fn openAnyNewKeyboardFds() void {
     for (0..num_keyboard_fds) |i| {
         if (keyboard_fds[i] < 0) {
-            const event_prefix = "/dev/input/event";
-            const event_file_len = event_prefix.len + 12;
-            var event_file: [event_file_len]u8 = .{@as(u8, 0)} ** event_file_len;
-            for (event_prefix, 0..) |char_val, cst_i| event_file[cst_i] = char_val;
-            var i_buf: [12]u8 = .{@as(u8, 0)} ** 12;
-            var i_buf_slice = std.fmt.bufPrint(&i_buf, "{}", .{i}) catch &i_buf;
+            var event_file_buff: [36:0]u8 = .{@as(u8, 0)} ** 36;
+            var event_file = std.fmt.bufPrint(&event_file_buff, "/dev/input/event{}", .{i}) catch &event_file_buff;
 
-            for (i_buf_slice, 0..) |char_val, cst_i| event_file[event_prefix.len + cst_i] = char_val;
-
-            std.debug.print("Does {s} exist?!\n", .{event_file});
+            var stat_buf: std.os.Stat = undefined;
+            const result = std.os.system.stat(&event_file_buff, &stat_buf);
+            if (result == 0) {
+                std.debug.print("Opening {s}\n", .{event_file});
+                keyboard_fds[i] = cfcntl.open(&event_file_buff, cfcntl.O_RDONLY | cfcntl.O_NONBLOCK);
+                std.debug.print("{s} opened as fd {d}!\n", .{ event_file, keyboard_fds[i] });
+            }
         }
+    }
+}
+
+pub fn asyncReadKeyboardFds() void {
+    for (0..num_keyboard_fds) |i| {
+        if (keyboard_fds[i] >= 0) {}
     }
 }
