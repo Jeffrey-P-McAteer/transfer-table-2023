@@ -36,11 +36,6 @@ pub fn main() !void {
     cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
     cpigpio.gpioSetSignalFunc(csignal.SIGTERM, motorControlSignalHandler);
 
-    // We couldn't initialize the array with -1s, so do that here.
-    for (0..num_keyboard_fds) |i| {
-        keyboard_fds[i] = -1;
-    }
-
     var evt_loop_i: u32 = 0;
     while (!exit_requested) {
         // Course do-nothing at 6ms increments until we get keypresses (evt_loop_i += 166 / second)
