@@ -1,9 +1,12 @@
+const builtin = @import("builtin");
 const std = @import("std");
 
 // See https://ziglearn.org/chapter-3/
 pub fn build(b: *std.build.Builder) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    const t_arch = target.getCpuArch();
 
     const motor_control_exe = b.addExecutable(.{
         .name = "gpio-motor-control",
@@ -13,6 +16,12 @@ pub fn build(b: *std.build.Builder) void {
         .link_libc = true,
     });
     motor_control_exe.linkSystemLibrary("c");
+    if (t_arch.isARM() or t_arch.isAARCH64()) {
+        motor_control_exe.linkSystemLibrary("pigpio");
+    } else {
+        // Link a shim we compile from C-land on x86 machines
+        motor_control_exe.addIncludePath("shims");
+    }
 
     b.installArtifact(motor_control_exe);
 }
