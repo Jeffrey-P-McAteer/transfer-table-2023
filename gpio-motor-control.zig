@@ -88,7 +88,7 @@ var input_events_i: u32 = 0;
 
 var motor_stop_requested: bool = false;
 var num_input_buffer: i32 = 0;
-var dial_num_steps_per_click: usize = 0;
+var dial_num_steps_per_click: usize = 100;
 var last_written_pmem_hash: i32 = 0;
 
 const num_positions: u32 = 12;
@@ -317,7 +317,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
             num_input_buffer = 0;
         }
         else if (code == clinuxinputeventcodes.KEY_BACKSPACE or code == 14 or code == clinuxinputeventcodes.KEY_EQUAL or code == 113) {
-          // backspace or equal pressed
+          // backspace or equal pressed or dial pressed down
 
 
           if (pmem.logical_position >= 0 and pmem.logical_position < num_positions) {
