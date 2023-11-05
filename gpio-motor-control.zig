@@ -133,9 +133,24 @@ pub fn main() !void {
     read_pmem_from_file();
 
     var evt_loop_i: u32 = 0;
+    var num_ticks_with_motor_stop_requested: u32 = 0;
     while (!exit_requested) {
         // Course do-nothing at 6ms increments until we get keypresses (evt_loop_i += 166 / second)
         std.time.sleep(6000000); // 6ms
+
+        if (motor_stop_requested) {
+          if (num_ticks_with_motor_stop_requested > 600) {
+            std.debug.print("Allowing motor to run again...\n", .{});
+            motor_stop_requested = false; // reset it
+            num_ticks_with_motor_stop_requested = 0;
+          }
+          else {
+            num_ticks_with_motor_stop_requested += 1;
+          }
+        }
+        else {
+          num_ticks_with_motor_stop_requested = 0;
+        }
 
         // Every other second, open new keyboard devices
         if (evt_loop_i % 333 == 0) {
