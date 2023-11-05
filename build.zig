@@ -16,13 +16,13 @@ pub fn build(b: *std.build.Builder) void {
         .link_libc = true,
     });
     motor_control_exe.linkSystemLibrary("c");
-    motor_control_exe.addIncludePath("zig_c_code");
+    motor_control_exe.addIncludePath(.{ .path = "zig_c_code" });
 
     if (t_arch.isARM() or t_arch.isAARCH64()) {
         motor_control_exe.linkSystemLibrary("pigpio");
     } else {
         // Link a shim we compile from C-land on x86 machines
-        motor_control_exe.addIncludePath("shims");
+        motor_control_exe.addIncludePath(.{ .path = "shims" });
     }
 
     b.installArtifact(motor_control_exe);
