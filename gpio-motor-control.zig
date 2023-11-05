@@ -324,7 +324,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
             pmem.positions[pmem.logical_position].cm_position = 0.0; // TODO store gloal sonar step count!
             std.debug.print("Saving: \n", .{});
             std.debug.print("pmem.positions[{}].step_position = {d}\n", .{pmem.logical_position, pmem.step_position} );
-            std.debug.print("pmem.positions[{}].cm_from_0_expected = {}\n", .{pmem.logical_position, 0.0} );
+            std.debug.print("pmem.positions[{}].cm_position = {}\n", .{pmem.logical_position, 0.0} );
           }
           write_pmem_to_file_iff_diff();
 
@@ -421,30 +421,30 @@ pub fn zero_pmem_struct() void {
   pmem.logical_position = 0;
   pmem.step_position = 0; // On first run TABLE MUST BE AT 0!
 
-  pmem.positions[0].steps_from_0 = 0;
-  pmem.positions[0].cm_from_0_expected = 13.509912;
-  pmem.positions[1].steps_from_0 = 40600;
-  pmem.positions[1].cm_from_0_expected = 18.856425;
-  pmem.positions[2].steps_from_0 = 81700;
-  pmem.positions[2].cm_from_0_expected = 23.028162;
-  pmem.positions[3].steps_from_0 = 122500;
-  pmem.positions[3].cm_from_0_expected = 27.684387;
-  pmem.positions[4].steps_from_0 = 163300;
-  pmem.positions[4].cm_from_0_expected = 31.834687;
-  pmem.positions[5].steps_from_0 = 204700;
-  pmem.positions[5].cm_from_0_expected = 37.309825;
-  pmem.positions[6].steps_from_0 = 244544;
-  pmem.positions[6].cm_from_0_expected = 44.778650;
-  pmem.positions[7].steps_from_0 = 303840;
-  pmem.positions[7].cm_from_0_expected = 49.246225;
-  pmem.positions[8].steps_from_0 = 344164;
-  pmem.positions[8].cm_from_0_expected = 54.348350;
-  pmem.positions[9].steps_from_0 = 385244;
-  pmem.positions[9].cm_from_0_expected = 61.122600;
-  pmem.positions[10].steps_from_0 = 425700;
-  pmem.positions[10].cm_from_0_expected = 67.073650;
-  pmem.positions[11].steps_from_0 = 466534;
-  pmem.positions[11].cm_from_0_expected = 70.486500;
+  pmem.positions[0].step_position = 0;
+  pmem.positions[0].cm_position = 13.509912;
+  pmem.positions[1].step_position = 40600;
+  pmem.positions[1].cm_position = 18.856425;
+  pmem.positions[2].step_position = 81700;
+  pmem.positions[2].cm_position = 23.028162;
+  pmem.positions[3].step_position = 122500;
+  pmem.positions[3].cm_position = 27.684387;
+  pmem.positions[4].step_position = 163300;
+  pmem.positions[4].cm_position = 31.834687;
+  pmem.positions[5].step_position = 204700;
+  pmem.positions[5].cm_position = 37.309825;
+  pmem.positions[6].step_position = 244544;
+  pmem.positions[6].cm_position = 44.778650;
+  pmem.positions[7].step_position = 303840;
+  pmem.positions[7].cm_position = 49.246225;
+  pmem.positions[8].step_position = 344164;
+  pmem.positions[8].cm_position = 54.348350;
+  pmem.positions[9].step_position = 385244;
+  pmem.positions[9].cm_position = 61.122600;
+  pmem.positions[10].step_position = 425700;
+  pmem.positions[10].cm_position = 67.073650;
+  pmem.positions[11].step_position = 466534;
+  pmem.positions[11].cm_position = 70.486500;
 }
 
 
