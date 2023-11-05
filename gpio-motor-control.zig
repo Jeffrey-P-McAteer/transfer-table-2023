@@ -41,6 +41,25 @@ const cpigpio = @cImport({
     @cInclude("pigpio.h");
 });
 
+// Hardware Constants
+const PREFERRED_CPU = 3;
+
+const MOTOR_ENABLE_PIN = 22;
+const MOTOR_DIRECTION_PIN = 27;
+const MOTOR_STEP_PIN = 17;
+
+// 23 is north-most (closest to ground), 24 is south-most pin (closest to USB ports)
+const SONAR_TRIGGER_PIN = 23;
+const SONAR_ECHO_PIN = 24;
+
+const RAMP_UP_STEPS = 14200;
+
+const LOW = 0;
+const HIGH = 1;
+const MOTOR_ENABLE_SIGNAL = 0;
+const MOTOR_DISABLE_SIGNAL = 1;
+
+
 // Global data
 var exit_requested: bool = false;
 const num_keyboard_fds: u32 = 42;
@@ -68,6 +87,17 @@ var pmem: pmem_struct = .{};
 pub fn main() !void {
     cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
     cpigpio.gpioSetSignalFunc(csignal.SIGTERM, motorControlSignalHandler);
+
+    _ = cpigpio.gpioSetMode(MOTOR_ENABLE_PIN, cpigpio.PI_OUTPUT);
+    _ = cpigpio.gpioSetMode(MOTOR_DIRECTION_PIN, cpigpio.PI_OUTPUT);
+    _ = cpigpio.gpioSetMode(MOTOR_STEP_PIN, cpigpio.PI_OUTPUT);
+    _ = cpigpio.gpioSetMode(SONAR_TRIGGER_PIN, cpigpio.PI_OUTPUT);
+    _ = cpigpio.gpioSetMode(SONAR_ECHO_PIN, cpigpio.PI_INPUT);
+
+    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
+    _ = cpigpio.gpioWrite(MOTOR_DIRECTION_PIN,  LOW);
+    _ = cpigpio.gpioWrite(MOTOR_STEP_PIN,       LOW);
+    _ = cpigpio.gpioWrite(SONAR_TRIGGER_PIN,    LOW);
 
     var evt_loop_i: u32 = 0;
     while (!exit_requested) {
@@ -281,9 +311,15 @@ pub fn perform_num_input_buffer(num: i32) void {
     if (num >= 1 and num <= 12) {
         std.debug.print("Moving to position = {d}\n", .{num});
     }
-    else if (num >= 1001 and num <= 2000) {
-        // Set dial sensitivity tonum - 1000 steps per click
-        let num_steps_per_click = num - 1000;
+    else if (num >= 1001 and num <= 1800) {
+        // Set dial sensitivity to num - 1000 steps per click
+        var num_steps_per_click = num - 1000;
+        if (num_steps_per_click < 1) {
+          num_steps_per_click = 1;
+        }
+        if (num_steps_per_click > 800) {
+          num_steps_per_click = 800;
+        }
         std.debug.print("Setting dial sensitivity to {d} steps/click\n", .{num_steps_per_click});
         dial_num_steps_per_click = num_steps_per_click;
     }
