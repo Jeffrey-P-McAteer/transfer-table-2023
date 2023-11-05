@@ -12,5 +12,6 @@ gpio-motor-control: gpio-motor-control.zig
 	cp ./zig-out/bin/gpio-motor-control gpio-motor-control
 
 run: gpio-motor-control
+	sudo systemctl stop gpio-motor-control || true
 	sudo ./gpio-motor-control
 
