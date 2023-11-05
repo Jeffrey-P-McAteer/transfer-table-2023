@@ -333,13 +333,13 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         else if (code == 115) {
           // Clockwise dial spin
           for (0..dial_num_steps_per_click) |_| {
-            step_once_high(120);
+            step_once(120, HIGH);
           }
         }
         else if (code == 114) {
           // Counter-Clockwise dial spin
           for (0..dial_num_steps_per_click) |_| {
-            step_once_low(120);
+            step_once(120, LOW);
           }
         }
         else {
@@ -369,15 +369,17 @@ pub fn perform_num_input_buffer(num: i32) void {
 }
 
 pub fn step_n_eased() void {
-  // Big TODO
+  // Big TODO; we do key-code reading here using asyncReadKeyboardFds()
+  // which will perform the high-importance code handling.
+
 }
 
-pub fn step_once_high(delay_us: u32) void {
+pub fn step_once(delay_us: u32, level: c_uint) void {
   if (motor_stop_requested) {
     return;
   }
 
-  _ = cpigpio.gpioWrite(MOTOR_DIRECTION_PIN,  HIGH);
+  _ = cpigpio.gpioWrite(MOTOR_DIRECTION_PIN,  level);
 
   _ = cpigpio.gpioWrite(MOTOR_STEP_PIN, HIGH);
 
@@ -392,29 +394,6 @@ pub fn step_once_high(delay_us: u32) void {
   busy_wait(delay_us / 2);
 
   pmem.step_position -= 1; // TODO unk
-
-}
-
-
-pub fn step_once_low(delay_us: u32) void {
-  if (motor_stop_requested) {
-    return;
-  }
-  _ = cpigpio.gpioWrite(MOTOR_DIRECTION_PIN,  LOW);
-
-  _ = cpigpio.gpioWrite(MOTOR_STEP_PIN, HIGH);
-
-  busy_wait(delay_us / 2);
-
-  if (motor_stop_requested) {
-    return;
-  }
-
-  _ = cpigpio.gpioWrite(MOTOR_STEP_PIN, LOW);
-
-  busy_wait(delay_us / 2);
-
-  pmem.step_position += 1; // TODO unk
 
 }
 
