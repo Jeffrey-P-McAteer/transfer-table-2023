@@ -7,6 +7,8 @@
 #include <string.h>
 #include <sys/resource.h>
 
+#include <sys/time.h>
+
 void set_priority_and_cpu_affinity(int preferred_cpu, int priority) {
   // First off - set our affinity to preferred_cpu
   cpu_set_t  mask;
@@ -22,3 +24,9 @@ void set_priority_and_cpu_affinity(int preferred_cpu, int priority) {
     printf("Error setting process priority to %d: %s\n", priority, strerror(errno));
   }
 }
+
+// Because zig can't do most of Linux's C macros with a do-while(0); pattern
+void timersub_cmacro(struct timeval *a, struct timeval *b, struct timeval *res) {
+  timersub(a, b, res);
+}
+

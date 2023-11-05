@@ -15,6 +15,10 @@ const csysstat = @cImport({
     @cDefine("_GNU_SOURCE", "1");
     @cInclude("sys/stat.h");
 });
+const csystime = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
+    @cInclude("sys/time.h");
+});
 const cfcntl = @cImport({
     @cDefine("_GNU_SOURCE", "1");
     @cInclude("fcntl.h");
@@ -126,6 +130,8 @@ pub fn main() !void {
     _ = cpigpio.gpioWrite(MOTOR_STEP_PIN,       LOW);
     _ = cpigpio.gpioWrite(SONAR_TRIGGER_PIN,    LOW);
 
+    read_pmem_from_file();
+
     var evt_loop_i: u32 = 0;
     while (!exit_requested) {
         // Course do-nothing at 6ms increments until we get keypresses (evt_loop_i += 166 / second)
@@ -143,6 +149,12 @@ pub fn main() !void {
         if (evt_loop_i % 333 == 200) {
             _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
+
+        // Every 3rd second, log debug data
+        if (evt_loop_i % 500 == 1) {
+          std.debug.print("pmem.step_position = {d}!\n", .{ pmem.step_position });
+        }
+
 
         asyncReadKeyboardFds();
 
@@ -338,7 +350,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           std.debug.print("Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |_| {
-            step_once(120, HIGH);
+            step_once(200, HIGH);
           }
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
@@ -347,7 +359,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           std.debug.print("Counter-Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |_| {
-            step_once(120, LOW);
+            step_once(200, LOW);
           }
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
@@ -361,8 +373,7 @@ pub fn perform_num_input_buffer(num: i32) void {
     if (num >= 1 and num <= 12) {
         std.debug.print("Moving to position = {d}\n", .{num});
     }
-    else if (num == 99) {
-        std.debug.print("Zeroing pmem! TABLE MUST BE AT 0 POS!\n", .{});
+    else if (num == 90) {
         zero_pmem_struct();
     }
     else if (num >= 1001 and num <= 1800) {
@@ -407,11 +418,11 @@ pub fn step_once(delay_us: u32, level: c_uint) void {
 
   busy_wait(delay_us / 2);
 
-  if (level == 0) {
-    pmem.step_position -= 1;
-  }
-  else if (level == 1) {
+  if (level == 0) { // low == 0 == counter-clockwise rotation on dial, position is going towards 999999
     pmem.step_position += 1;
+  }
+  else if (level == 1) { // high == 1 == clockwise rotation on dial, position is going towards 0
+    pmem.step_position -= 1;
   }
   else {
     @panic("in step_once, level is not 0 or 1!");
@@ -420,8 +431,26 @@ pub fn step_once(delay_us: u32, level: c_uint) void {
 }
 
 
-pub fn busy_wait(delay_us: u32) void {
-  std.time.sleep(delay_us * 1000); // todo better
+pub fn busy_wait(wait_delay_us: u32) void {
+  // std.time.sleep(wait_delay_us * 1000); // todo better
+
+  var begin_tv: csystime.timeval = undefined;
+  var now_tv: csystime.timeval = undefined;
+  _ = csystime.gettimeofday(&begin_tv, null);
+
+  var elapsed_tv: csystime.timeval = undefined;
+
+  while (!motor_stop_requested and !exit_requested) {
+    _ = csystime.gettimeofday(&now_tv, null);
+    // Perform offset-aware subtraction
+    //csystime.timersub(&now_tv, &begin_tv, &elapsed_tv);
+
+    c_linux_pat.timersub_cmacro(@ptrCast(&now_tv), @ptrCast(&begin_tv), @ptrCast(&elapsed_tv));
+
+    if (elapsed_tv.tv_usec >= wait_delay_us or elapsed_tv.tv_sec > 0) {
+      break;
+    }
+  }
 
 }
 
@@ -436,6 +465,8 @@ pub fn pmem_hash() i32 {
 }
 
 pub fn zero_pmem_struct() void {
+  std.debug.print("Zeroing pmem! TABLE MUST BE AT 0 POS!\n", .{});
+
   pmem.logical_position = 0;
   pmem.step_position = 0; // On first run TABLE MUST BE AT 0!
 
