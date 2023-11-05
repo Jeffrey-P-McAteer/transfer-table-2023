@@ -3,41 +3,59 @@ const std = @import("std");
 const cstdio = @cImport({
     // See https://github.com/ziglang/zig/issues/515
     @cDefine("_NO_CRT_STDIO_INLINE", "1");
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("stdio.h");
 });
 
 const csystypes = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("sys/types.h");
 });
 const csysstat = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("sys/stat.h");
 });
 const cfcntl = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("fcntl.h");
 });
 const cunistd = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("unistd.h");
 });
+const csched = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
+    @cInclude("sched.h");
+});
 const clinuxinput = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("linux/input.h");
 });
 const clinuxinputeventcodes = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("linux/input-event-codes.h");
 });
 
 const csignal = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("signal.h");
 });
 
 const cstring = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("string.h");
 });
 
 const creal_errno = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("real_errno.h");
+});
+const c_linux_pat = @cImport({
+    @cInclude("linux_priority_affinity_tasks.h");
 });
 
 const cpigpio = @cImport({
+    @cDefine("_GNU_SOURCE", "1");
     @cInclude("pigpio.h");
 });
 
@@ -70,21 +88,30 @@ var input_events_i: u32 = 0;
 
 var motor_stop_requested: bool = false;
 var num_input_buffer: i32 = 0;
-var dial_num_steps_per_click: i32 = 0;
+var dial_num_steps_per_click: usize = 0;
+var last_written_pmem_hash: i32 = 0;
 
 const num_positions: u32 = 12;
-const pos_dat = packed struct {
+const pos_dat = extern struct {
     step_position: i32,
     cm_position: f64,
 };
-const pmem_struct = packed struct {
+const pmem_struct = extern struct {
     logical_position: u32,
     step_position: i32,
-    positions: [num_positions]pos_dat,
+    positions: [num_positions]pos_dat align(1),
 };
-var pmem: pmem_struct = .{};
+var pmem: pmem_struct = undefined;
 
 pub fn main() !void {
+
+    if (!(cpigpio.gpioInitialise()>=0)) {
+      std.debug.print("Error in gpioInitialise(), exiting!\n", .{});
+      return;
+    }
+
+    c_linux_pat.set_priority_and_cpu_affinity(PREFERRED_CPU, -20);
+
     cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
     cpigpio.gpioSetSignalFunc(csignal.SIGTERM, motorControlSignalHandler);
 
@@ -107,6 +134,10 @@ pub fn main() !void {
         // Every other second, open new keyboard devices
         if (evt_loop_i % 333 == 0) {
             openAnyNewKeyboardFds();
+        }
+        // Every other second, write pmem if different
+        if (evt_loop_i % 333 == 100) {
+            write_pmem_to_file_iff_diff();
         }
 
         asyncReadKeyboardFds();
@@ -157,8 +188,13 @@ pub fn asyncReadKeyboardFds() void {
                 if (input_events_i >= num_input_events) {
                     input_events_i = 0;
                 }
-                input_events[input_events_i] = input_event;
-                performInputEvents(true);
+                var is_keypress = input_event.type == clinuxinputeventcodes.EV_KEY;
+                var is_key_down = input_event.value == 1;
+                if (is_keypress and is_key_down) {
+                  input_events[input_events_i] = input_event;
+                  input_events_i += 1;
+                  performInputEvents(true);
+                }
             } else {
                 //var errno = @as(c_int, @intFromEnum(std.c.getErrno(c_int)));
                 var errno: c_int = creal_errno.get_errno();
@@ -284,23 +320,27 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           // backspace or equal pressed
 
 
-          // if (pmem.position >= 0 && pmem.position < NUM_POSITIONS) {
-          //   pmem.position_data[pmem.position].steps_from_0 = pmem.table_steps_from_0;
-          //   pmem.position_data[pmem.position].cm_from_0_expected = position_cm;
-          //   printf("Saving: \n");
-          //   printf("pmem.position_data[%d].steps_from_0 = %ld\n", pmem.position, pmem.table_steps_from_0);
-          //   printf("pmem.position_data[%d].cm_from_0_expected = %f\n", pmem.position, position_cm);
-          // }
-          // write_pmem_to_file_iff_diff();
+          if (pmem.logical_position >= 0 and pmem.logical_position < num_positions) {
+            pmem.positions[pmem.logical_position].step_position = pmem.step_position;
+            pmem.positions[pmem.logical_position].cm_position = 0.0; // TODO store gloal sonar step count!
+            std.debug.print("Saving: \n", .{});
+            std.debug.print("pmem.positions[{}].step_position = {d}\n", .{pmem.logical_position, pmem.step_position} );
+            std.debug.print("pmem.positions[{}].cm_from_0_expected = {}\n", .{pmem.logical_position, 0.0} );
+          }
+          write_pmem_to_file_iff_diff();
 
         }
         else if (code == 115) {
           // Clockwise dial spin
-
+          for (0..dial_num_steps_per_click) |_| {
+            step_once_high(120);
+          }
         }
         else if (code == 114) {
           // Counter-Clockwise dial spin
-
+          for (0..dial_num_steps_per_click) |_| {
+            step_once_low(120);
+          }
         }
         else {
             std.debug.print("[UNKNOWN-KEYCODE] code = {d}\n", .{code});
@@ -313,7 +353,7 @@ pub fn perform_num_input_buffer(num: i32) void {
     }
     else if (num >= 1001 and num <= 1800) {
         // Set dial sensitivity to num - 1000 steps per click
-        var num_steps_per_click = num - 1000;
+        var num_steps_per_click: i32 = num - 1000;
         if (num_steps_per_click < 1) {
           num_steps_per_click = 1;
         }
@@ -321,9 +361,136 @@ pub fn perform_num_input_buffer(num: i32) void {
           num_steps_per_click = 800;
         }
         std.debug.print("Setting dial sensitivity to {d} steps/click\n", .{num_steps_per_click});
-        dial_num_steps_per_click = num_steps_per_click;
+        dial_num_steps_per_click = @intCast(num_steps_per_click);
     }
     else {
         std.debug.print("[UNKNOWN-NUMBER] num = {d}\n", .{num});
     }
+}
+
+pub fn step_n_eased() void {
+  // Big TODO
+}
+
+pub fn step_once_high(delay_us: u32) void {
+  if (motor_stop_requested) {
+    return;
+  }
+
+  _ = cpigpio.gpioWrite(MOTOR_DIRECTION_PIN,  HIGH);
+
+  _ = cpigpio.gpioWrite(MOTOR_STEP_PIN, HIGH);
+
+  busy_wait(delay_us / 2);
+
+  if (motor_stop_requested) {
+    return;
+  }
+
+  _ = cpigpio.gpioWrite(MOTOR_STEP_PIN, LOW);
+
+  busy_wait(delay_us / 2);
+
+  pmem.step_position -= 1; // TODO unk
+
+}
+
+
+pub fn step_once_low(delay_us: u32) void {
+  if (motor_stop_requested) {
+    return;
+  }
+  _ = cpigpio.gpioWrite(MOTOR_DIRECTION_PIN,  LOW);
+
+  _ = cpigpio.gpioWrite(MOTOR_STEP_PIN, HIGH);
+
+  busy_wait(delay_us / 2);
+
+  if (motor_stop_requested) {
+    return;
+  }
+
+  _ = cpigpio.gpioWrite(MOTOR_STEP_PIN, LOW);
+
+  busy_wait(delay_us / 2);
+
+  pmem.step_position += 1; // TODO unk
+
+}
+
+
+pub fn busy_wait(delay_us: u32) void {
+  std.time.sleep(delay_us * 1000); // todo better
+
+}
+
+pub fn pmem_hash() i32 {
+  var h: i32 = 0;
+  h += @intCast(pmem.logical_position);
+  h += @intCast(pmem.step_position + 24000);
+  for (0..num_positions) |i| {
+    h += @intCast((pmem.positions[i].step_position * @as(i32, @intCast(i)) ) + 24000);
+  }
+  return h;
+}
+
+pub fn zero_pmem_struct() void {
+  pmem.logical_position = 0;
+  pmem.step_position = 0; // On first run TABLE MUST BE AT 0!
+
+  pmem.positions[0].steps_from_0 = 0;
+  pmem.positions[0].cm_from_0_expected = 13.509912;
+  pmem.positions[1].steps_from_0 = 40600;
+  pmem.positions[1].cm_from_0_expected = 18.856425;
+  pmem.positions[2].steps_from_0 = 81700;
+  pmem.positions[2].cm_from_0_expected = 23.028162;
+  pmem.positions[3].steps_from_0 = 122500;
+  pmem.positions[3].cm_from_0_expected = 27.684387;
+  pmem.positions[4].steps_from_0 = 163300;
+  pmem.positions[4].cm_from_0_expected = 31.834687;
+  pmem.positions[5].steps_from_0 = 204700;
+  pmem.positions[5].cm_from_0_expected = 37.309825;
+  pmem.positions[6].steps_from_0 = 244544;
+  pmem.positions[6].cm_from_0_expected = 44.778650;
+  pmem.positions[7].steps_from_0 = 303840;
+  pmem.positions[7].cm_from_0_expected = 49.246225;
+  pmem.positions[8].steps_from_0 = 344164;
+  pmem.positions[8].cm_from_0_expected = 54.348350;
+  pmem.positions[9].steps_from_0 = 385244;
+  pmem.positions[9].cm_from_0_expected = 61.122600;
+  pmem.positions[10].steps_from_0 = 425700;
+  pmem.positions[10].cm_from_0_expected = 67.073650;
+  pmem.positions[11].steps_from_0 = 466534;
+  pmem.positions[11].cm_from_0_expected = 70.486500;
+}
+
+
+pub fn read_pmem_from_file() void {
+  var fd = cfcntl.open("/mnt/usb1/pmem.bin", cfcntl.O_RDONLY);
+  var read_success = false;
+  if (fd >= 0) {
+    var num_bytes_read = cunistd.read(fd, &pmem, @sizeOf(@TypeOf(pmem)));
+    if (num_bytes_read >= 0) {
+      read_success = true;
+    }
+    _ = cunistd.close(fd);
+  }
+  if (!read_success) {
+    zero_pmem_struct();
+  }
+  last_written_pmem_hash = pmem_hash();
+}
+
+pub fn write_pmem_to_file_iff_diff() void {
+  var p_hash = pmem_hash();
+  if (p_hash == last_written_pmem_hash) {
+    return;
+  }
+  var fd = cfcntl.open("/mnt/usb1/pmem.bin", cfcntl.O_RDWR | cfcntl.O_CREAT);
+  if (fd >= 0) {
+    _ = cunistd.write(fd, &pmem, @sizeOf(@TypeOf(pmem)));
+    _ = cunistd.close(fd);
+    std.debug.print("Wrote pmem to /mnt/usb1/pmem.bin\n", .{});
+    last_written_pmem_hash = pmem_hash();
+  }
 }

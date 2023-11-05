@@ -16,6 +16,8 @@ pub fn build(b: *std.build.Builder) void {
         .link_libc = true,
     });
     motor_control_exe.linkSystemLibrary("c");
+    motor_control_exe.addIncludePath("zig_c_code");
+
     if (t_arch.isARM() or t_arch.isAARCH64()) {
         motor_control_exe.linkSystemLibrary("pigpio");
     } else {
