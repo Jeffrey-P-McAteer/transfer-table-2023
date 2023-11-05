@@ -598,27 +598,38 @@ pub fn zero_pmem_struct() void {
 
   pmem.positions[0].step_position = 0;
   pmem.positions[0].cm_position = 13.509912;
+
   pmem.positions[1].step_position = 40600;
   pmem.positions[1].cm_position = 18.856425;
+
   pmem.positions[2].step_position = 81700;
   pmem.positions[2].cm_position = 23.028162;
+
   pmem.positions[3].step_position = 122500;
   pmem.positions[3].cm_position = 27.684387;
+
   pmem.positions[4].step_position = 163300;
   pmem.positions[4].cm_position = 31.834687;
-  pmem.positions[5].step_position = 204700;
+
+  pmem.positions[5].step_position = 203700;
   pmem.positions[5].cm_position = 37.309825;
+
   pmem.positions[6].step_position = 244544;
   pmem.positions[6].cm_position = 44.778650;
+
   pmem.positions[7].step_position = 303840;
   pmem.positions[7].cm_position = 49.246225;
+
   pmem.positions[8].step_position = 344164;
   pmem.positions[8].cm_position = 54.348350;
+
   pmem.positions[9].step_position = 385244;
   pmem.positions[9].cm_position = 61.122600;
+
   pmem.positions[10].step_position = 425700;
   pmem.positions[10].cm_position = 67.073650;
-  pmem.positions[11].step_position = 466534;
+
+  pmem.positions[11].step_position = 466000;
   pmem.positions[11].cm_position = 70.486500;
 }
 
