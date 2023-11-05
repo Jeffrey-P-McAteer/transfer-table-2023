@@ -373,7 +373,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
             if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
               asyncReadKeyboardFds();
             }
-            step_once(200, HIGH);
+            step_once(180, HIGH);
           }
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
@@ -385,7 +385,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
             if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
               asyncReadKeyboardFds();
             }
-            step_once(200, LOW);
+            step_once(180, LOW);
           }
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
