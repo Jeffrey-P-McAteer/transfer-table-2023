@@ -21,6 +21,9 @@ const cunistd = @cImport({
 const clinuxinput = @cImport({
     @cInclude("linux/input.h");
 });
+const clinuxinputeventcodes = @cImport({
+    @cInclude("linux/input-event-codes.h");
+});
 
 const csignal = @cImport({
     @cInclude("signal.h");
@@ -45,6 +48,21 @@ var keyboard_fds: [num_keyboard_fds]c_int = .{@as(c_int, -1)} ** num_keyboard_fd
 const num_input_events: u32 = 24;
 var input_events: [num_input_events]?clinuxinput.input_event = .{null} ** num_input_events;
 var input_events_i: u32 = 0;
+
+var motor_stop_requested: bool = false;
+var num_input_buffer: i32 = 0;
+
+const num_positions: u32 = 12;
+const pos_dat = packed struct {
+    step_position: i32,
+    cm_position: f64,
+};
+const pmem_struct = packed struct {
+    logical_position: u32,
+    step_position: i32,
+    positions: [num_positions]pos_dat,
+};
+var pmem: pmem_struct = .{};
 
 pub fn main() !void {
     cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
@@ -128,7 +146,12 @@ pub fn asyncReadKeyboardFds() void {
 pub fn performInputEvents(immediate_pass: bool) void {
     for (0..num_input_events) |i| {
         if (input_events[i]) |one_nonempty_input_event| {
-            performOneInputEvent(immediate_pass, one_nonempty_input_event);
+            // See https://www.kernel.org/doc/html/latest/input/event-codes.html
+            var is_keypress = one_nonempty_input_event.type == clinuxinputeventcodes.EV_KEY;
+            var is_key_down = one_nonempty_input_event.value == 1;
+            if (is_keypress and is_key_down) {
+                performOneInputEvent(immediate_pass, one_nonempty_input_event);
+            }
             if (!immediate_pass) {
                 // Zero events if not doing an immediate pass
                 input_events[i] = null;
@@ -138,5 +161,83 @@ pub fn performInputEvents(immediate_pass: bool) void {
 }
 
 pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event) void {
-    std.debug.print("immediate_pass = {} event = {}\n", .{ immediate_pass, event });
+    //std.debug.print("immediate_pass = {} event = {}\n", .{ immediate_pass, event });
+    var code = event.code;
+    if (code == 1 or code == 15 or code == 51 or code == 83) {
+        // escape, tab, 000 key, decimal key are all mapped to immediate halt
+        motor_stop_requested = true;
+        std.debug.print("Motor stop requested! (code={d})\n", .{code});
+        return;
+    }
+    if (!immediate_pass) {
+        // First normalize keycodes to the keypad numbers, so QWERTY 1 and keypad 1 are identical.
+        if (code == clinuxinputeventcodes.KEY_0) {
+            code = clinuxinputeventcodes.KEY_KP0;
+        } else if (code == clinuxinputeventcodes.KEY_1) {
+            code = clinuxinputeventcodes.KEY_KP1;
+        } else if (code == clinuxinputeventcodes.KEY_2) {
+            code = clinuxinputeventcodes.KEY_KP2;
+        } else if (code == clinuxinputeventcodes.KEY_3) {
+            code = clinuxinputeventcodes.KEY_KP3;
+        } else if (code == clinuxinputeventcodes.KEY_4) {
+            code = clinuxinputeventcodes.KEY_KP4;
+        } else if (code == clinuxinputeventcodes.KEY_5) {
+            code = clinuxinputeventcodes.KEY_KP5;
+        } else if (code == clinuxinputeventcodes.KEY_6) {
+            code = clinuxinputeventcodes.KEY_KP6;
+        } else if (code == clinuxinputeventcodes.KEY_7) {
+            code = clinuxinputeventcodes.KEY_KP7;
+        } else if (code == clinuxinputeventcodes.KEY_8) {
+            code = clinuxinputeventcodes.KEY_KP8;
+        } else if (code == clinuxinputeventcodes.KEY_9) {
+            code = clinuxinputeventcodes.KEY_KP9;
+        }
+
+        // Perform code
+        if (code == clinuxinputeventcodes.KEY_KP0) {
+            num_input_buffer *= 10;
+            num_input_buffer += 0;
+        } else if (code == clinuxinputeventcodes.KEY_KP1) {
+            num_input_buffer *= 10;
+            num_input_buffer += 1;
+        } else if (code == clinuxinputeventcodes.KEY_KP2) {
+            num_input_buffer *= 10;
+            num_input_buffer += 2;
+        } else if (code == clinuxinputeventcodes.KEY_KP3) {
+            num_input_buffer *= 10;
+            num_input_buffer += 3;
+        } else if (code == clinuxinputeventcodes.KEY_KP4) {
+            num_input_buffer *= 10;
+            num_input_buffer += 4;
+        } else if (code == clinuxinputeventcodes.KEY_KP5) {
+            num_input_buffer *= 10;
+            num_input_buffer += 5;
+        } else if (code == clinuxinputeventcodes.KEY_KP6) {
+            num_input_buffer *= 10;
+            num_input_buffer += 6;
+        } else if (code == clinuxinputeventcodes.KEY_KP7) {
+            num_input_buffer *= 10;
+            num_input_buffer += 7;
+        } else if (code == clinuxinputeventcodes.KEY_KP8) {
+            num_input_buffer *= 10;
+            num_input_buffer += 8;
+        } else if (code == clinuxinputeventcodes.KEY_KP9) {
+            num_input_buffer *= 10;
+            num_input_buffer += 9;
+        } else if (code == 96 or code == 28) {
+            // Enter is 96 on keypad, 28 is enter on QWERTY
+            std.debug.print("[Enter] num_input_buffer = {d}\n", .{num_input_buffer});
+
+            num_input_buffer = 0;
+        } else {
+            std.debug.print("[UNKNOWN-KEYCODE] code = {d}\n", .{code});
+        }
+    }
+}
+pub fn perform_num_input_buffer(num: i32) void {
+    if (num >= 1 and num <= 12) {
+        std.debug.print("Moving to position = {d}\n", .{num});
+    } else {
+        std.debug.print("[UNKNOWN-NUMBER] num = {d}\n", .{num});
+    }
 }
