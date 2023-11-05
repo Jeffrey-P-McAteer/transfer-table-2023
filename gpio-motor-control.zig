@@ -112,8 +112,8 @@ pub fn main() !void {
 
     c_linux_pat.set_priority_and_cpu_affinity(PREFERRED_CPU, -20);
 
-    cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
-    cpigpio.gpioSetSignalFunc(csignal.SIGTERM, motorControlSignalHandler);
+    _ = cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
+    _ = cpigpio.gpioSetSignalFunc(csignal.SIGTERM, motorControlSignalHandler);
 
     _ = cpigpio.gpioSetMode(MOTOR_ENABLE_PIN, cpigpio.PI_OUTPUT);
     _ = cpigpio.gpioSetMode(MOTOR_DIRECTION_PIN, cpigpio.PI_OUTPUT);
@@ -312,7 +312,6 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         }
         else if (code == 96 or code == 28) {
             // Enter is 96 on keypad, 28 is enter on QWERTY
-            std.debug.print("[Enter] num_input_buffer = {d}\n", .{num_input_buffer});
             perform_num_input_buffer(num_input_buffer);
             num_input_buffer = 0;
         }
@@ -348,8 +347,13 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
     }
 }
 pub fn perform_num_input_buffer(num: i32) void {
+    std.debug.print("[Enter] num_input_buffer = {d}\n", .{num});
     if (num >= 1 and num <= 12) {
         std.debug.print("Moving to position = {d}\n", .{num});
+    }
+    else if (num == 99) {
+        std.debug.print("Zeroing pmem! TABLE MUST BE AT 0 POS!\n", .{});
+        zero_pmem_struct();
     }
     else if (num >= 1001 and num <= 1800) {
         // Set dial sensitivity to num - 1000 steps per click

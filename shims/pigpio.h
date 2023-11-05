@@ -12,8 +12,9 @@ int gpioInitialise() {
   return 0;
 }
 
-void gpioSetSignalFunc(int signum, sighandler_t handler) {
+int gpioSetSignalFunc(int signum, sighandler_t handler) {
   signal(signum, handler);
+  return 0;
 }
 
 int gpioSetMode(unsigned gpio, unsigned mode) {
