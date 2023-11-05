@@ -7,8 +7,14 @@ if [[ -z "$pi_ip" ]] ; then
 fi
 
 if ! [[ -z "NO_VERBOSE" ]] ; then
-  exec rsync -az --checksum --delete --exclude 'build' $PWD/. user@$pi_ip:/home/user/transfer-table-2023
+  exec rsync -az \
+    --checksum --delete \
+    --exclude 'build' --exclude 'zig-out' --exclude 'zig-cache' \
+       $PWD/. user@$pi_ip:/home/user/transfer-table-2023
 else
-  exec rsync -avz --checksum --delete --exclude 'build' $PWD/. user@$pi_ip:/home/user/transfer-table-2023
+  exec rsync -avz \
+    --checksum --delete \
+    --exclude 'build' --exclude 'zig-out' --exclude 'zig-cache' \
+       $PWD/. user@$pi_ip:/home/user/transfer-table-2023
 fi
 

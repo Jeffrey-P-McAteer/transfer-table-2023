@@ -74,13 +74,13 @@ const MOTOR_STEP_PIN = 17;
 const SONAR_TRIGGER_PIN = 23;
 const SONAR_ECHO_PIN = 24;
 
-const RAMP_UP_STEPS = 14200;
-
 const LOW = 0;
 const HIGH = 1;
 const MOTOR_ENABLE_SIGNAL = 0;
 const MOTOR_DISABLE_SIGNAL = 1;
 
+// const RAMP_UP_STEPS = 5200;
+const RAMP_UP_STEPS = 14200;
 
 // Global data
 var exit_requested: bool = false;
@@ -349,7 +349,10 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           // Clockwise dial spin
           std.debug.print("Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
-          for (0..dial_num_steps_per_click) |_| {
+          for (0..dial_num_steps_per_click) |i| {
+            if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+              asyncReadKeyboardFds();
+            }
             step_once(200, HIGH);
           }
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
@@ -358,7 +361,10 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           // Counter-Clockwise dial spin
           std.debug.print("Counter-Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
-          for (0..dial_num_steps_per_click) |_| {
+          for (0..dial_num_steps_per_click) |i| {
+            if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+              asyncReadKeyboardFds();
+            }
             step_once(200, LOW);
           }
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
@@ -371,7 +377,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
 pub fn perform_num_input_buffer(num: i32) void {
     std.debug.print("[Enter] num_input_buffer = {d}\n", .{num});
     if (num >= 1 and num <= 12) {
-        std.debug.print("Moving to position = {d}\n", .{num});
+        move_to_position(@intCast(num) );
     }
     else if (num == 90) {
         zero_pmem_struct();
@@ -393,9 +399,55 @@ pub fn perform_num_input_buffer(num: i32) void {
     }
 }
 
-pub fn step_n_eased() void {
+pub fn move_to_position(pos_num: u8) void {
+  if (pos_num < 1 or pos_num > pmem.positions.len) {
+    std.debug.print("Refusing to move to invalid position {d}!\n", .{pos_num});
+    return;
+  }
+  var target_position: i32 = pmem.positions[pos_num-1].step_position;
+  std.debug.print("Moving from pmem.step_position = {d} to target_position = {d}\n", .{pmem.step_position, target_position});
+
+  var num_steps_to_move: i32 = pmem.step_position - pmem.positions[pos_num-1].step_position;
+  // num_steps_to_move == old long num_steps_to_move = pmem.table_steps_from_0 - pmem.position_data[pos_num].steps_from_0;
+
+  std.debug.print("Sending abs({d}) steps to motor in direction of magnitude\n", .{num_steps_to_move});
+
+  if (num_steps_to_move < 0) {
+    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
+    step_n(@intCast(-num_steps_to_move), @intCast(RAMP_UP_STEPS), LOW);
+    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
+  }
+  else if (num_steps_to_move > 0) {
+    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
+    step_n(@intCast(num_steps_to_move), @intCast(RAMP_UP_STEPS), HIGH);
+    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
+  }
+
+  // Even if we're emergency-stopped, record where we think we are.
+  pmem.logical_position = pos_num;
+
+}
+
+
+pub fn step_n(n: u32, ramp_up_end_n: u32, level: c_uint) void {
   // Big TODO; we do key-code reading here using asyncReadKeyboardFds()
   // which will perform the high-importance code handling.
+
+  // _ = ramp_up_end_n;
+
+  for (0..n) |i| {
+
+    std.debug.print("step_n n={d} ramp_up_end_n={d} i={d} level={d} \n", .{n, ramp_up_end_n, i, level});
+
+    if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+      asyncReadKeyboardFds();
+    }
+    if (motor_stop_requested) {
+      break;
+    }
+    step_once(200, level); // todo change 200 to 800 -> 30 or s0
+
+  }
 
 }
 
