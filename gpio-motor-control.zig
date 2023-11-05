@@ -82,6 +82,10 @@ const MOTOR_DISABLE_SIGNAL = 1;
 // const RAMP_UP_STEPS = 5200;
 const RAMP_UP_STEPS = 14200;
 
+const SLOWEST_US = 400;
+const FASTEST_US = 62;
+
+
 // Global data
 var exit_requested: bool = false;
 const num_keyboard_fds: u32 = 42;
@@ -443,23 +447,76 @@ pub fn move_to_position(pos_num: u8) void {
 }
 
 
-pub fn step_n(n: u32, ramp_up_end_n: u32, level: c_uint) void {
-  // Big TODO; we do key-code reading here using asyncReadKeyboardFds()
-  // which will perform the high-importance code handling.
+pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
+  // For very short steps, limit top speed & change ramp up bounds.
+  var ramp_up_end_n = ramp_up_end_n_arg;
+  var fastest_us: u32 = FASTEST_US;
+  if (n < ramp_up_end_n) {
+    ramp_up_end_n = n / 2;
+    fastest_us = 100; // TODO calculate ideal off N + some math
+  }
 
-  // _ = ramp_up_end_n;
+  var ramp_down_begin_n: i32 = @intCast(n - ramp_up_end_n);
+  var slow_fast_us_dist: f32 = @floatFromInt(@as(u32, SLOWEST_US - fastest_us));
+  var half_pi: f32 = std.math.pi / 2.0;
+  var wavelength: f32 = std.math.pi / (@as(f32, @floatFromInt(ramp_up_end_n))); // formula is actually 2pi/wavelength, but I want to double ramp_up_end_n so instead removed the existing 2.0.
 
-  for (0..n) |i| {
+  // Ramp up on a sinusoid
+  for (0..@as(usize, @intCast(ramp_up_end_n))) |i| {
+    var delay_us_d: f32 = @as(f32, @floatFromInt(fastest_us) ) + (
+      slow_fast_us_dist * (@sin((wavelength *  @as(f32, @floatFromInt(i) ) ) + half_pi) + 1.0)
+    );
 
-    std.debug.print("step_n n={d} ramp_up_end_n={d} i={d} level={d} \n", .{n, ramp_up_end_n, i, level});
+    var delay_us: u32 = @intFromFloat(delay_us_d);
+    if (delay_us <= 0) {
+      delay_us = 1;
+    }
+
+    step_once(delay_us, level);
 
     if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
       asyncReadKeyboardFds();
+      if (motor_stop_requested) {
+        break;
+      }
     }
-    if (motor_stop_requested) {
-      break;
+
+  }
+
+  // Constant speed @ fastest_us
+  for (@as(usize, @intCast(ramp_up_end_n))..@as(usize, @intCast(ramp_down_begin_n))) |i| {
+
+    step_once(fastest_us, level);
+
+    if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+      asyncReadKeyboardFds();
+      if (motor_stop_requested) {
+        break;
+      }
     }
-    step_once(200, level); // todo change 200 to 800 -> 30 or s0
+  }
+
+
+  // Ramp down on a sinusoid
+  for (@as(usize, @intCast(ramp_down_begin_n))..@as(usize, @intCast(n))) |j| {
+    var i = n - j;
+    var delay_us_d: f32 = @as(f32, @floatFromInt(fastest_us) ) + (
+      slow_fast_us_dist * (@sin((wavelength *  @as(f32, @floatFromInt(i) ) ) + half_pi) + 1.0)
+    );
+
+    var delay_us: u32 = @intFromFloat(delay_us_d);
+    if (delay_us <= 0) {
+      delay_us = 1;
+    }
+
+    step_once(delay_us, level);
+
+    if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+      asyncReadKeyboardFds();
+      if (motor_stop_requested) {
+        break;
+      }
+    }
 
   }
 
