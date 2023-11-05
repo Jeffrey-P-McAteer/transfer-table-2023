@@ -484,15 +484,17 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
 
   }
 
-  // Constant speed @ fastest_us
-  for (@as(usize, @intCast(ramp_up_end_n))..@as(usize, @intCast(ramp_down_begin_n))) |i| {
+  // Constant speed @ fastest_us, IF we have that (else just ramp_down -> n)
+  if (ramp_up_end_n < ramp_down_begin_n) {
+    for (@as(usize, @intCast(ramp_up_end_n))..@as(usize, @intCast(ramp_down_begin_n))) |i| {
 
-    step_once(fastest_us, level);
+      step_once(fastest_us, level);
 
-    if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
-      asyncReadKeyboardFds();
-      if (motor_stop_requested) {
-        break;
+      if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+        asyncReadKeyboardFds();
+        if (motor_stop_requested) {
+          break;
+        }
       }
     }
   }
