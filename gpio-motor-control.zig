@@ -139,6 +139,10 @@ pub fn main() !void {
         if (evt_loop_i % 333 == 100) {
             write_pmem_to_file_iff_diff();
         }
+        // Every other second, turn motor off (we ought only have it on within performInputEvents anyway)
+        if (evt_loop_i % 333 == 200) {
+            _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
+        }
 
         asyncReadKeyboardFds();
 
@@ -332,16 +336,20 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         else if (code == 115) {
           // Clockwise dial spin
           std.debug.print("Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
+          _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |_| {
             step_once(120, HIGH);
           }
+          _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
         else if (code == 114) {
           // Counter-Clockwise dial spin
           std.debug.print("Counter-Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
+          _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |_| {
             step_once(120, LOW);
           }
+          _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
         else {
             std.debug.print("[UNKNOWN-KEYCODE] code = {d}\n", .{code});
