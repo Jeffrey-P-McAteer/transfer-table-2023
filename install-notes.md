@@ -123,6 +123,17 @@ yay -S rsync
 
 yay -S python-rpi-gpio
 
+
+# Install zig for v2 of gpio-motor-control.zig
+# https://ziglang.org/download
+cd /var
+sudo wget 'https://ziglang.org/builds/zig-linux-armv7a-0.12.0-dev.1396+f6de3ec96.tar.xz'
+sudo tar -xfv zig-linux*.tar.xz
+sudo mv zig-linux-armv7a-0.12.0-dev.1396+f6de3ec96 zig
+sudo vim /etc/profile <<<EOF
+append_path '/var/zig'
+EOF
+
 ###
 ## C Code build below
 ###
