@@ -331,12 +331,14 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         }
         else if (code == 115) {
           // Clockwise dial spin
+          std.debug.print("Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           for (0..dial_num_steps_per_click) |_| {
             step_once(120, HIGH);
           }
         }
         else if (code == 114) {
           // Counter-Clockwise dial spin
+          std.debug.print("Counter-Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           for (0..dial_num_steps_per_click) |_| {
             step_once(120, LOW);
           }
@@ -397,7 +399,15 @@ pub fn step_once(delay_us: u32, level: c_uint) void {
 
   busy_wait(delay_us / 2);
 
-  pmem.step_position -= 1; // TODO unk
+  if (level == 0) {
+    pmem.step_position -= 1;
+  }
+  else if (level == 1) {
+    pmem.step_position += 1;
+  }
+  else {
+    @panic("in step_once, level is not 0 or 1!");
+  }
 
 }
 
