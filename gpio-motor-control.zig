@@ -51,6 +51,7 @@ var input_events_i: u32 = 0;
 
 var motor_stop_requested: bool = false;
 var num_input_buffer: i32 = 0;
+var dial_num_steps_per_click: i32 = 0;
 
 const num_positions: u32 = 12;
 const pos_dat = packed struct {
@@ -173,23 +174,32 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         // First normalize keycodes to the keypad numbers, so QWERTY 1 and keypad 1 are identical.
         if (code == clinuxinputeventcodes.KEY_0) {
             code = clinuxinputeventcodes.KEY_KP0;
-        } else if (code == clinuxinputeventcodes.KEY_1) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_1) {
             code = clinuxinputeventcodes.KEY_KP1;
-        } else if (code == clinuxinputeventcodes.KEY_2) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_2) {
             code = clinuxinputeventcodes.KEY_KP2;
-        } else if (code == clinuxinputeventcodes.KEY_3) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_3) {
             code = clinuxinputeventcodes.KEY_KP3;
-        } else if (code == clinuxinputeventcodes.KEY_4) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_4) {
             code = clinuxinputeventcodes.KEY_KP4;
-        } else if (code == clinuxinputeventcodes.KEY_5) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_5) {
             code = clinuxinputeventcodes.KEY_KP5;
-        } else if (code == clinuxinputeventcodes.KEY_6) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_6) {
             code = clinuxinputeventcodes.KEY_KP6;
-        } else if (code == clinuxinputeventcodes.KEY_7) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_7) {
             code = clinuxinputeventcodes.KEY_KP7;
-        } else if (code == clinuxinputeventcodes.KEY_8) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_8) {
             code = clinuxinputeventcodes.KEY_KP8;
-        } else if (code == clinuxinputeventcodes.KEY_9) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_9) {
             code = clinuxinputeventcodes.KEY_KP9;
         }
 
@@ -197,39 +207,72 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         if (code == clinuxinputeventcodes.KEY_KP0) {
             num_input_buffer *= 10;
             num_input_buffer += 0;
-        } else if (code == clinuxinputeventcodes.KEY_KP1) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP1) {
             num_input_buffer *= 10;
             num_input_buffer += 1;
-        } else if (code == clinuxinputeventcodes.KEY_KP2) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP2) {
             num_input_buffer *= 10;
             num_input_buffer += 2;
-        } else if (code == clinuxinputeventcodes.KEY_KP3) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP3) {
             num_input_buffer *= 10;
             num_input_buffer += 3;
-        } else if (code == clinuxinputeventcodes.KEY_KP4) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP4) {
             num_input_buffer *= 10;
             num_input_buffer += 4;
-        } else if (code == clinuxinputeventcodes.KEY_KP5) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP5) {
             num_input_buffer *= 10;
             num_input_buffer += 5;
-        } else if (code == clinuxinputeventcodes.KEY_KP6) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP6) {
             num_input_buffer *= 10;
             num_input_buffer += 6;
-        } else if (code == clinuxinputeventcodes.KEY_KP7) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP7) {
             num_input_buffer *= 10;
             num_input_buffer += 7;
-        } else if (code == clinuxinputeventcodes.KEY_KP8) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP8) {
             num_input_buffer *= 10;
             num_input_buffer += 8;
-        } else if (code == clinuxinputeventcodes.KEY_KP9) {
+        }
+        else if (code == clinuxinputeventcodes.KEY_KP9) {
             num_input_buffer *= 10;
             num_input_buffer += 9;
-        } else if (code == 96 or code == 28) {
+        }
+        else if (code == 96 or code == 28) {
             // Enter is 96 on keypad, 28 is enter on QWERTY
             std.debug.print("[Enter] num_input_buffer = {d}\n", .{num_input_buffer});
-
+            perform_num_input_buffer(num_input_buffer);
             num_input_buffer = 0;
-        } else {
+        }
+        else if (code == clinuxinputeventcodes.KEY_BACKSPACE or code == 14 or code == clinuxinputeventcodes.KEY_EQUAL or code == 113) {
+          // backspace or equal pressed
+
+
+          // if (pmem.position >= 0 && pmem.position < NUM_POSITIONS) {
+          //   pmem.position_data[pmem.position].steps_from_0 = pmem.table_steps_from_0;
+          //   pmem.position_data[pmem.position].cm_from_0_expected = position_cm;
+          //   printf("Saving: \n");
+          //   printf("pmem.position_data[%d].steps_from_0 = %ld\n", pmem.position, pmem.table_steps_from_0);
+          //   printf("pmem.position_data[%d].cm_from_0_expected = %f\n", pmem.position, position_cm);
+          // }
+          // write_pmem_to_file_iff_diff();
+
+        }
+        else if (code == 115) {
+          // Clockwise dial spin
+
+        }
+        else if (code == 114) {
+          // Counter-Clockwise dial spin
+
+        }
+        else {
             std.debug.print("[UNKNOWN-KEYCODE] code = {d}\n", .{code});
         }
     }
@@ -237,7 +280,14 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
 pub fn perform_num_input_buffer(num: i32) void {
     if (num >= 1 and num <= 12) {
         std.debug.print("Moving to position = {d}\n", .{num});
-    } else {
+    }
+    else if (num >= 1001 and num <= 2000) {
+        // Set dial sensitivity tonum - 1000 steps per click
+        let num_steps_per_click = num - 1000;
+        std.debug.print("Setting dial sensitivity to {d} steps/click\n", .{num_steps_per_click});
+        dial_num_steps_per_click = num_steps_per_click;
+    }
+    else {
         std.debug.print("[UNKNOWN-NUMBER] num = {d}\n", .{num});
     }
 }

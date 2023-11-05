@@ -1,11 +1,11 @@
 /*
  * Taken and adapted from https://forums.raspberrypi.com/viewtopic.php?t=256740
- * 
+ *
  * git clone https://github.com/joan2937/pigpio
  * cd pigpio
  * sudo make install
  * // Docs at https://abyz.me.uk/rpi/pigpio/cif.html
- * 
+ *
  * gcc -g -o gpio-motor-control gpio-motor-control.c -lpigpio -lrt -lpthread
  *
  */
@@ -121,7 +121,7 @@ void read_pmem_from_file() {
     printf("Error opening pmem file: %d %s\n", errno, strerror(errno));
     pmem.position = 0;
     pmem.num_pm_steps = PULSES_PER_REV;
-    
+
     pmem.position_data[0].steps_from_0 = 0;
     pmem.position_data[0].cm_from_0_expected = 13.509912;
     pmem.position_data[1].steps_from_0 = 40600;
@@ -246,7 +246,7 @@ void move_to_position(int pos_num) {
       table_state = TABLE_STOPPED;
     });
   }
-  
+
   // Even if we're emergency-stopped, record where we think we are.
   pmem.position = pos_num;
 
@@ -342,7 +342,7 @@ void do_sonar_bookkeeping() {
       // Echo ended!
       sonar_reading_echo_pin_pt2 = false;
       last_sonar_pulse_us = sonar_echo_end_tv.tv_usec - sonar_echo_begin_tv.tv_usec;
-      
+
       if (position_cm_hist_i >= NUM_POSITION_CM_HIST) {
         position_cm_hist_i = 0;
       }
@@ -399,7 +399,7 @@ void motorControlSignalHandler(int unused) {
 }
 
 bool file_exists(char *filename) {
-  struct stat buffer;   
+  struct stat buffer;
   return (stat (filename, &buffer) == 0);
 }
 
@@ -451,9 +451,9 @@ void step_once() {
 void step_forward() {
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
-  
+
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD));
-  
+
   step_once();
 
   pmem.table_steps_from_0 -= 1;
@@ -478,9 +478,9 @@ void step_forward_eased(int delay_us) {
 
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
-  
+
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_FORWARD));
-  
+
   // step_once() w/ timing data
 
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, HIGH));
@@ -508,7 +508,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
   // 1 is as fast we we'll be bothering to measure, 30 is too fast for a begin ramp-up
   int slowest_us = 400;
   int fastest_us = 62;
-  
+
   // For very short steps, limit top speed & change ramp up bounds.
   if (n < ramp_up_end_n) {
     ramp_up_end_n = n / 2;
@@ -521,7 +521,7 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 
   // Ramp up on a sinusoid
   for (int i=0; i<ramp_up_end_n; i+=1) {
-    
+
     double delay_us_d = ((double) fastest_us) + (
       slow_fast_us_dist * (sin((wavelength * (double) i) + half_pi) + 1.0)
     );
@@ -596,9 +596,9 @@ void step_n_eased(int n, int ramp_up_end_n, DirectionedStepFunc step_func) {
 void step_backward() {
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
-  
+
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD));
-  
+
   // poll_until_us_elapsed(begin_tv, DELAY_US);
 
   step_once();
@@ -626,9 +626,9 @@ void step_backward_eased(int delay_us) {
 
   struct timeval begin_tv;
   gettimeofday(&begin_tv,NULL);
-  
+
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN, MOTOR_DIRECTION_BACKWARD));
-  
+
   // step_once() w/ timing data
 
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN, HIGH));
@@ -751,7 +751,7 @@ void perform_keypress(__u16 code) {
   else if (code == KEY_9 || code == KEY_NUMERIC_9) {
     code = KEY_KP9;
   }
-  
+
   // Now handle key presses
   if (code == KEY_KP0) {
     num_input_buffer *= 10;
@@ -940,7 +940,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  // Bind to SIGINT + SIGTERM; cannot use signal() directly b/c 
+  // Bind to SIGINT + SIGTERM; cannot use signal() directly b/c
   // pigpio assumes it can bind to OS events for machine safety reasons
   gpioSetSignalFunc(SIGINT, motorControlSignalHandler);
   gpioSetSignalFunc(SIGTERM, motorControlSignalHandler);
@@ -980,7 +980,7 @@ int main(int argc, char** argv) {
     poll_until_us_elapsed(loop_now_tv, 1000); // 1ms delay between high-level keypress stuff
 
     async_read_key_data();
-    
+
     perform_enqueued_keypresses(); // This function blocks to perform user-requested tasks!
 
     if (loop_i % 100 == 0) { // Approx 10x a second, begin reads to update table global position data
@@ -1006,7 +1006,7 @@ int main(int argc, char** argv) {
   }
 
   printf("Exiting cleanly...\n");
-  
+
   Z_OR_DIE(gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL));
   Z_OR_DIE(gpioWrite(MOTOR_DIRECTION_PIN,  LOW));
   Z_OR_DIE(gpioWrite(MOTOR_STEP_PIN,       LOW));
