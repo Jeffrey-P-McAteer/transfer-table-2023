@@ -20,6 +20,8 @@ Rotary dial Counter-Clockwise = Move table towards 12 position
 
 Escape key, tab key, '000' key, '.' key:
     Emergency stop. Table will halt within 400 steps of keypress.
+    Table will not be operable from electronic controls for the next 2 seconds
+    after stopping.
 
 Type in a number and hit enter:
 

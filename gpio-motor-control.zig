@@ -144,7 +144,7 @@ pub fn main() !void {
         std.time.sleep(6000000); // 6ms
 
         if (motor_stop_requested) {
-          if (num_ticks_with_motor_stop_requested > 450) {
+          if (num_ticks_with_motor_stop_requested > 338) { // approx 2 seconds
             std.debug.print("Allowing motor to run again...\n", .{});
             motor_stop_requested = false; // reset it
             num_ticks_with_motor_stop_requested = 0;
