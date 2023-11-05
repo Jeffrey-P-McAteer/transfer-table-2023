@@ -15,9 +15,23 @@ const csysstat = @cImport({
 const cfcntl = @cImport({
     @cInclude("fcntl.h");
 });
+const cunistd = @cImport({
+    @cInclude("unistd.h");
+});
+const clinuxinput = @cImport({
+    @cInclude("linux/input.h");
+});
 
 const csignal = @cImport({
     @cInclude("signal.h");
+});
+
+const cstring = @cImport({
+    @cInclude("string.h");
+});
+
+const creal_errno = @cImport({
+    @cInclude("real_errno.h");
 });
 
 const cpigpio = @cImport({
@@ -27,12 +41,12 @@ const cpigpio = @cImport({
 // Global data
 var exit_requested: bool = false;
 const num_keyboard_fds: u32 = 42;
-// const keyboard_fds: [num_keyboard_fds]c_int
-var keyboard_fds: [num_keyboard_fds]c_int = .{@as(c_int, -1)} ** num_keyboard_fds; //std.mem.zeroes([num_keyboard_fds]c_int);
+var keyboard_fds: [num_keyboard_fds]c_int = .{@as(c_int, -1)} ** num_keyboard_fds;
+const num_input_events: u32 = 24;
+var input_events: [num_input_events]?clinuxinput.input_event = .{null} ** num_input_events;
+var input_events_i: u32 = 0;
 
 pub fn main() !void {
-    std.debug.print("Hello, World!\n", .{});
-
     cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
     cpigpio.gpioSetSignalFunc(csignal.SIGTERM, motorControlSignalHandler);
 
@@ -46,9 +60,16 @@ pub fn main() !void {
             openAnyNewKeyboardFds();
         }
 
+        asyncReadKeyboardFds();
+
+        // every 12ms perform keypresses if we have any
+        if (evt_loop_i % 2 == 0) {
+            performInputEvents(false);
+        }
+
         // Handle event loop incrementing
         evt_loop_i += 1;
-        if (evt_loop_i > 1000000) {
+        if (evt_loop_i > std.math.maxInt(u32) / 2) {
             evt_loop_i = 0;
         }
     }
@@ -79,6 +100,43 @@ pub fn openAnyNewKeyboardFds() void {
 
 pub fn asyncReadKeyboardFds() void {
     for (0..num_keyboard_fds) |i| {
-        if (keyboard_fds[i] >= 0) {}
+        if (keyboard_fds[i] >= 0) {
+            var input_event: clinuxinput.input_event = undefined;
+            var num_bytes_read = cunistd.read(keyboard_fds[i], &input_event, @sizeOf(clinuxinput.input_event));
+            if (num_bytes_read >= 0) {
+                //std.debug.print("read {d} bytes, input_event = {}\n", .{ num_bytes_read, input_event });
+                if (input_events_i >= num_input_events) {
+                    input_events_i = 0;
+                }
+                input_events[input_events_i] = input_event;
+                performInputEvents(true);
+            } else {
+                //var errno = @as(c_int, @intFromEnum(std.c.getErrno(c_int)));
+                var errno: c_int = creal_errno.get_errno();
+                var resource_unavailable_nonfatal = errno == 11;
+                if (!resource_unavailable_nonfatal and errno != 0) {
+                    var err_cstring = cstring.strerror(errno);
+                    std.debug.print("fd {d} read gave error {d} ({s}), closing...\n", .{ i, errno, err_cstring });
+                    _ = cunistd.close(keyboard_fds[i]);
+                    keyboard_fds[i] = -1;
+                }
+            }
+        }
     }
+}
+
+pub fn performInputEvents(immediate_pass: bool) void {
+    for (0..num_input_events) |i| {
+        if (input_events[i]) |one_nonempty_input_event| {
+            performOneInputEvent(immediate_pass, one_nonempty_input_event);
+            if (!immediate_pass) {
+                // Zero events if not doing an immediate pass
+                input_events[i] = null;
+            }
+        }
+    }
+}
+
+pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event) void {
+    std.debug.print("immediate_pass = {} event = {}\n", .{ immediate_pass, event });
 }
