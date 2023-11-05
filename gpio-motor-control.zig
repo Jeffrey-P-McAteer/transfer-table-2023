@@ -139,7 +139,7 @@ pub fn main() !void {
         std.time.sleep(6000000); // 6ms
 
         if (motor_stop_requested) {
-          if (num_ticks_with_motor_stop_requested > 600) {
+          if (num_ticks_with_motor_stop_requested > 450) {
             std.debug.print("Allowing motor to run again...\n", .{});
             motor_stop_requested = false; // reset it
             num_ticks_with_motor_stop_requested = 0;
@@ -423,7 +423,6 @@ pub fn move_to_position(pos_num: u8) void {
   std.debug.print("Moving from pmem.step_position = {d} to target_position = {d}\n", .{pmem.step_position, target_position});
 
   var num_steps_to_move: i32 = pmem.step_position - pmem.positions[pos_num-1].step_position;
-  // num_steps_to_move == old long num_steps_to_move = pmem.table_steps_from_0 - pmem.position_data[pos_num].steps_from_0;
 
   std.debug.print("Sending abs({d}) steps to motor in direction of magnitude\n", .{num_steps_to_move});
 
