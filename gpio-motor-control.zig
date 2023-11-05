@@ -82,8 +82,9 @@ const MOTOR_DISABLE_SIGNAL = 1;
 // const RAMP_UP_STEPS = 5200;
 const RAMP_UP_STEPS = 14200;
 
-const SLOWEST_US = 400;
-const FASTEST_US = 62;
+const SLOWEST_US = 600;
+//const FASTEST_US = 62;
+const FASTEST_US = 112;
 
 
 // Global data
@@ -442,7 +443,7 @@ pub fn move_to_position(pos_num: u8) void {
   }
 
   // Even if we're emergency-stopped, record where we think we are.
-  pmem.logical_position = pos_num;
+  pmem.logical_position = pos_num-1;
 
 }
 
@@ -452,7 +453,7 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
   var ramp_up_end_n = ramp_up_end_n_arg;
   var fastest_us: u32 = FASTEST_US;
   if (n < ramp_up_end_n) {
-    ramp_up_end_n = n / 2;
+    ramp_up_end_n = (n / 2) - 1;
     fastest_us = 100; // TODO calculate ideal off N + some math
   }
 
