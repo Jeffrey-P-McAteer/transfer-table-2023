@@ -21,10 +21,21 @@ except:
 import aiohttp.web
 
 
-async def handle(request):
-    name = request.match_info.get('name', "Anonymous")
-    text = "Hello, " + name
-    return aiohttp.web.Response(text=text)
+async def index_handle(request):
+    return aiohttp.web.Response(text='''
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>McAteer Transfer Table</title>
+  </head>
+  <body>
+    <h2>McAteer Transfer Table</h2>
+    <p>todo</p>
+  </body>
+</html>
+'''.strip(), content_type='text/html')
 
 def main(args=sys.argv):
   print(f'args = {args}')
@@ -32,8 +43,9 @@ def main(args=sys.argv):
 
   app = aiohttp.web.Application()
   app.add_routes([
-    aiohttp.web.get('/', handle),
-    aiohttp.web.get('/{name}', handle)
+    aiohttp.web.get('/', index_handle),
+    aiohttp.web.get('/index.html', index_handle),
+
   ])
 
   aiohttp.web.run_app(app)
