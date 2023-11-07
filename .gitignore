@@ -14,6 +14,12 @@ zig-out
 zig-out/*
 zig-cache
 zig-cache/*
+__pycache__
+__pycache__/*
+*.pyc
+.py-env
+.py-env/*
+
 
 
 

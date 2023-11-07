@@ -43,6 +43,28 @@ Number from [1001, 1800]:
 
 ```
 
+# Building
+
+```bash
+make gpio-motor-control
+
+# To quickly run a test, stopping gpio-motor-control.service
+make run
+
+```
+
+# Installing
+
+```bash
+cp gpio-motor-control.service /etc/systemd/system/gpio-motor-control.service
+cp gpio-motor-control-watcher.path /etc/systemd/system/gpio-motor-control-watcher.path
+cp gpio-motor-control-watcher.service /etc/systemd/system/gpio-motor-control-watcher.service
+
+sudo systemctl enable --now gpio-motor-control
+sudo systemctl enable --now gpio-motor-control-watcher
+
+```
+
 # Misc Research
 
  - Python controller + circuits: https://forums.raspberrypi.com/viewtopic.php?t=106916#p1357530
