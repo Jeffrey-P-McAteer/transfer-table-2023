@@ -18,11 +18,25 @@ except:
   ])
   import aiohttp
 
+import aiohttp.web
 
+
+async def handle(request):
+    name = request.match_info.get('name', "Anonymous")
+    text = "Hello, " + name
+    return aiohttp.web.Response(text=text)
 
 def main(args=sys.argv):
   print(f'args = {args}')
   print(f'aiohttp = {aiohttp}')
+
+  app = aiohttp.web.Application()
+  app.add_routes([
+    aiohttp.web.get('/', handle),
+    aiohttp.web.get('/{name}', handle)
+  ])
+
+  aiohttp.web.run_app(app)
 
 
 if __name__ == '__main__':
