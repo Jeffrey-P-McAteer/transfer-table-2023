@@ -63,6 +63,10 @@ const cpigpio = @cImport({
     @cInclude("pigpio.h");
 });
 
+const PMEM_FILE = "/mnt/usb1/pmem.bin";
+const CMD_FILE = "/mnt/usb1/cmd.bin";
+
+
 // Hardware Constants
 const PREFERRED_CPU = 3;
 
@@ -635,7 +639,7 @@ pub fn zero_pmem_struct() void {
 
 
 pub fn read_pmem_from_file() void {
-  var fd = cfcntl.open("/mnt/usb1/pmem.bin", cfcntl.O_RDONLY);
+  var fd = cfcntl.open(PMEM_FILE, cfcntl.O_RDONLY);
   var read_success = false;
   if (fd >= 0) {
     var num_bytes_read = cunistd.read(fd, &pmem, @sizeOf(@TypeOf(pmem)));
@@ -655,7 +659,7 @@ pub fn write_pmem_to_file_iff_diff() void {
   if (p_hash == last_written_pmem_hash) {
     return;
   }
-  var fd = cfcntl.open("/mnt/usb1/pmem.bin", cfcntl.O_RDWR | cfcntl.O_CREAT);
+  var fd = cfcntl.open(PMEM_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
   if (fd >= 0) {
     _ = cunistd.write(fd, &pmem, @sizeOf(@TypeOf(pmem)));
     _ = cunistd.close(fd);
