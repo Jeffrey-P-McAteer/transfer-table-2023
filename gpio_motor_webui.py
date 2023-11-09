@@ -4,6 +4,7 @@ import sys
 import subprocess
 import traceback
 import shutil
+import asyncio
 
 
 python_libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.py-env'))
@@ -19,6 +20,15 @@ except:
   import aiohttp
 
 import aiohttp.web
+
+async def background_t():
+  while True:
+    await asyncio.sleep(1)
+    print('In background_t!')
+
+
+async def on_startup(app_ref):
+  bg_t_task = asyncio.create_task(background_t())
 
 
 async def index_handle(request):
@@ -42,6 +52,7 @@ def main(args=sys.argv):
   print(f'aiohttp = {aiohttp}')
 
   app = aiohttp.web.Application()
+  app.on_startup.append(on_startup)
   app.add_routes([
     aiohttp.web.get('/', index_handle),
     aiohttp.web.get('/index.html', index_handle),
