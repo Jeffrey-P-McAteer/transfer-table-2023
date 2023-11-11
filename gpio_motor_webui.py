@@ -49,11 +49,11 @@ class PMem(ctypes.Structure):
 async def background_t():
   while True:
     await asyncio.sleep(1)
-    print('In background_t!')
+    #print('In background_t!')
     p = await read_pmem()
-    print(f'p.logical_position = {p.logical_position}')
-    print(f'p.step_position = {p.step_position}')
-    print(f'p.positions[2].step_position = {p.positions[2].step_position}')
+    #print(f'p.logical_position = {p.logical_position}')
+    #print(f'p.step_position = {p.step_position}')
+    #print(f'p.positions[2].step_position = {p.positions[2].step_position}')
 
 
 
@@ -78,9 +78,52 @@ async def index_handle(request):
   <body>
     <h2>McAteer Transfer Table</h2>
     <p>todo</p>
+    <script>
+window.ws = null;
+
+function connect_ws() {
+  if (window.ws != null && window.ws.readyState !== WebSocket.CLOSED) {
+    return; // Already connected, yay!
+  }
+  window.ws_url = window.location.origin.replace('http', 'ws')+'/ws';
+  console.log('Connecting to '+window.ws_url);
+  window.ws = new WebSocket(window.ws_url);
+  window.ws.addEventListener("open", (event) => {
+    window.ws.send("Hello Server!");
+  });
+  window.ws.addEventListener("message", (event) => {
+    console.log("Message from server ", event.data);
+  });
+}
+
+setInterval(connect_ws, 2000); // every 2 seconds, re-connect to websocket if not already connected
+
+    </script>
   </body>
 </html>
 '''.strip(), content_type='text/html')
+
+async def websocket_handle(request):
+  ws = aiohttp.web.WebSocketResponse()
+
+  await ws.prepare(request)
+
+  async for msg in ws:
+      if msg.type == aiohttp.WSMsgType.TEXT:
+          print(f'msg.data = {msg.data}')
+          if msg.data == 'close':
+              await ws.close()
+          else:
+              await ws.send_str(msg.data + '/answer')
+
+      elif msg.type == aiohttp.WSMsgType.ERROR:
+          print(f'ws connection closed with exception {ws.exception()}')
+
+  print('websocket connection closed')
+
+  return ws
+
+
 
 def main(args=sys.argv):
   print(f'args = {args}')
@@ -89,8 +132,9 @@ def main(args=sys.argv):
   app = aiohttp.web.Application()
   app.on_startup.append(on_startup)
   app.add_routes([
-    aiohttp.web.get('/', index_handle),
+    aiohttp.web.get('/',           index_handle),
     aiohttp.web.get('/index.html', index_handle),
+    aiohttp.web.get('/ws',         websocket_handle),
 
   ])
 
