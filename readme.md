@@ -18,6 +18,9 @@ Uses a keypad or QWERTY keyboard, and a rotary dial.
 Rotary Dial Clockwise = Move table towards 0 position
 Rotary dial Counter-Clockwise = Move table towards 12 position
 
+Rotary Dial Depress, '=' key:
+    Save table position to last logical number typed in.
+
 Escape key, tab key, '000' key, '.' key:
     Emergency stop. Table will halt within 400 steps of keypress.
     Table will not be operable from electronic controls for the next 2 seconds
