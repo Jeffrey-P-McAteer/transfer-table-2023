@@ -104,6 +104,20 @@ var num_input_buffer: i32 = 0;
 var dial_num_steps_per_click: usize = 100;
 var last_written_pmem_hash: i32 = 0;
 
+// Sonar data
+var sonar_sending_trigger: bool = false;
+var sonar_trigger_begin_tv: csystime.timeval = null;
+
+var sonar_reading_echo_pin_pt1: bool = false;
+var sonar_echo_begin_tv: csystime.timeval = null;
+
+var sonar_reading_echo_pin_pt2: bool = false;
+var sonar_echo_end_tv: csystime.timeval = null;
+
+var last_sonar_pulse_us: u32 = 0;
+
+
+
 const num_positions: u32 = 12;
 const pos_dat = extern struct {
     step_position: i32,
@@ -362,8 +376,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         }
         else if (code == clinuxinputeventcodes.KEY_BACKSPACE or code == 14 or code == clinuxinputeventcodes.KEY_EQUAL or code == 113) {
           // backspace or equal pressed or dial pressed down
-
-
+          last_written_pmem_hash = 0;
           if (pmem.logical_position >= 0 and pmem.logical_position < num_positions) {
             pmem.positions[pmem.logical_position].step_position = pmem.step_position;
             pmem.positions[pmem.logical_position].cm_position = 0.0; // TODO store gloal sonar step count!
