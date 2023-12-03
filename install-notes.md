@@ -186,4 +186,8 @@ sudo systemctl enable --now cockpit.socket
 # Browse to http://transfer.local:9090
 ```
 
+Attach to gpip-motor-control service's logs at https://transfer.local:9090/system/logs#/?prio=debug&service=gpio-motor-control.service
+
+
+
 
