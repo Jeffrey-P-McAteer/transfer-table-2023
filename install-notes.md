@@ -177,3 +177,13 @@ sudo vim /etc/fstab <<EOF
 EOF
 
 ```
+
+# Addtl remote management packages
+
+```bash
+yay -S cockpit udisks2
+sudo systemctl enable --now cockpit.socket
+# Browse to http://transfer.local:9090
+```
+
+
