@@ -179,6 +179,10 @@ pub fn main() !void {
           std.debug.print("pmem.step_position = {d}!\n", .{ pmem.step_position });
         }
 
+        // Every 3rd second sync disks
+        if (evt_loop_i % 500 == 250) {
+            sync_disks();
+        }
 
         asyncReadKeyboardFds();
 
@@ -274,6 +278,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         // escape, tab, 000 key, decimal key are all mapped to immediate halt
         motor_stop_requested = true;
         std.debug.print("Motor stop requested! (code={d})\n", .{code});
+        _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL); // IMMEDIATELY pull power from motor
         return;
     }
     if (!immediate_pass) {
@@ -666,4 +671,31 @@ pub fn write_pmem_to_file_iff_diff() void {
     std.debug.print("Wrote pmem to /mnt/usb1/pmem.bin\n", .{});
     last_written_pmem_hash = pmem_hash();
   }
+  sync_disks();
 }
+
+pub fn sync_disks() void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    const result = std.ChildProcess.exec(.{
+        .allocator = allocator,
+        .argv = &[_][]const u8{ "sync" },
+    }) catch |err| {
+        std.debug.print("sync err: {}", .{ err });
+        return;
+    };
+    defer {
+        allocator.free(result.stdout);
+        allocator.free(result.stderr);
+    }
+    if (result.stdout.len > 0) {
+        std.debug.print("sync stdout: {s}", .{ result.stdout });
+    }
+    if (result.stderr.len > 0) {
+        std.debug.print("sync stderr: {s}", .{ result.stderr });
+    }
+
+}
+
