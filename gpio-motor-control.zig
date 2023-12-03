@@ -330,42 +330,52 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
 
         // Perform code
         if (code == clinuxinputeventcodes.KEY_KP0) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 0;
         }
         else if (code == clinuxinputeventcodes.KEY_KP1) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 1;
         }
         else if (code == clinuxinputeventcodes.KEY_KP2) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 2;
         }
         else if (code == clinuxinputeventcodes.KEY_KP3) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 3;
         }
         else if (code == clinuxinputeventcodes.KEY_KP4) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 4;
         }
         else if (code == clinuxinputeventcodes.KEY_KP5) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 5;
         }
         else if (code == clinuxinputeventcodes.KEY_KP6) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 6;
         }
         else if (code == clinuxinputeventcodes.KEY_KP7) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 7;
         }
         else if (code == clinuxinputeventcodes.KEY_KP8) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 8;
         }
         else if (code == clinuxinputeventcodes.KEY_KP9) {
+            num_input_buffer = @mod(num_input_buffer, 100_000);
             num_input_buffer *= 10;
             num_input_buffer += 9;
         }
