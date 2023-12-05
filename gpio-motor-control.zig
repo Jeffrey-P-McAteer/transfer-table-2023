@@ -198,6 +198,11 @@ pub fn main() !void {
             sync_disks();
         }
 
+        // Every 60th second close all fds
+        if (evt_loop_i % (500 * 20) == 250) {
+            closeAllHidFds();
+        }
+
         asyncReadKeyboardFds();
 
         // every 12ms perform keypresses if we have any
@@ -207,7 +212,7 @@ pub fn main() !void {
 
         // Handle event loop incrementing
         evt_loop_i += 1;
-        if (evt_loop_i > std.math.maxInt(u32) / 2) {
+        if (evt_loop_i > std.math.maxInt(u32) / 4) {
             evt_loop_i = 0;
         }
     }
@@ -217,6 +222,16 @@ pub fn main() !void {
 pub fn motorControlSignalHandler(sig_val: c_int) callconv(.C) void {
     std.debug.print("Caught signal {d}\n", .{sig_val});
     exit_requested = true;
+}
+
+pub fn closeAllHidFds() void {
+    for (0..num_keyboard_fds) |i| {
+        if (keyboard_fds[i] > 0) {
+            std.debug.print("closing fd[{d}] = {d} because it was open for >60s \n", .{ i, keyboard_fds[i] });
+            _ = cunistd.close(keyboard_fds[i]);
+            keyboard_fds[i] = -1;
+        }
+    }
 }
 
 pub fn openAnyNewKeyboardFds() void {
