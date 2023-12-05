@@ -88,7 +88,7 @@ const RAMP_UP_STEPS = 14200;
 
 const SLOWEST_US = 600;
 //const FASTEST_US = 62;
-const FASTEST_US = 226;
+const FASTEST_US = 224;
 
 
 // Global data
