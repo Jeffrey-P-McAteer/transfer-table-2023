@@ -88,7 +88,7 @@ const RAMP_UP_STEPS = 14200;
 
 const SLOWEST_US = 600;
 //const FASTEST_US = 62;
-const FASTEST_US = 220;
+const FASTEST_US = 226;
 
 
 // Global data
@@ -501,7 +501,7 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
   var fastest_us: u32 = FASTEST_US;
   if (n < ramp_up_end_n) {
     ramp_up_end_n = (n / 2) - 1;
-    fastest_us = 200; // TODO calculate ideal off N + some math
+    fastest_us = FASTEST_US; // TODO calculate ideal off N + some math
   }
 
   var ramp_down_begin_n: i32 = @intCast(n - ramp_up_end_n);
