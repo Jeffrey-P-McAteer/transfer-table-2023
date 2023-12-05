@@ -417,7 +417,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           std.debug.print("Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |i| {
-            if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+            if (i % 300 == 0) { // Every 300 steps ensure we read a character for safety
               asyncReadKeyboardFds();
             }
             step_once(180, HIGH);
@@ -429,7 +429,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           std.debug.print("Counter-Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |i| {
-            if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+            if (i % 300 == 0) { // Every 300 steps ensure we read a character for safety
               asyncReadKeyboardFds();
             }
             step_once(180, LOW);
@@ -499,6 +499,12 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
   // For very short steps, limit top speed & change ramp up bounds.
   var ramp_up_end_n = ramp_up_end_n_arg;
   var fastest_us: u32 = FASTEST_US;
+
+  // Avoid harmonics by shifting slower in one dir; constants found by testing
+  if (level == HIGH) {
+    fastest_us = FASTEST_US+7;
+  }
+
   if (n < ramp_up_end_n) {
     ramp_up_end_n = (n / 2) - 1;
     fastest_us = FASTEST_US; // TODO calculate ideal off N + some math
@@ -522,7 +528,7 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
 
     step_once(delay_us, level);
 
-    if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+    if (i % 300 == 0) { // Every 300 steps ensure we read a character for safety
       asyncReadKeyboardFds();
       if (motor_stop_requested) {
         break;
@@ -535,9 +541,9 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
   if (ramp_up_end_n < ramp_down_begin_n) {
     for (@as(usize, @intCast(ramp_up_end_n))..@as(usize, @intCast(ramp_down_begin_n))) |i| {
 
-      step_once(fastest_us, level);
+      step_once(fastest_us + @as(u32, @intCast(@mod(i, 2))), level);
 
-      if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+      if (i % 300 == 0) { // Every 300 steps ensure we read a character for safety
         asyncReadKeyboardFds();
         if (motor_stop_requested) {
           break;
@@ -561,7 +567,7 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
 
     step_once(delay_us, level);
 
-    if (i % 400 == 0) { // Every 400 steps ensure we read a character for safety
+    if (i % 300 == 0) { // Every 300 steps ensure we read a character for safety
       asyncReadKeyboardFds();
       if (motor_stop_requested) {
         break;
