@@ -478,19 +478,20 @@ pub fn move_to_position(pos_num: u8) void {
 
   std.debug.print("Sending abs({d}) steps to motor in direction of magnitude\n", .{num_steps_to_move});
 
+  _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
+
   if (num_steps_to_move < 0) {
-    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
     step_n(@intCast(-num_steps_to_move), @intCast(RAMP_UP_STEPS), LOW);
-    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
   }
   else if (num_steps_to_move > 0) {
-    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
     step_n(@intCast(num_steps_to_move), @intCast(RAMP_UP_STEPS), HIGH);
-    _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
   }
 
   // Even if we're emergency-stopped, record where we think we are.
   pmem.logical_position = pos_num-1;
+  num_input_buffer = 0;
+
+  _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
 
 }
 
