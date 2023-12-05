@@ -101,7 +101,7 @@ var input_events_i: u32 = 0;
 
 var motor_stop_requested: bool = false;
 var num_input_buffer: i32 = 0;
-var dial_num_steps_per_click: usize = 100;
+var dial_num_steps_per_click: usize = 80;
 var last_written_pmem_hash: i32 = 0;
 
 // Sonar data
