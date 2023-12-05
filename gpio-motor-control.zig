@@ -93,7 +93,7 @@ const FASTEST_US = 112;
 
 // Global data
 var exit_requested: bool = false;
-const num_keyboard_fds: u32 = 42;
+const num_keyboard_fds: u32 = 256;
 var keyboard_fds: [num_keyboard_fds]c_int = .{@as(c_int, -1)} ** num_keyboard_fds;
 const num_input_events: u32 = 24;
 var input_events: [num_input_events]?clinuxinput.input_event = .{null} ** num_input_events;
