@@ -28,7 +28,7 @@ print(f'WORLDE_out_name = {WORLDE_out_name}')
 
 outport = mido.open_output(WORLDE_out_name)
 
-msg = mido.Message('note_on', note=40)
+msg = mido.Message('note_on', channel=0, note=40, velocity=42, time=0)
 outport.send(msg)
 
 time.sleep(1.2)
