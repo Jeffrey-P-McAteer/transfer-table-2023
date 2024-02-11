@@ -66,6 +66,7 @@ const cpigpio = @cImport({
 const PMEM_FILE = "/mnt/usb1/pmem.bin";
 const CMD_FILE = "/mnt/usb1/cmd.bin";
 
+const GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in";
 
 // Hardware Constants
 const PREFERRED_CPU = 3;
@@ -73,10 +74,6 @@ const PREFERRED_CPU = 3;
 const MOTOR_ENABLE_PIN = 22;
 const MOTOR_DIRECTION_PIN = 27;
 const MOTOR_STEP_PIN = 17;
-
-// 23 is north-most (closest to ground), 24 is south-most pin (closest to USB ports)
-const SONAR_TRIGGER_PIN = 23;
-const SONAR_ECHO_PIN = 24;
 
 const LOW = 0;
 const HIGH = 1;
@@ -103,19 +100,6 @@ var motor_stop_requested: bool = false;
 var num_input_buffer: i32 = 0;
 var dial_num_steps_per_click: usize = 80;
 var last_written_pmem_hash: i32 = 0;
-
-// Sonar data
-var sonar_sending_trigger: bool = false;
-var sonar_trigger_begin_tv: csystime.timeval = null;
-
-var sonar_reading_echo_pin_pt1: bool = false;
-var sonar_echo_begin_tv: csystime.timeval = null;
-
-var sonar_reading_echo_pin_pt2: bool = false;
-var sonar_echo_end_tv: csystime.timeval = null;
-
-var last_sonar_pulse_us: u32 = 0;
-
 
 
 const num_positions: u32 = 12;
@@ -145,20 +129,17 @@ pub fn main() !void {
     _ = cpigpio.gpioSetMode(MOTOR_ENABLE_PIN, cpigpio.PI_OUTPUT);
     _ = cpigpio.gpioSetMode(MOTOR_DIRECTION_PIN, cpigpio.PI_OUTPUT);
     _ = cpigpio.gpioSetMode(MOTOR_STEP_PIN, cpigpio.PI_OUTPUT);
-    _ = cpigpio.gpioSetMode(SONAR_TRIGGER_PIN, cpigpio.PI_OUTPUT);
-    _ = cpigpio.gpioSetMode(SONAR_ECHO_PIN, cpigpio.PI_INPUT);
 
     _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
     _ = cpigpio.gpioWrite(MOTOR_DIRECTION_PIN,  LOW);
     _ = cpigpio.gpioWrite(MOTOR_STEP_PIN,       LOW);
-    _ = cpigpio.gpioWrite(SONAR_TRIGGER_PIN,    LOW);
 
     read_pmem_from_file();
 
     var evt_loop_i: u32 = 0;
     var num_ticks_with_motor_stop_requested: u32 = 0;
     while (!exit_requested) {
-        // Course do-nothing at 6ms increments until we get keypresses (evt_loop_i += 166 / second)
+        // Coarse do-nothing at 6ms increments until we get keypresses (evt_loop_i += 166 / second)
         std.time.sleep(6000000); // 6ms
 
         if (motor_stop_requested) {
@@ -173,6 +154,11 @@ pub fn main() !void {
         }
         else {
           num_ticks_with_motor_stop_requested = 0;
+        }
+
+        // Twice a second (second=166 _i s), check and add key presses from other system processes to input_events[]
+        if (evt_loop_i % 83 == 50) {
+            injectForeignKeypresses();
         }
 
         // Every other second, open new keyboard devices
@@ -250,6 +236,25 @@ pub fn openAnyNewKeyboardFds() void {
         }
     }
 }
+
+pub fn injectForeignKeypresses() void {
+    // For each file in a folder, read content as int & construct a
+    // input_event.type == clinuxinputeventcodes.EV_KEY && input_event.value == 1
+    // struct with event.code == the ASCII number in the file.s
+    var stat_buf: std.os.Stat = undefined;
+    const result = std.os.system.stat(GPIO_MOTOR_KEYS_IN_DIR, &stat_buf);
+    if (result != 0) { // if dir does not exist, create it!
+        std.debug.print("Creating {s}\n", .{GPIO_MOTOR_KEYS_IN_DIR});
+        std.fs.makeDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR) catch |err| {
+            std.debug.print("makeDirAbsolute failed: {}\n", .{err});
+        };
+    }
+
+    //const iter_dir = try std.fs.openDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR);
+
+
+}
+
 
 pub fn asyncReadKeyboardFds() void {
     for (0..num_keyboard_fds) |i| {
