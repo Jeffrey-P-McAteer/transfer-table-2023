@@ -75,7 +75,8 @@ def main():
         img = do_track_detection(img, cap_width, cap_height)
 
         # draw FPS text and display image
-        cv2.putText(img, f'FPS: {cur_fps}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (128, 128, 128), 2, cv2.LINE_AA)
+        cv2.putText(img, f'FPS: {cur_fps}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
+        cv2.putText(img, f'FPS: {cur_fps}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA)
         cv2.imshow("webcam", img)
 
         # wait 1ms for ESC to be pressed
@@ -89,17 +90,20 @@ def main():
     orig_imgs = []
     for img_f in sys.argv[1:]:
       orig_imgs.append(
-        cv2.imread(img_f, 0)
+        cv2.imread(img_f, cv2.IMREAD_COLOR)
       )
 
     # Assume all test images are same size
-    height, width = orig_imgs[0].shape
+    try:
+      height, width = orig_imgs[0].shape
+    except:
+      height, width, pixel_geometry = orig_imgs[0].shape
     print(f'Image size: {width}, {height} (w,h)')
 
     while True:
 
       for orig_img in orig_imgs:
-        img = do_track_detection(orig_img, width, height)
+        img = do_track_detection(orig_img.copy(), width, height)
 
         cv2.imshow("webcam", img)
 
@@ -136,16 +140,56 @@ def do_track_detection(img, width, height):
       except:
         traceback.print_exc()
 
+  # Step one - use two magic numbers (experimentally discovered)
+  # to throw out noise in the image
+  #img = cv2.Canny(img, int_a, int_b)
+  #img = cv2.Canny(img, 120, 450)
 
-  img = cv2.Canny(img, int_a, int_b)
 
+  img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+  ret,thresh = cv2.threshold(img_gray, 210, 260, 0)
+  contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+  #print(f'contours = {contours}')
+  #cv2.drawContours(img_gray, contours, -1, 255, 3)
+
+  # find the biggest countour (c) by the area
+  largest_contour = max(contours, key = cv2.contourArea)
+
+
+  cv2.drawContours(img_gray, [largest_contour], -1, 255, 2)
+  cv2.drawContours(img, [largest_contour], -1, (0, 0, 255), 2)
+
+  #x,y,w,h = cv2.boundingRect(largest_contour)
+  #print(f'x,y,w,h = {(x,y,w,h)}')
+
+  rect = cv2.minAreaRect(largest_contour)
+  box = cv2.boxPoints(rect)
+  box = numpy.int0(box)
+
+  print(f'box = {box}')
+  cv2.drawContours(img,[box],0, (0,255,0), 2)
+  cv2.drawContours(img_gray,[box],0, 20, 2)
+
+  line_x1 = box[0][0]
+  line_y1 = box[0][1]
+
+  line_x2 = box[1][0]
+  line_y2 = box[1][1]
+
+  cv2.line(img, (line_x1, line_y1), (line_x2, line_y2), (255, 0, 0), thickness=2)
+  cv2.line(img_gray, (line_x1, line_y1), (line_x2, line_y2), 120, thickness=2)
 
 
   dbg_s = f'A: {int_a} B: {int_b}'
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
-  return img
+  img_final = cv2.hconcat([
+    img, cv2.cvtColor(img_gray,cv2.COLOR_GRAY2RGB)
+  ])
+  return img_final
 
 
 
