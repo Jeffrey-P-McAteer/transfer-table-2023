@@ -130,7 +130,7 @@ def do_track_detection(img, width, height):
 
   img = cv2.Canny(img, int_a, int_b)
 
-  cv2.putText(img, f'a: {int_a} b: {int_b}', (10, height-30), cv2.FONT_HERSHEY_SIMPLEX, 1, (128, 128, 128), 2, cv2.LINE_AA)
+  cv2.putText(img, f'a: {int_a} b: {int_b}', (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (128, 128, 128), 2, cv2.LINE_AA)
 
   return img
 
