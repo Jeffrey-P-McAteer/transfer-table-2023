@@ -247,11 +247,38 @@ pub fn injectForeignKeypresses() void {
         std.debug.print("Creating {s}\n", .{GPIO_MOTOR_KEYS_IN_DIR});
         std.fs.makeDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR) catch |err| {
             std.debug.print("makeDirAbsolute failed: {}\n", .{err});
+            return;
         };
     }
 
-    //const iter_dir = try std.fs.openDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR);
+    const dir = std.fs.openIterableDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR, .{}) catch |err| {
+        std.debug.print("openIterableDirAbsolute failed: {}\n", .{err});
+        return;
+    };
+    var iterator = dir.iterate();
+    while (iterator.next()) |file| {
+        if (file == null) {
+            break;
+        }
+        var file_name = file.?.name;
+        std.debug.print("file = {s}\n", .{ file.?.name });
 
+        var open_f = dir.dir.openFile(file_name, .{}) catch |err| {
+            std.debug.print("openFile failed: {}\n", .{err});
+            continue;
+        };
+
+        var f_buff: [1024]u8 = std.mem.zeroes([1024]u8);
+        _ = open_f.readAll(&f_buff) catch |err| {
+            std.debug.print("readAll failed: {}\n", .{err});
+            continue;
+        };
+        std.debug.print("f_buff = {s}\n", .{f_buff});
+
+    }
+    else |err| {
+        std.debug.print("iterator.next() failed: {}\n", .{err});
+    }
 
 }
 
