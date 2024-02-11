@@ -83,23 +83,32 @@ def main():
         if (key == 27):
             break
   else:
-    print(f'Opening {image_file}')
+    #print(f'Opening {image_file}')
+    print(f'Opening {sys.argv[1:]}')
 
-    orig_img = cv2.imread(image_file, 0)
-    height, width = orig_img.shape
+    orig_imgs = []
+    for img_f in sys.argv[1:]:
+      orig_imgs.append(
+        cv2.imread(img_f, 0)
+      )
+
+    # Assume all test images are same size
+    height, width = orig_imgs[0].shape
+    print(f'Image size: {width}, {height} (w,h)')
 
     while True:
 
-      img = do_track_detection(orig_img, width, height)
+      for orig_img in orig_imgs:
+        img = do_track_detection(orig_img, width, height)
 
-      cv2.imshow("webcam", img)
+        cv2.imshow("webcam", img)
 
-      # wait 1ms for ESC to be pressed
-      key = cv2.waitKey(1)
-      if (key == 27):
-          break
+        # wait 1ms for ESC to be pressed
+        key = cv2.waitKey(1)
+        if (key == 27):
+            break
 
-      time.sleep(0.05)
+        time.sleep(0.25)
 
   # release resources
   try:
@@ -111,7 +120,7 @@ def main():
 
 def do_track_detection(img, width, height):
 
-  int_a = 50
+  int_a = 120
   if os.path.exists('/tmp/int_a'):
     with open('/tmp/int_a', 'r') as fd:
       try:
@@ -119,7 +128,7 @@ def do_track_detection(img, width, height):
       except:
         traceback.print_exc()
 
-  int_b = 90
+  int_b = 450
   if os.path.exists('/tmp/int_b'):
     with open('/tmp/int_b', 'r') as fd:
       try:
@@ -130,7 +139,11 @@ def do_track_detection(img, width, height):
 
   img = cv2.Canny(img, int_a, int_b)
 
-  cv2.putText(img, f'a: {int_a} b: {int_b}', (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (128, 128, 128), 2, cv2.LINE_AA)
+
+
+  dbg_s = f'A: {int_a} B: {int_b}'
+  cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
+  cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
   return img
 

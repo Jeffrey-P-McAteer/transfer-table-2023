@@ -83,6 +83,8 @@ griffin-reader 'file_int_ex(50, "/tmp/int_a", lambda x: x - 1)' 'file_int_ex(50,
 # Even better - two numbers!
 griffin-reader 'file_int_ex(50, get_g("F", "/tmp/int_a"), lambda x: x - 1)' 'file_int_ex(50, get_g("F", "/tmp/int_a"), lambda x: x + 1)' 'flip_g("F", "/tmp/int_a", "/tmp/int_b")'
 
+# Research for image track detector
+python image_correction_experiment.py research-photos/mpv-shot0001.jpg research-photos/mpv-shot0002.jpg research-photos/mpv-shot0003.jpg research-photos/mpv-shot0004.jpg research-photos/mpv-shot0010.jpg research-photos/mpv-shot0011.jpg research-photos/mpv-shot0012.jpg
 
 
 ```
