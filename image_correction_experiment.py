@@ -5,7 +5,7 @@ import sys
 import subprocess
 import shutil
 import datetime
-
+import traceback
 
 python_libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.py-env'))
 os.makedirs(python_libs_dir, exist_ok=True)
@@ -32,7 +32,7 @@ except:
 def main():
   # From https://stackoverflow.com/questions/62576326/python3-process-and-display-webcam-stream-at-the-webcams-fps
   # create display window
-  cv2.namedWindow("webcam", cv2.WINDOW_NORMAL)
+  cv2.namedWindow("floatme", cv2.WINDOW_NORMAL)
 
   # initialize webcam capture object
   cap = cv2.VideoCapture(0)
@@ -61,8 +61,31 @@ def main():
       elapsed_time = delta_time.total_seconds()
       cur_fps = numpy.around(frames / elapsed_time, 1)
 
+      # Perform image normalization(s)
+
+      int_a = 50
+      if os.path.exists('/tmp/int_a'):
+        with open('/tmp/int_a', 'r') as fd:
+          try:
+            int_a = int(fd.read().strip())
+          except:
+            traceback.print_exc()
+
+      int_b = 50
+      if os.path.exists('/tmp/int_b'):
+        with open('/tmp/int_b', 'r') as fd:
+          try:
+            int_b = int(fd.read().strip())
+          except:
+            traceback.print_exc()
+
+
+      img = cv2.Canny(img, int_a, int_b)
+
+      # img = cv2.Sobel(src=img, ddepth=cv2.CV_64F, dx=1, dy=1, ksize=15) # Combined X and Y Sobel Edge Detection
+
       # draw FPS text and display image
-      cv2.putText(img, 'FPS: ' + str(cur_fps), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+      cv2.putText(img, f'FPS: {cur_fps} a: {int_a} b: {int_b}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (128, 128, 128), 2, cv2.LINE_AA)
       cv2.imshow("webcam", img)
 
       # wait 1ms for ESC to be pressed

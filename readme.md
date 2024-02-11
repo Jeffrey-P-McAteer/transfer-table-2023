@@ -74,5 +74,16 @@ sudo systemctl enable --now gpio-motor-control-watcher
  - C controller: https://forums.raspberrypi.com/viewtopic.php?t=256740
  - https://www.omc-stepperonline.com/download/DM556T.pdf
 
+# Command notes
 
+```bash
+# To attach my griffin dial to a /tmp/int_a for CV research
+griffin-reader 'file_int_ex(50, "/tmp/int_a", lambda x: x - 1)' 'file_int_ex(50, "/tmp/int_a", lambda x: x + 1)' 'None'
+
+# Even better - two numbers!
+griffin-reader 'file_int_ex(50, get_g("F", "/tmp/int_a"), lambda x: x - 1)' 'file_int_ex(50, get_g("F", "/tmp/int_a"), lambda x: x + 1)' 'flip_g("F", "/tmp/int_a", "/tmp/int_b")'
+
+
+
+```
 
