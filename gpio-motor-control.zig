@@ -260,21 +260,72 @@ pub fn injectForeignKeypresses() void {
         if (file == null) {
             break;
         }
-        var file_name = file.?.name;
-        std.debug.print("file = {s}\n", .{ file.?.name });
+        else {
+            var file_name = file.?.name;
+            std.debug.print("file = {s}\n", .{ file.?.name });
 
-        var open_f = dir.dir.openFile(file_name, .{}) catch |err| {
-            std.debug.print("openFile failed: {}\n", .{err});
-            continue;
-        };
+            var open_f = dir.dir.openFile(file_name, .{}) catch |err| {
+                std.debug.print("openFile failed: {}\n", .{err});
+                continue;
+            };
 
-        var f_buff: [1024]u8 = std.mem.zeroes([1024]u8);
-        _ = open_f.readAll(&f_buff) catch |err| {
-            std.debug.print("readAll failed: {}\n", .{err});
-            continue;
-        };
-        std.debug.print("f_buff = {s}\n", .{f_buff});
+            var f_content: [4096]u8 = std.mem.zeroes([4096]u8);
+            _ = open_f.readAll(&f_content) catch |err| {
+                std.debug.print("readAll failed: {}\n", .{err});
+                continue;
+            };
 
+            std.debug.print("f_content = {s}\n", .{f_content});
+
+            // Iterate all characters, calling std.fmt.parseInt() on every range of non-digit-non-digit ranges of values.
+            // This means for contents like "ab12 34,56" we'll parse out 12, 34, and 56.
+            var current_int_begin_i: usize = 0;
+            var current_int_end_i: usize = 0;
+            for (0..4096) |i| {
+                if (std.ascii.isDigit(f_content[i])) {
+                    current_int_end_i = i+1;
+                }
+                else {
+                    if (current_int_end_i > current_int_begin_i) {
+                        if (!std.ascii.isDigit(f_content[current_int_begin_i])) {
+                            current_int_begin_i += 1;
+                        }
+                        if (current_int_end_i > current_int_begin_i) {
+                            // we have reached the end of a digit! try to parse begin..end
+                            // std.debug.print("Parsing this {s}\n", .{f_content[current_int_begin_i..current_int_end_i]});
+                            const parsed_keycode: u32 = std.fmt.parseInt(u32, f_content[current_int_begin_i..current_int_end_i], 10) catch |err| {
+                                std.debug.print("parseInt failed: {}\n", .{err});
+                                break; // assume the worst, some unicode chaos
+                            };
+
+                            std.debug.print("parsed_keycode = {}\n", .{parsed_keycode});
+                            // Insert into buffer as event struct
+
+                            var event: clinuxinput.input_event = undefined;
+                            event.type = clinuxinputeventcodes.EV_KEY;
+                            event.value = 1;
+                            event.code = @truncate(parsed_keycode);
+
+                            if (input_events_i >= num_input_events) {
+                                input_events_i = 0;
+                            }
+                            input_events[input_events_i] = event;
+                            input_events_i += 1;
+
+                        }
+                    }
+                    current_int_begin_i = i;
+                    current_int_end_i = i;
+                }
+            }
+
+
+            // Finally delete the file, we're done with it
+            dir.dir.deleteFile(file_name) catch |err| {
+                std.debug.print("deleteFile failed: {}\n", .{err});
+                continue;
+            };
+        }
     }
     else |err| {
         std.debug.print("iterator.next() failed: {}\n", .{err});
