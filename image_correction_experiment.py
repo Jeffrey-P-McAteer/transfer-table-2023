@@ -207,10 +207,11 @@ def do_track_detection(img, width, height):
 
   cv2.line(img, (int(line_x1 - search_delta_x), int(line_y1)), (int(line_x2 - search_delta_x), int(line_y2)), (255, 255, 0), thickness=2)
 
-  # Define corresponding points in output image
+  # Define corresponding points in output image - this rotates the image 90 degrees so the right edge of the source
+  # becomes the bottom edge of the destination
   pts1 = numpy.float32([
-    [0,0],[width,0],
-    [width, height],[0,height]
+    [0,0], [0, height],
+    [width, height],[width,0],
   ])
 
   # Get perspective transform and apply it
@@ -218,6 +219,17 @@ def do_track_detection(img, width, height):
   search_img = cv2.warpPerspective(img, M, (width, height))
 
   # Now we are working in the rotated search_img space
+  search_gray = cv2.cvtColor(search_img, cv2.COLOR_BGR2GRAY)
+
+  ret,thresh = cv2.threshold(search_gray, int_a, int_b, 0)
+  #contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+  contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+  for c in contours:
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.015 * peri, True)
+    if len(approx) == 4:
+        x,y,w,h = cv2.boundingRect(approx)
+        cv2.rectangle(search_gray,(x,y),(x+w,y+h), 255, 2)
 
 
 
@@ -226,7 +238,7 @@ def do_track_detection(img, width, height):
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
   img_final = cv2.hconcat(try_convert_to_rgb([
-    img, search_img
+    img, search_img, search_gray
   ]))
   return img_final
 
