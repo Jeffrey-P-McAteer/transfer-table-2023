@@ -87,6 +87,9 @@ def main():
     #print(f'Opening {image_file}')
     print(f'Opening {sys.argv[1:]}')
 
+    sleep_s = float(os.environ.get('SLEEP_S', '0.25'))
+    print(f'SLEEP_S = {sleep_s}')
+
     orig_imgs = []
     for img_f in sys.argv[1:]:
       orig_imgs.append(
@@ -112,7 +115,7 @@ def main():
         if (key == 27):
             break
 
-        time.sleep(0.25)
+        time.sleep(sleep_s)
 
   # release resources
   try:
@@ -158,7 +161,7 @@ def do_track_detection(img, width, height):
   largest_contour = max(contours, key = cv2.contourArea)
 
 
-  cv2.drawContours(img_gray, [largest_contour], -1, 255, 2)
+  # cv2.drawContours(img_gray, [largest_contour], -1, 255, 2)
   cv2.drawContours(img, [largest_contour], -1, (0, 0, 255), 2)
 
   #x,y,w,h = cv2.boundingRect(largest_contour)
@@ -168,9 +171,9 @@ def do_track_detection(img, width, height):
   box = cv2.boxPoints(rect)
   box = numpy.int0(box)
 
-  print(f'box = {box}')
+  #print(f'box = {box}')
   cv2.drawContours(img,[box],0, (0,255,0), 2)
-  cv2.drawContours(img_gray,[box],0, 20, 2)
+  # cv2.drawContours(img_gray,[box],0, 20, 2)
 
   line_x1 = box[0][0]
   line_y1 = box[0][1]
@@ -178,19 +181,62 @@ def do_track_detection(img, width, height):
   line_x2 = box[1][0]
   line_y2 = box[1][1]
 
+  # print(f'Line {(line_x1, line_y1)} -> {(line_x2, line_y2)}')
+
   cv2.line(img, (line_x1, line_y1), (line_x2, line_y2), (255, 0, 0), thickness=2)
-  cv2.line(img_gray, (line_x1, line_y1), (line_x2, line_y2), 120, thickness=2)
+  # cv2.line(img_gray, (line_x1, line_y1), (line_x2, line_y2), 120, thickness=2)
+
+  search_h = 520
+
+  line_rise = abs(line_y2 - line_y1)
+  line_run = abs(line_x2 - line_x1)
+  line_ratio = line_rise / line_run
+  line_inv_ratio = line_run / line_rise
+
+  search_delta_x = search_h * line_inv_ratio
+  #search_delta_y = search_delta_x * line_inv_ratio
+
+  #print(f'search_delta_x = {search_delta_x}')
+  #print(f'search_delta_y = {search_delta_y}')
+
+  # Define points in input image: top-left, top-right, bottom-right, bottom-left
+  pts0 = numpy.float32([
+    [line_x1 - search_delta_x, line_y1], [line_x1,line_y1],
+    [line_x2,line_y2], [line_x2 - search_delta_x, line_y2]
+  ])
+
+  cv2.line(img, (int(line_x1 - search_delta_x), int(line_y1)), (int(line_x2 - search_delta_x), int(line_y2)), (255, 255, 0), thickness=2)
+
+  # Define corresponding points in output image
+  pts1 = numpy.float32([
+    [0,0],[width,0],
+    [width, height],[0,height]
+  ])
+
+  # Get perspective transform and apply it
+  M = cv2.getPerspectiveTransform(pts0, pts1)
+  search_img = cv2.warpPerspective(img, M, (width, height))
+
+  # Now we are working in the rotated search_img space
+
 
 
   dbg_s = f'A: {int_a} B: {int_b}'
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
-  img_final = cv2.hconcat([
-    img, cv2.cvtColor(img_gray,cv2.COLOR_GRAY2RGB)
-  ])
+  img_final = cv2.hconcat(try_convert_to_rgb([
+    img, search_img
+  ]))
   return img_final
 
+def try_convert_to_rgb(images):
+  for i in range(0, len(images)):
+    try:
+      images[i] = cv2.cvtColor(images[i], cv2.COLOR_GRAY2RGB)
+    except:
+      pass
+  return images
 
 
 if __name__ == '__main__':
