@@ -219,17 +219,60 @@ def do_track_detection(img, width, height):
   search_img = cv2.warpPerspective(img, M, (width, height))
 
   # Now we are working in the rotated search_img space
-  search_gray = cv2.cvtColor(search_img, cv2.COLOR_BGR2GRAY)
 
-  ret,thresh = cv2.threshold(search_gray, int_a, int_b, 0)
-  #contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+  layout_track_center_mask = cv2.inRange(search_img, (90, 0, 0), (90+50, 255, 255)) # hue, saturation, value thresholds
+  # ^ the cv2.bitwise_not of selected areas include a central rectangle around the table track!
+
+  table_right_rail_mask = cv2.inRange(search_img, (0, 0, 210), (0, 255, 255)) # hue, saturation, value thresholds
+  # ^ the cv2.bitwise_not of selected areas include an area covering the central rail in test frames
+
+  rail_mask = cv2.inRange(search_img, (150, 0, 180), (255, 255, 255)) # hue, saturation, value thresholds
+  rail_mask_img = cv2.bitwise_and(search_img, search_img, mask=rail_mask)
+
+  # R&D
+  #mask = cv2.inRange(search_img, (150, 0, int_a), (255, 255, int_a+int_b)) # hue, saturation, value thresholds
+  # inv_mask = cv2.bitwise_not(mask)
+  #search_masked = cv2.bitwise_and(search_img, search_img, mask=mask)
+
+  search_latest = cv2.cvtColor(rail_mask_img, cv2.COLOR_BGR2GRAY)
+
+  ret,thresh = cv2.threshold(search_latest, 210, 260, 0)
   contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-  for c in contours:
-    peri = cv2.arcLength(c, True)
-    approx = cv2.approxPolyDP(c, 0.015 * peri, True)
-    if len(approx) == 4:
-        x,y,w,h = cv2.boundingRect(approx)
-        cv2.rectangle(search_gray,(x,y),(x+w,y+h), 255, 2)
+  # find the biggest countour (c) by the area
+  largest_contour = max(contours, key = cv2.contourArea)
+  # cv2.drawContours(img_gray, [largest_contour], -1, 255, 2)
+  #cv2.drawContours(search_latest, [largest_contour], -1, 255, 2)
+
+  #cv2.drawContours(search_latest, contours, -1, 255, 2)
+
+
+  colors = [
+    (255, 0, 0),
+    (255, 255, 0),
+    (255, 255, 255),
+    (0, 255, 0),
+    (0, 255, 255),
+    (0, 0, 255),
+  ]
+
+  for i,c in enumerate(sorted(contours, key=cv2.contourArea, reverse=True)[:5]):
+    # c is a [ [[x,y]], [[x,y]], ] of contour points
+
+    # compute the center of the contour
+    try:
+      M = cv2.moments(c)
+      cX = int(M["m10"] / M["m00"])
+      cY = int(M["m01"] / M["m00"])
+
+      # print(f'i={i} c={cv2.contourArea(c)}')
+
+      cv2.drawContours(rail_mask_img, [c], -1, colors[i], 2)
+
+      dbg_s = f'. {cv2.contourArea(c)}'
+      cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
+      cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i], 1, cv2.LINE_AA)
+    except:
+      pass
 
 
 
@@ -238,7 +281,8 @@ def do_track_detection(img, width, height):
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
   img_final = cv2.hconcat(try_convert_to_rgb([
-    img, search_img, search_gray
+    #img, search_img, search_masked
+    search_img, rail_mask_img, search_latest
   ]))
   return img_final
 
