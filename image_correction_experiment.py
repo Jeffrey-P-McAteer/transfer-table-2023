@@ -236,6 +236,8 @@ def do_track_detection(img, width, height):
 
   search_latest = cv2.cvtColor(rail_mask_img, cv2.COLOR_BGR2GRAY)
 
+  search_latest = cv2.GaussianBlur(search_latest, (5,5), 0)
+
   ret,thresh = cv2.threshold(search_latest, 210, 260, 0)
   contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
   # find the biggest countour (c) by the area
@@ -255,7 +257,18 @@ def do_track_detection(img, width, height):
     (0, 0, 255),
   ]
 
-  for i,c in enumerate(sorted(contours, key=cv2.contourArea, reverse=True)[:5]):
+  def contour_y_diff(c):
+    min_y = 999999.0
+    max_y = -1.0
+    for sublist in c:
+      for xy_pair in sublist:
+        if xy_pair[1] < min_y:
+          min_y = xy_pair[1]
+        if xy_pair[1] > max_y:
+          max_y = xy_pair[1]
+    return max_y - min_y
+
+  for i,c in enumerate(sorted(contours, key=contour_y_diff, reverse=True)[:6]):
     # c is a [ [[x,y]], [[x,y]], ] of contour points
 
     # compute the center of the contour
@@ -264,11 +277,9 @@ def do_track_detection(img, width, height):
       cX = int(M["m10"] / M["m00"])
       cY = int(M["m01"] / M["m00"])
 
-      # print(f'i={i} c={cv2.contourArea(c)}')
-
       cv2.drawContours(rail_mask_img, [c], -1, colors[i], 2)
 
-      dbg_s = f'. {cv2.contourArea(c)}'
+      dbg_s = f'{i}-{contour_y_diff(c)}'
       cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
       cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i], 1, cv2.LINE_AA)
     except:
