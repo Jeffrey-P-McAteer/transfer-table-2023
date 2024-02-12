@@ -236,7 +236,8 @@ def do_track_detection(img, width, height):
 
   search_latest = cv2.cvtColor(rail_mask_img, cv2.COLOR_BGR2GRAY)
 
-  search_latest = cv2.GaussianBlur(search_latest, (5,5), 0)
+  # Kernel size (a,b) must both be positive & odd
+  search_latest = cv2.GaussianBlur(search_latest, (9,9), 0)
 
   ret,thresh = cv2.threshold(search_latest, 210, 260, 0)
   contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
