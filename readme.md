@@ -73,6 +73,7 @@ sudo systemctl enable --now gpio-motor-control-watcher
  - Python controller + circuits: https://forums.raspberrypi.com/viewtopic.php?t=106916#p1357530
  - C controller: https://forums.raspberrypi.com/viewtopic.php?t=256740
  - https://www.omc-stepperonline.com/download/DM556T.pdf
+ - https://en.wikipedia.org/wiki/Radon_transform
 
 # Command notes
 
