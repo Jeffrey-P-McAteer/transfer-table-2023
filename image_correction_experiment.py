@@ -30,6 +30,15 @@ except:
   ])
   import numpy
 
+try:
+  import numba
+except:
+  subprocess.run([
+    sys.executable, '-m', 'pip', 'install', f'--target={python_libs_dir}', 'numba'
+  ])
+  import numba
+
+
 @contextmanager
 def timed(name=''):
   start = time.time()
@@ -136,6 +145,7 @@ def main():
     pass
 
 # Stolen math https://stackoverflow.com/questions/34372480/rotate-point-about-another-point-in-degrees-python
+@numba.jit(nopython=True, nogil=True, cache=True)
 def rotate(origin, point, angle):
     """
     Rotate a point counterclockwise by a given angle around a given origin.
@@ -148,6 +158,37 @@ def rotate(origin, point, angle):
     qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
     return qx, qy
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c):
+    xy_list = list()
+    for sublist in c:
+      for xy_pair in sublist:
+        xy_list.append(
+          (xy_pair[0], xy_pair[1])
+        )
+
+    # we rotate the contour until the xmin-ymax is as small as possible,
+    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
+    best_rotation_angle = 0.0
+    smallest_rotation_xdiff = 99999.0
+    angles_to_test = [math.pi * (f/float(num_rotation_steps)) for f in range(0, int(num_rotation_steps))]
+    for rotation_angle in angles_to_test:
+      # xy_list
+      xmin = 9999.0
+      xmax = 0.0
+      for pt in xy_list:
+        rx, ry = rotate((img_center_x, img_center_y), pt, rotation_angle)
+        if rx > xmax:
+          xmax = rx
+        if rx < xmin:
+          xmin = rx
+      xdiff = abs(xmax - xmin)
+      if xdiff < smallest_rotation_xdiff:
+        smallest_rotation_xdiff = xdiff
+        best_rotation_angle = rotation_angle
+
+    return best_rotation_angle
 
 
 def do_track_detection(img, width, height):
@@ -196,35 +237,6 @@ def do_track_detection(img, width, height):
   #num_rotation_steps = 32
   num_rotation_steps = 180
 
-  def contour_skinniest_rotation(c):
-    xy_list = list()
-    for sublist in c:
-      for xy_pair in sublist:
-        xy_list.append(
-          (xy_pair[0], xy_pair[1])
-        )
-
-    # we rotate the contour until the xmin-ymax is as small as possible,
-    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
-    best_rotation_angle = 0.0
-    smallest_rotation_xdiff = 99999.0
-    angles_to_test = [math.pi * (f/float(num_rotation_steps)) for f in range(0, int(num_rotation_steps))]
-    for rotation_angle in angles_to_test:
-      # xy_list
-      xmin = 9999.0
-      xmax = 0.0
-      for pt in xy_list:
-        rx, ry = rotate((img_center_x, img_center_y), pt, rotation_angle)
-        if rx > xmax:
-          xmax = rx
-        if rx < xmin:
-          xmin = rx
-      xdiff = abs(xmax - xmin)
-      if xdiff < smallest_rotation_xdiff:
-        smallest_rotation_xdiff = xdiff
-        best_rotation_angle = rotation_angle
-
-    return best_rotation_angle
 
   def contour_railiness(c):
     xy_list = list()
@@ -236,7 +248,7 @@ def do_track_detection(img, width, height):
 
     # we rotate the contour until the xmin-ymax is as small as possible,
     # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
-    best_rotation_angle = contour_skinniest_rotation(c)
+    best_rotation_angle = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
 
     #print(f'best_rotation_angle = {best_rotation_angle}')
     rotated_xy_list = list()
@@ -266,7 +278,7 @@ def do_track_detection(img, width, height):
         r = contour_railiness(c)
         if r < 15.0:
           continue
-        sr = contour_skinniest_rotation(c)
+        sr = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
         total_best_contour_angles += sr
         num_best_contour_angles += 1
       if num_best_contour_angles > 0:
@@ -288,9 +300,11 @@ def do_track_detection(img, width, height):
         if r < 15.0:
           continue
 
-        sr = contour_skinniest_rotation(c)
+        sr = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
 
         M = cv2.moments(c)
+        if M["m00"] == 0:
+          M["m00"] = 0.005
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
 
@@ -300,10 +314,12 @@ def do_track_detection(img, width, height):
         cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
         cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
       except:
+        traceback.print_exc()
         pass
 
   with timed('rotate rail_mask_img'):
-    rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), -1 * (img_rotation_radians * (180.0/math.pi))  , 1.0)
+    rotation_deg = 0 - (img_rotation_radians * (180.0/math.pi))
+    rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), rotation_deg, 1.0)
     rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
 
   dbg_s = f'A: {int_a} B: {int_b}'
