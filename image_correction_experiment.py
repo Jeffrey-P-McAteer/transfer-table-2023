@@ -183,6 +183,38 @@ def do_track_detection(img, width, height):
   img_w, img_h, _img_channels = img.shape
   img_center_x = int(img_w / 2.0)
   img_center_y = int(img_h / 2.0)
+  #num_rotation_steps = 32
+  num_rotation_steps = 180
+
+  def contour_skinniest_rotation(c):
+    xy_list = list()
+    for sublist in c:
+      for xy_pair in sublist:
+        xy_list.append(
+          (xy_pair[0], xy_pair[1])
+        )
+
+    # we rotate the contour until the xmin-ymax is as small as possible,
+    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
+    best_rotation_angle = 0.0
+    smallest_rotation_xdiff = 99999.0
+    angles_to_test = [math.pi * (f/float(num_rotation_steps)) for f in range(0, int(num_rotation_steps))]
+    for rotation_angle in angles_to_test:
+      # xy_list
+      xmin = 9999.0
+      xmax = 0.0
+      for pt in xy_list:
+        rx, ry = rotate((img_center_x, img_center_y), pt, rotation_angle)
+        if rx > xmax:
+          xmax = rx
+        if rx < xmin:
+          xmin = rx
+      xdiff = abs(xmax - xmin)
+      if xdiff < smallest_rotation_xdiff:
+        smallest_rotation_xdiff = xdiff
+        best_rotation_angle = rotation_angle
+
+    return best_rotation_angle
 
   def contour_railiness(c):
     xy_list = list()
@@ -196,7 +228,7 @@ def do_track_detection(img, width, height):
     # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
     best_rotation_angle = 0.0
     smallest_rotation_xdiff = 99999.0
-    angles_to_test = [math.pi * (f/32.0) for f in range(0, 32)]
+    angles_to_test = [math.pi * (f/float(num_rotation_steps)) for f in range(0, int(num_rotation_steps))]
     for rotation_angle in angles_to_test:
       # xy_list
       xmin = 9999.0
@@ -228,25 +260,53 @@ def do_track_detection(img, width, height):
 
     return float(ydiff) / float(xdiff)
 
+  # Determine the most common rotation of _all_ contours with a railiness > 10.0
+  # we will then use that to normalize the image by rotating along that, essentially
+  # using a multitude of rail measurements as a single keypoint in theta space
+  total_best_contour_angles = 0.0
+  num_best_contour_angles = 0
+  for max_contour_amnt in [30, 25, 20, 15, 10, 5]:
+    for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
+      r = contour_railiness(c)
+      if r < 15.0:
+        continue
+      sr = contour_skinniest_rotation(c)
+      total_best_contour_angles += sr
+      num_best_contour_angles += 1
+    if num_best_contour_angles > 0:
+      break # done!
 
-  for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)[:6]):
+  img_rotation_radians = 0.0
+  if num_best_contour_angles > 0:
+    img_rotation_radians = total_best_contour_angles / float(num_best_contour_angles)
+
+  print(f'img_rotation_radians = {img_rotation_radians} aka {(img_rotation_radians * (180.0/math.pi))}')
+
+  for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
     # c is a [ [[x,y]], [[x,y]], ] of contour points
 
     # compute the center of the contour
     try:
+      r = contour_railiness(c)
+      if r < 15.0:
+        continue
+
+      sr = contour_skinniest_rotation(c)
+
       M = cv2.moments(c)
       cX = int(M["m10"] / M["m00"])
       cY = int(M["m01"] / M["m00"])
 
-      cv2.drawContours(rail_mask_img, [c], -1, colors[i], 2)
+      cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 2)
 
-      dbg_s = f'{i}-{contour_railiness(c)}'
+      dbg_s = f'{i}-{r:.2f}-{sr:.2f}'
       cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
-      cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i], 1, cv2.LINE_AA)
+      cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
     except:
       pass
 
-
+  rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), -1 * (img_rotation_radians * (180.0/math.pi))  , 1.0)
+  rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
 
   dbg_s = f'A: {int_a} B: {int_b}'
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
