@@ -7,6 +7,7 @@ import shutil
 import datetime
 import traceback
 import time
+import math
 
 python_libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.py-env'))
 os.makedirs(python_libs_dir, exist_ok=True)
@@ -124,6 +125,20 @@ def main():
   except:
     pass
 
+# Stolen math https://stackoverflow.com/questions/34372480/rotate-point-about-another-point-in-degrees-python
+def rotate(origin, point, angle):
+    """
+    Rotate a point counterclockwise by a given angle around a given origin.
+
+    The angle should be given in radians.
+    """
+    ox, oy = origin
+    px, py = point
+
+    qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+    qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+    return qx, qy
+
 
 def do_track_detection(img, width, height):
 
@@ -154,100 +169,7 @@ def do_track_detection(img, width, height):
   ret,thresh = cv2.threshold(img_gray, 210, 260, 0)
   contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-  #print(f'contours = {contours}')
-  #cv2.drawContours(img_gray, contours, -1, 255, 3)
-
-  # find the biggest countour (c) by the area
-  largest_contour = max(contours, key = cv2.contourArea)
-
-
-  # cv2.drawContours(img_gray, [largest_contour], -1, 255, 2)
-  cv2.drawContours(img, [largest_contour], -1, (0, 0, 255), 2)
-
-  #x,y,w,h = cv2.boundingRect(largest_contour)
-  #print(f'x,y,w,h = {(x,y,w,h)}')
-
-  rect = cv2.minAreaRect(largest_contour)
-  box = cv2.boxPoints(rect)
-  box = numpy.int0(box)
-
-  #print(f'box = {box}')
-  cv2.drawContours(img,[box],0, (0,255,0), 2)
-  # cv2.drawContours(img_gray,[box],0, 20, 2)
-
-  line_x1 = box[0][0]
-  line_y1 = box[0][1]
-
-  line_x2 = box[1][0]
-  line_y2 = box[1][1]
-
-  # print(f'Line {(line_x1, line_y1)} -> {(line_x2, line_y2)}')
-
-  cv2.line(img, (line_x1, line_y1), (line_x2, line_y2), (255, 0, 0), thickness=2)
-  # cv2.line(img_gray, (line_x1, line_y1), (line_x2, line_y2), 120, thickness=2)
-
-  search_h = 520
-
-  line_rise = abs(line_y2 - line_y1)
-  line_run = abs(line_x2 - line_x1)
-  line_ratio = line_rise / line_run
-  line_inv_ratio = line_run / line_rise
-
-  search_delta_x = search_h * line_inv_ratio
-  #search_delta_y = search_delta_x * line_inv_ratio
-
-  #print(f'search_delta_x = {search_delta_x}')
-  #print(f'search_delta_y = {search_delta_y}')
-
-  # Define points in input image: top-left, top-right, bottom-right, bottom-left
-  pts0 = numpy.float32([
-    [line_x1 - search_delta_x, line_y1], [line_x1,line_y1],
-    [line_x2,line_y2], [line_x2 - search_delta_x, line_y2]
-  ])
-
-  cv2.line(img, (int(line_x1 - search_delta_x), int(line_y1)), (int(line_x2 - search_delta_x), int(line_y2)), (255, 255, 0), thickness=2)
-
-  # Define corresponding points in output image - this rotates the image 90 degrees so the right edge of the source
-  # becomes the bottom edge of the destination
-  pts1 = numpy.float32([
-    [0,0], [0, height],
-    [width, height],[width,0],
-  ])
-
-  # Get perspective transform and apply it
-  M = cv2.getPerspectiveTransform(pts0, pts1)
-  search_img = cv2.warpPerspective(img, M, (width, height))
-
-  # Now we are working in the rotated search_img space
-
-  layout_track_center_mask = cv2.inRange(search_img, (90, 0, 0), (90+50, 255, 255)) # hue, saturation, value thresholds
-  # ^ the cv2.bitwise_not of selected areas include a central rectangle around the table track!
-
-  table_right_rail_mask = cv2.inRange(search_img, (0, 0, 210), (0, 255, 255)) # hue, saturation, value thresholds
-  # ^ the cv2.bitwise_not of selected areas include an area covering the central rail in test frames
-
-  rail_mask = cv2.inRange(search_img, (150, 0, 180), (255, 255, 255)) # hue, saturation, value thresholds
-  rail_mask_img = cv2.bitwise_and(search_img, search_img, mask=rail_mask)
-
-  # R&D
-  #mask = cv2.inRange(search_img, (150, 0, int_a), (255, 255, int_a+int_b)) # hue, saturation, value thresholds
-  # inv_mask = cv2.bitwise_not(mask)
-  #search_masked = cv2.bitwise_and(search_img, search_img, mask=mask)
-
-  search_latest = cv2.cvtColor(rail_mask_img, cv2.COLOR_BGR2GRAY)
-
-  # Kernel size (a,b) must both be positive & odd
-  search_latest = cv2.GaussianBlur(search_latest, (9,9), 0)
-
-  ret,thresh = cv2.threshold(search_latest, 210, 260, 0)
-  contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-  # find the biggest countour (c) by the area
-  largest_contour = max(contours, key = cv2.contourArea)
-  # cv2.drawContours(img_gray, [largest_contour], -1, 255, 2)
-  #cv2.drawContours(search_latest, [largest_contour], -1, 255, 2)
-
-  #cv2.drawContours(search_latest, contours, -1, 255, 2)
-
+  rail_mask_img = img.copy()
 
   colors = [
     (255, 0, 0),
@@ -258,18 +180,56 @@ def do_track_detection(img, width, height):
     (0, 0, 255),
   ]
 
-  def contour_y_diff(c):
-    min_y = 999999.0
-    max_y = -1.0
+  img_w, img_h, _img_channels = img.shape
+  img_center_x = int(img_w / 2.0)
+  img_center_y = int(img_h / 2.0)
+
+  def contour_railiness(c):
+    xy_list = list()
     for sublist in c:
       for xy_pair in sublist:
-        if xy_pair[1] < min_y:
-          min_y = xy_pair[1]
-        if xy_pair[1] > max_y:
-          max_y = xy_pair[1]
-    return max_y - min_y
+        xy_list.append(
+          (xy_pair[0], xy_pair[1])
+        )
 
-  for i,c in enumerate(sorted(contours, key=contour_y_diff, reverse=True)[:6]):
+    # we rotate the contour until the xmin-ymax is as small as possible,
+    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
+    best_rotation_angle = 0.0
+    smallest_rotation_xdiff = 99999.0
+    angles_to_test = [math.pi * (f/32.0) for f in range(0, 32)]
+    for rotation_angle in angles_to_test:
+      # xy_list
+      xmin = 9999.0
+      xmax = 0.0
+      for pt in xy_list:
+        rx, ry = rotate((img_center_x, img_center_y), pt, rotation_angle)
+        if rx > xmax:
+          xmax = rx
+        if rx < xmin:
+          xmin = rx
+      xdiff = abs(xmax - xmin)
+      if xdiff < smallest_rotation_xdiff:
+        smallest_rotation_xdiff = xdiff
+        best_rotation_angle = rotation_angle
+
+    #print(f'best_rotation_angle = {best_rotation_angle}')
+    rotated_xy_list = list()
+    for pt in xy_list:
+      rotated_xy_list.append(
+        rotate((img_center_x, img_center_y), pt, best_rotation_angle)
+      )
+
+    xdiff = max([x for (x,y) in rotated_xy_list ]) - min([x for (x,y) in rotated_xy_list ])
+    ydiff = max([y for (x,y) in rotated_xy_list ]) - min([y for (x,y) in rotated_xy_list ])
+
+    # Larger ydiffs relative to x will be first in line
+    if int(xdiff) == 0:
+      xdiff = 1.0
+
+    return float(ydiff) / float(xdiff)
+
+
+  for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)[:6]):
     # c is a [ [[x,y]], [[x,y]], ] of contour points
 
     # compute the center of the contour
@@ -280,7 +240,7 @@ def do_track_detection(img, width, height):
 
       cv2.drawContours(rail_mask_img, [c], -1, colors[i], 2)
 
-      dbg_s = f'{i}-{contour_y_diff(c)}'
+      dbg_s = f'{i}-{contour_railiness(c)}'
       cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
       cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i], 1, cv2.LINE_AA)
     except:
@@ -294,7 +254,7 @@ def do_track_detection(img, width, height):
 
   img_final = cv2.hconcat(try_convert_to_rgb([
     #img, search_img, search_masked
-    search_img, rail_mask_img, search_latest
+    img, rail_mask_img
   ]))
   return img_final
 
