@@ -77,7 +77,7 @@ def main():
         # draw FPS text and display image
         cv2.putText(img, f'FPS: {cur_fps}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
         cv2.putText(img, f'FPS: {cur_fps}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA)
-        cv2.imshow("webcam", img)
+        cv2.imshow("floatme", img)
 
         # wait 1ms for ESC to be pressed
         key = cv2.waitKey(1)
