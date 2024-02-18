@@ -266,6 +266,37 @@ def do_track_detection(img, width, height):
 
     return float(ydiff) / float(xdiff)
 
+  def contour_centeriness(c):
+    xy_list = list()
+    for sublist in c:
+      for xy_pair in sublist[::4]:
+        xy_list.append(
+          (xy_pair[0], xy_pair[1])
+        )
+
+    # we rotate the contour until the xmin-ymax is as small as possible,
+    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
+    best_rotation_angle = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
+
+    #print(f'best_rotation_angle = {best_rotation_angle}')
+    rotated_xy_list = list()
+    for pt in xy_list:
+      rotated_xy_list.append(
+        rotate((img_center_x, img_center_y), pt, best_rotation_angle)
+      )
+
+    average_x_val = 0.0
+    average_y_val = 0.0
+    for x,y in rotated_xy_list:
+      average_x_val += x
+      average_y_val += y
+    average_x_val /= len(rotated_xy_list)
+    average_y_val /= len(rotated_xy_list)
+
+    return abs(img_center_x - average_x_val) + abs(img_center_y - average_y_val)
+
+
+
   # Determine the most common rotation of _all_ contours with a railiness > 10.0
   # we will then use that to normalize the image by rotating along that, essentially
   # using a multitude of rail measurements as a single keypoint in theta space
@@ -293,6 +324,18 @@ def do_track_detection(img, width, height):
   print(f'img_rotation_radians = {img_rotation_radians} aka {(img_rotation_radians * (180.0/math.pi))}')
 
   with timed('Paint all contours'):
+    nearest_center_score = 9999.0
+    for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
+      try:
+        r = contour_railiness(c)
+        if r < 15.0:
+          continue
+        center_score = contour_centeriness(c)
+        if center_score < nearest_center_score:
+          nearest_center_score = center_score
+      except:
+        traceback.print_exc()
+
     for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
       # c is a [ [[x,y]], [[x,y]], ] of contour points
 
@@ -303,6 +346,8 @@ def do_track_detection(img, width, height):
           continue
 
         sr = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
+        center_score = contour_centeriness(c)
+        is_closest_line = abs(center_score - nearest_center_score) < 1.0
 
         M = cv2.moments(c)
         if M["m00"] == 0:
@@ -310,11 +355,16 @@ def do_track_detection(img, width, height):
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
 
-        cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 2)
+        if is_closest_line:
+          cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 2)
+        else:
+          cv2.drawContours(rail_mask_img, [c], -1, (255, 255, 255), 1)
 
-        dbg_s = f'{i}-{r:.2f}-{sr:.2f}'
-        cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
-        cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
+        if is_closest_line:
+          dbg_s = f'{i}-{r:.2f}-{sr:.2f}'
+          cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
+          cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
+
       except:
         traceback.print_exc()
         pass
