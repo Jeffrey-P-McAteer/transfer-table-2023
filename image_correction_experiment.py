@@ -9,6 +9,7 @@ import traceback
 import time
 import math
 from contextlib import contextmanager
+import statistics
 
 python_libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.py-env'))
 os.makedirs(python_libs_dir, exist_ok=True)
@@ -235,8 +236,7 @@ def do_track_detection(img, width, height):
   img_center_x = int(img_w / 2.0)
   img_center_y = int(img_h / 2.0)
   #num_rotation_steps = 32
-  num_rotation_steps = 180
-
+  num_rotation_steps = 180 * 2
 
   def contour_railiness(c):
     xy_list = list()
@@ -271,7 +271,7 @@ def do_track_detection(img, width, height):
   # using a multitude of rail measurements as a single keypoint in theta space
 
   with timed('Determine img_rotation_radians'):
-    total_best_contour_angles = 0.0
+    all_best_contour_angles = list()
     num_best_contour_angles = 0
     for max_contour_amnt in [30, 25, 20, 15, 10, 5]:
       for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
@@ -279,14 +279,16 @@ def do_track_detection(img, width, height):
         if r < 15.0:
           continue
         sr = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
-        total_best_contour_angles += sr
+        all_best_contour_angles.append(sr)
         num_best_contour_angles += 1
       if num_best_contour_angles > 0:
         break # done!
 
+    all_best_contour_angles.sort()
+
     img_rotation_radians = 0.0
     if num_best_contour_angles > 0:
-      img_rotation_radians = total_best_contour_angles / float(num_best_contour_angles)
+      img_rotation_radians = statistics.median(all_best_contour_angles)
 
   print(f'img_rotation_radians = {img_rotation_radians} aka {(img_rotation_radians * (180.0/math.pi))}')
 
