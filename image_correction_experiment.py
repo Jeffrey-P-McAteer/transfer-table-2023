@@ -108,7 +108,7 @@ def main():
       for orig_img in orig_imgs:
         img = do_track_detection(orig_img.copy(), width, height)
 
-        cv2.imshow("webcam", img)
+        cv2.imshow("floatme", img)
 
         # wait 1ms for ESC to be pressed
         key = cv2.waitKey(1)
