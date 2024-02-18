@@ -164,7 +164,7 @@ def rotate(origin, point, angle):
 def contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c):
     xy_list = list()
     for sublist in c:
-      for xy_pair in sublist:
+      for xy_pair in sublist[::4]:
         xy_list.append(
           (xy_pair[0], xy_pair[1])
         )
@@ -241,7 +241,7 @@ def do_track_detection(img, width, height):
   def contour_railiness(c):
     xy_list = list()
     for sublist in c:
-      for xy_pair in sublist:
+      for xy_pair in sublist[::4]:
         xy_list.append(
           (xy_pair[0], xy_pair[1])
         )
