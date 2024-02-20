@@ -9,7 +9,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 Restart=always
-RestartSec=1
+RestartSec=12
 User=root
 Group=root
 StandardError=journal
