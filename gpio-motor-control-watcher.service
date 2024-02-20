@@ -7,6 +7,10 @@ Description=gpio-motor-control restarter
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/systemctl restart gpio-motor-control.service
+LimitAS=infinity
+LimitRSS=infinity
+LimitCORE=infinity
+LimitNOFILE=infinity
 
 [Install]
 WantedBy=multi-user.target
