@@ -63,9 +63,8 @@ const cpigpio = @cImport({
     @cInclude("pigpio.h");
 });
 
+// Shared w/ webserver.py
 const PMEM_FILE = "/mnt/usb1/pmem.bin";
-const CMD_FILE = "/mnt/usb1/cmd.bin";
-
 const GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in";
 
 // Hardware Constants

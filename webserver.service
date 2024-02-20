@@ -1,0 +1,24 @@
+
+# sudo cp webserver.service /etc/systemd/system/webserver.service
+# sudo systemctl enable --now webserver.service
+
+[Unit]
+Description=Python Webserver for remote GPIO motor control
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+Group=root
+StandardError=journal
+StandardOutput=journal
+StandardInput=null
+WorkingDirectory=/
+ExecStart=/usr/bin/python /home/user/transfer-table-2023/webserver.py
+RuntimeMaxSec=180m
+
+[Install]
+WantedBy=multi-user.target
+

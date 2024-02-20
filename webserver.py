@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Keep in sync with gpio-motor-control.zig
+PMEM_FILE = "/mnt/usb1/pmem.bin"
+GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in"
+
 import os
 import sys
 import subprocess
@@ -8,6 +12,8 @@ import socket
 import traceback
 import time
 import logging
+import struct
+import datetime
 
 py_env_dir = os.path.join(os.path.dirname(__file__), '.py-env')
 os.makedirs(py_env_dir, exist_ok=True)
@@ -64,15 +70,92 @@ html, body {
   max-width: 600pt;
   display: block;
 }
+#status_iframe {
+  width: 90vw;
+  max-width: 592pt;
+  min-height: 400pt;
+  display: block;
+  padding: 2pt;
+}
+h2, #status_iframe {
+  margin: 2pt;
+}
   </style>
 </head>
 <body>
   <img src="/video" id="camera_stream" />
+  <h2>Status</h2>
+  <iframe src="/status" id="status_iframe" style="border:1px solid black;border-radius:3pt;"/>
 
 </body>
 </html>
 '''.strip()
   return aiohttp.web.Response(text=index_html, content_type='text/html')
+
+
+async def status_handle(request):
+  track_data = 'ERROR FETCHING TABLE POSITIONS'
+  try:
+    pmem_bytes = b''
+    with open(PMEM_FILE, 'rb') as fd:
+      pmem_bytes = fd.read()
+
+    # pmem_bytes has structure
+    #   logical_position: u32,
+    #   step_position: i32,
+    #   positions: [12]pos_dat align(1),
+
+    if len(pmem_bytes) > 104:
+      pmem_bytes = pmem_bytes[:104] # todo better
+
+    pmem_data = struct.unpack(
+      'Ii'+('if'*12),
+      pmem_bytes
+    )
+    logical_position = pmem_data[0]
+    track_data = '================================='+os.linesep
+    track_data += f'logical_position = {logical_position}'+os.linesep
+    step_position = pmem_data[1]
+    track_data += f'step_position = {step_position}'+os.linesep
+    track_data += '================================='+os.linesep
+
+    for pos_num in range(0, 12):
+      step_position = pmem_data[2+(pos_num*2)]
+      track_data += f'Position {pos_num+1} step_position = {step_position}'+os.linesep
+    track_data += '================================='+os.linesep
+
+    track_data += '==== Zero position init code ===='+os.linesep
+    for pos_num in range(0, 12):
+      step_position = pmem_data[2+(pos_num*2)]
+      track_data += f'pmem.positions[{pos_num}].step_position = {step_position};'+os.linesep
+    track_data += os.linesep
+
+  except:
+    traceback.print_exc()
+    track_data += '\n'+traceback.format_exc()
+
+  index_html = f'''
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="2" />
+  <style>
+html, body {{
+  margin: 0;
+  padding: 0;
+}}
+  </style>
+</head>
+<body>
+  <p><i>Status at {datetime.datetime.now()}</i></p>
+  <pre>{track_data}</pre>
+</body>
+</html>
+'''.strip()
+  return aiohttp.web.Response(text=index_html, content_type='text/html')
+
 
 last_video_frame_num = 0
 last_video_frame_s = 0
@@ -145,6 +228,7 @@ def build_app():
     aiohttp.web.get('/', index_handle),
     aiohttp.web.get('/index.html', index_handle),
     aiohttp.web.get('/video', video_handle),
+    aiohttp.web.get('/status', status_handle),
   ])
   return app
 
