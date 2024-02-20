@@ -14,6 +14,7 @@ import time
 import logging
 import struct
 import datetime
+import random
 
 py_env_dir = os.path.join(os.path.dirname(__file__), '.py-env')
 os.makedirs(py_env_dir, exist_ok=True)
@@ -77,14 +78,44 @@ html, body {
   display: block;
   padding: 2pt;
 }
-h2, #status_iframe {
+#inputForm {
+  max-width: 592pt;
+  padding: 2pt;
+}
+h2, #status_iframe, #inputForm {
   margin: 2pt;
+}
+input, label {
+  font-size: 16pt;
 }
   </style>
 </head>
 <body>
+  <script>
+    function submitInputForm() {
+      var frm = document.getElementById('inputForm');
+       frm.submit();
+       frm.reset();
+       return false;
+    }
+  </script>
   <img src="/video" id="camera_stream" />
-  <h2>Status</h2>
+  <h2>Table Input</h2>
+  <form id="inputForm" action="/input" method="POST" target="dummyFormFrame">
+    <label for="number">Number</label>
+    <input name="number" id="number" value="" type="text" />
+    <br/><br/>
+    <input type="button" value="Enter" onclick="submitInputForm()" style="margin-left:172pt;"/>
+    <i>
+      Numbers turn into key presses, 'r' becomes a clockwise dial rotation, 'l' becomes a counter-clockwise dial rotation.
+      '=' performs the same as '=' on keyboard or numpad.
+    </i>
+  </form>
+  <iframe name="dummyFormFrame" id="dummyFormFrame" style="display: none;"></iframe>
+  <br/>
+  <br/>
+  <br/>
+  <h2>Table Status</h2>
   <iframe src="/status" id="status_iframe" style="border:1px solid black;border-radius:3pt;"/>
 
 </body>
@@ -155,6 +186,62 @@ html, body {{
 </html>
 '''.strip()
   return aiohttp.web.Response(text=index_html, content_type='text/html')
+
+
+async def input_handle(request):
+  data = await request.post()
+  print(f'input_handle data = {data}')
+
+  input_file_keycode_s = ''
+  number_val = data['number'].lower()
+
+  for number in number_val:
+    # convert int format to linux keycode number
+    try:
+      # See https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h
+      if number == '0': # KEY_KP0 == 82
+        input_file_keycode_s += f'82,'
+      elif number == '1': # KEY_KP1 == 79
+        input_file_keycode_s += f'79,'
+      elif number == '2': # KEY_KP2 == 82
+        input_file_keycode_s += f'80,'
+      elif number == '3': # KEY_KP3 == 82
+        input_file_keycode_s += f'83,'
+      elif number == '4': # KEY_KP4 == 75
+        input_file_keycode_s += f'75,'
+      elif number == '5': # KEY_KP5 == 76
+        input_file_keycode_s += f'76,'
+      elif number == '6': # KEY_KP6 == 77
+        input_file_keycode_s += f'77,'
+      elif number == '7': # KEY_KP7 == 71
+        input_file_keycode_s += f'71,'
+      elif number == '8': # KEY_KP8 == 72
+        input_file_keycode_s += f'72,'
+      elif number == '9': # KEY_KP9 == 73
+        input_file_keycode_s += f'73,'
+      elif number == 'r': # right/clockwise rotation dial
+        input_file_keycode_s += f'114,'
+      elif number == 'l': # left/counte-clockwise rotation dial
+        input_file_keycode_s += f'115,'
+      elif number == '=': # equals is 13
+        input_file_keycode_s += f'13,'
+    except:
+      traceback.print_exc()
+
+  # and add an <enter> keycode
+  input_file_keycode_s += '96'
+
+  # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
+  for _ in range(0, 100):
+    input_num = random.randrange(1000, 9000)
+    input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
+    if os.path.exists(input_f_name):
+      continue
+    with open(input_f_name, 'w') as fd:
+      fd.write(input_file_keycode_s)
+    break
+
+  return aiohttp.web.Response(text=f'Done, input_file_keycode_s={input_file_keycode_s}', content_type='text/plain')
 
 
 last_video_frame_num = 0
@@ -229,6 +316,7 @@ def build_app():
     aiohttp.web.get('/index.html', index_handle),
     aiohttp.web.get('/video', video_handle),
     aiohttp.web.get('/status', status_handle),
+    aiohttp.web.post('/input', input_handle),
   ])
   return app
 
