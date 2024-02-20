@@ -18,6 +18,11 @@ StandardInput=null
 WorkingDirectory=/
 ExecStart=/home/user/transfer-table-2023/gpio-motor-control
 RuntimeMaxSec=180m
+LimitAS=infinity
+LimitRSS=infinity
+LimitCORE=infinity
+LimitNOFILE=infinity
+
 
 [Install]
 WantedBy=multi-user.target
