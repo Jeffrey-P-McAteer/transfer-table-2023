@@ -39,6 +39,15 @@ except:
   ])
   import numba
 
+try:
+  import skimage
+except:
+  subprocess.run([
+    sys.executable, '-m', 'pip', 'install', f'--target={python_libs_dir}', 'scikit-image'
+  ])
+  import skimage
+
+from skimage.transform import radon
 
 @contextmanager
 def timed(name=''):
@@ -374,13 +383,29 @@ def do_track_detection(img, width, height):
     rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), rotation_deg, 1.0)
     rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
 
+  with timed('radon rail_mask_img'):
+    rail_radon_img = rail_mask_img.copy()
+    rail_radon_img = cv2.cvtColor(rail_radon_img, cv2.COLOR_BGR2GRAY)
+
+    theta = numpy.linspace(0., 180., max(rail_radon_img.shape), endpoint=False)
+    sinogram = radon(rail_radon_img, theta=theta)
+    int_sinogram = numpy.rint(sinogram).astype(int)
+    # print(f'int_sinogram = {int_sinogram}')
+    print(f'int_sinogram.shape = {int_sinogram.shape}')
+    print(f'rail_radon_img.shape = {rail_radon_img.shape}')
+    for y in range(0, rail_radon_img.shape[0]):
+      for x in range(0, rail_radon_img.shape[1]):
+        rail_radon_img[y][x] = max(0, min(255, int_sinogram[y][x]))
+
+
+
   dbg_s = f'A: {int_a} B: {int_b}'
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
   cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
   img_final = cv2.hconcat(try_convert_to_rgb([
     #img, search_img, search_masked
-    img, rail_mask_img
+    img, rail_mask_img, rail_radon_img
   ]))
   return img_final
 
