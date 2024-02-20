@@ -155,6 +155,11 @@ Storage=volatile
 
 EOF
 
+# install avahi
+
+yay -Sy avahi
+sudo systemctl enable --now avahi-daemon.service
+
 
 ```
 
