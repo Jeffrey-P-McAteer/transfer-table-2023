@@ -405,7 +405,8 @@ def do_track_detection(img, width, height):
 
   img_final = cv2.hconcat(try_convert_to_rgb([
     #img, search_img, search_masked
-    img, rail_mask_img, rail_radon_img
+    #img, rail_mask_img, rail_radon_img
+    rail_mask_img, rail_radon_img
   ]))
   return img_final
 
