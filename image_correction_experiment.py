@@ -337,7 +337,7 @@ def do_track_detection(img, width, height):
     for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
       try:
         r = contour_railiness(c)
-        if r < 15.0:
+        if r < 10.0:
           continue
         center_score = contour_centeriness(c)
         if center_score < nearest_center_score:
@@ -364,27 +364,28 @@ def do_track_detection(img, width, height):
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
 
-        #if is_closest_line:
-        #  cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 2)
-        #else:
-        #  cv2.drawContours(rail_mask_img, [c], -1, (255, 255, 255), 1)
+        if is_closest_line:
+          cv2.drawContours(rail_mask_img, [c], -1, (0,0,0), 3)
+          cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 2)
+        else:
+          cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 1)
 
-        #if is_closest_line:
-        #  dbg_s = f'{i}-{r:.2f}-{sr:.2f}'
-        #  cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
-        #  cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
+        if is_closest_line:
+         dbg_s = f'{i}-{r:.2f}-{sr:.2f}'
+         cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
+         cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
 
       except:
         traceback.print_exc()
         pass
 
-  #with timed('rotate rail_mask_img'):
-  #  rotation_deg = 0 - (img_rotation_radians * (180.0/math.pi))
-  #  rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), rotation_deg, 1.0)
-  #  rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
+  with timed('rotate rail_mask_img'):
+   rotation_deg = 0 - (img_rotation_radians * (180.0/math.pi))
+   rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), rotation_deg, 1.0)
+   rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
 
-  with timed('radon rail_mask_img'):
-    rail_radon_img = rail_mask_img.copy()
+  with timed('radon rail_radon_img (greyscale of img.copy())'):
+    rail_radon_img = img.copy()
     rail_radon_img = cv2.cvtColor(rail_radon_img, cv2.COLOR_BGR2GRAY)
 
     # Get avg avg brightness of input; light bgs need to be inverted to make lines distinct!
@@ -399,7 +400,7 @@ def do_track_detection(img, width, height):
     if avg_brightness > 128:
       sinogram = radon(cv2.bitwise_not(rail_radon_img), theta=theta)
     else:
-      sinogram = radon(cv2.bitwise_not(rail_radon_img), theta=theta)
+      sinogram = radon(rail_radon_img, theta=theta)
 
     int_sinogram = numpy.rint(sinogram).astype(int)
     # print(f'int_sinogram = {int_sinogram}')
