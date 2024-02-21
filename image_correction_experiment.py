@@ -364,31 +364,43 @@ def do_track_detection(img, width, height):
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
 
-        if is_closest_line:
-          cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 2)
-        else:
-          cv2.drawContours(rail_mask_img, [c], -1, (255, 255, 255), 1)
+        #if is_closest_line:
+        #  cv2.drawContours(rail_mask_img, [c], -1, colors[i%6], 2)
+        #else:
+        #  cv2.drawContours(rail_mask_img, [c], -1, (255, 255, 255), 1)
 
-        if is_closest_line:
-          dbg_s = f'{i}-{r:.2f}-{sr:.2f}'
-          cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
-          cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
+        #if is_closest_line:
+        #  dbg_s = f'{i}-{r:.2f}-{sr:.2f}'
+        #  cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
+        #  cv2.putText(rail_mask_img, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
 
       except:
         traceback.print_exc()
         pass
 
-  with timed('rotate rail_mask_img'):
-    rotation_deg = 0 - (img_rotation_radians * (180.0/math.pi))
-    rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), rotation_deg, 1.0)
-    rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
+  #with timed('rotate rail_mask_img'):
+  #  rotation_deg = 0 - (img_rotation_radians * (180.0/math.pi))
+  #  rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), rotation_deg, 1.0)
+  #  rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
 
   with timed('radon rail_mask_img'):
     rail_radon_img = rail_mask_img.copy()
     rail_radon_img = cv2.cvtColor(rail_radon_img, cv2.COLOR_BGR2GRAY)
 
+    # Get avg avg brightness of input; light bgs need to be inverted to make lines distinct!
+    total_brightness = 0
+    for y in range(0, rail_radon_img.shape[0], 2):
+      for x in range(0, rail_radon_img.shape[1], 2):
+        total_brightness += rail_radon_img[y][x]
+    avg_brightness = total_brightness / float((rail_radon_img.shape[0]/2)*(rail_radon_img.shape[1]/2))
+
     theta = numpy.linspace(0., 180., max(rail_radon_img.shape), endpoint=False)
-    sinogram = radon(rail_radon_img, theta=theta)
+
+    if avg_brightness > 128:
+      sinogram = radon(cv2.bitwise_not(rail_radon_img), theta=theta)
+    else:
+      sinogram = radon(cv2.bitwise_not(rail_radon_img), theta=theta)
+
     int_sinogram = numpy.rint(sinogram).astype(int)
     # print(f'int_sinogram = {int_sinogram}')
     print(f'int_sinogram.shape = {int_sinogram.shape}')
