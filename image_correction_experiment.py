@@ -72,7 +72,8 @@ def main():
 
   # From https://stackoverflow.com/questions/62576326/python3-process-and-display-webcam-stream-at-the-webcams-fps
   # create display window
-  cv2.namedWindow("floatme", cv2.WINDOW_NORMAL)
+  cv2.namedWindow('floatme', cv2.WINDOW_NORMAL)
+  cv2.resizeWindow('floatme', 1920-50, 1080-300)
 
   if image_file is None:
     # initialize webcam capture object
@@ -107,7 +108,7 @@ def main():
         # draw FPS text and display image
         cv2.putText(img, f'FPS: {cur_fps}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
         cv2.putText(img, f'FPS: {cur_fps}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA)
-        cv2.imshow("floatme", img)
+        cv2.imshow('floatme', img)
 
         # wait 1ms for ESC to be pressed
         key = cv2.waitKey(1)
@@ -138,7 +139,7 @@ def main():
       for orig_img in orig_imgs:
         img = do_track_detection(orig_img.copy(), width, height)
 
-        cv2.imshow("floatme", img)
+        cv2.imshow('floatme', img)
 
         # wait 1ms for ESC to be pressed
         key = cv2.waitKey(1)
