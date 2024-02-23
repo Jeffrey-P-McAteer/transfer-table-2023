@@ -412,16 +412,79 @@ def do_track_detection(img, width, height):
         rail_radon_img[y][x] = max(0, min(255, int_sinogram[y][x]))
 
 
+  with timed('contour rail_radon_img'):
+    rail_radon_img_thresh = rail_radon_img.copy()
 
-  dbg_s = f'A: {int_a} B: {int_b}'
-  cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
-  cv2.putText(img, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
+    desired_xy_contours = [
+      (270, 190),
+      (270, 280),
+      (593, 187),
+    ]
+
+    best_a_b_dist = (237, 1, 999999)
+    if False:
+      for a in range(0, 300, 1):
+        for b in range(0, 300, 1):
+
+          ret,thresh = cv2.threshold(rail_radon_img_thresh, a, b, 0)
+          contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+          closest_3_total_d = 0.0
+          for desired_x, desired_y in desired_xy_contours:
+            closest_c_xy = (0,0)
+            closest_c_xy_dist = 99999.0
+
+            for c in contours:
+              M = cv2.moments(c)
+              if M["m00"] == 0:
+                M["m00"] = 0.005
+              cX = int(M["m10"] / M["m00"])
+              cY = int(M["m01"] / M["m00"])
+              dis_xy_dist = abs(cX - desired_x) + abs(cY - desired_y)
+              if dis_xy_dist < closest_c_xy_dist:
+                closest_c_xy_dist = dis_xy_dist
+                closest_c_xy = (cX, cY)
+
+            closest_3_total_d += closest_c_xy_dist
+          if closest_3_total_d < best_a_b_dist[2]:
+            best_a_b_dist = (a, b, closest_3_total_d)
+
+    print(f'best_a_b_dist = {best_a_b_dist}')
+    ret,thresh = cv2.threshold(rail_radon_img_thresh, best_a_b_dist[0], best_a_b_dist[1], 0)
+    contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    rail_radon_img_thresh = cv2.cvtColor(rail_radon_img_thresh, cv2.COLOR_GRAY2RGB)
+    # Paint
+    for i,c in enumerate(contours):
+      M = cv2.moments(c)
+      if M["m00"] == 0:
+        M["m00"] = 0.005
+      cX = int(M["m10"] / M["m00"])
+      cY = int(M["m01"] / M["m00"])
+
+      if not ((cX > 240 and cX < 290) or (cX > 570 and cX < 620)):
+        continue
+
+      cv2.drawContours(rail_radon_img_thresh, [c], -1, colors[i%6], 1)
+
+      dbg_s = f'{i} {cX:.1f},{cY:.1f}'
+      cv2.putText(rail_radon_img_thresh, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
+      cv2.putText(rail_radon_img_thresh, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
+
+
+  dbg_s = f'A: {best_a_b_dist[0]} B: {best_a_b_dist[1]}'
+  cv2.putText(rail_radon_img_thresh, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
+  cv2.putText(rail_radon_img_thresh, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
   img_final = cv2.hconcat(try_convert_to_rgb([
     #img, search_img, search_masked
     #img, rail_mask_img, rail_radon_img
-    rail_mask_img, rail_radon_img
+    rail_mask_img, rail_radon_img, rail_radon_img_thresh
   ]))
+
+  cv2.imwrite('/tmp/last_rail_mask_img.png', rail_mask_img)
+  cv2.imwrite('/tmp/last_rail_radon_img.png', rail_radon_img)
+  cv2.imwrite('/tmp/last_rail_radon_img_thresh.png', rail_radon_img_thresh)
+
   return img_final
 
 def try_convert_to_rgb(images):
