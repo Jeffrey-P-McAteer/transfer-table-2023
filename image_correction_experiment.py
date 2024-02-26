@@ -334,12 +334,16 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
   #  - at least one of which shares highly overlapping X values (average X val differs by <10px)
 
   smallest_rail_contours_and_angle = None # (None, 0.0)
+  addtl_ret_vals = ()
 
   for a in range(0, 256, 16):
     for b in range(0, 256, 16):
       ret,thresh = cv2.threshold(img_gray, a, b, 0)
       contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
       rail_contours, best_rot_angle = extract_rail_contours_and_rot_angle(contours, img_center_x, img_center_y, num_rotation_steps)
+
+      print(f'  a={a}, b={b} rail_contours.len = {len(rail_contours)}, best_rot_angle = {best_rot_angle}')
+
       if smallest_rail_contours_and_angle is None:
         smallest_rail_contours_and_angle = (rail_contours, best_rot_angle)
 
@@ -371,21 +375,22 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
             highest_count_rot_y_key = rounded_y
 
         highest_count_rot_y_val = highest_count_rot_y_key * 5
-        print(f'highest_count_rot_y_val = {highest_count_rot_y_val}')
+        #print(f'highest_count_rot_y_val = {highest_count_rot_y_val}')
 
 
         # Throw out IF we do not have 2 contours w/ highly overlapping X values
         # Remember contours are currently in image coordinates
         #   xy_list = contour_to_xy_list(c)
 
-        if len(rail_contours) < len(smallest_rail_contours_and_angle[0]):
+        if len(rail_contours) <= len(smallest_rail_contours_and_angle[0]):
           smallest_rail_contours_and_angle = (rail_contours, best_rot_angle)
           best_a = a
           best_b = b
+          addtl_ret_vals = ( highest_count_rot_y_val, )
 
 
 
-  best_four_rail_a_b_cache[id(img)] = (best_a, best_b)
+  best_four_rail_a_b_cache[id(img)] = (best_a, best_b, addtl_ret_vals)
 
   return best_four_rail_a_b_cache[id(img)]
 
@@ -420,8 +425,9 @@ def do_track_detection(img, width, height):
   num_rotation_steps = 180 * 2
 
 
-  a, b = get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps)
-  print(f'a = {a:.2f} b = {b:.2f}')
+  a, b, addtl_ret_vals = get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps)
+  print(f'a = {a:.2f} b = {b:.2f} addtl_ret_vals = {addtl_ret_vals}')
+
 
   img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
