@@ -170,15 +170,23 @@ def rotate(origin, point, angle):
     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
     return qx, qy
 
+
+# lower n_iteration == 1 for every xy pair, increase for fewer xy pairs.
+@numba.jit(nopython=True, nogil=True, cache=True)
+def contour_to_xy_list(c, n_iteration=4):
+  xy_list = list()
+  for sublist in c:
+    for xy_pair in sublist[::n_iteration]:
+      xy_list.append(
+        (xy_pair[0], xy_pair[1])
+      )
+  return xy_list
+
+
 @numba.jit(nopython=True, nogil=True, cache=True)
 def contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c):
-    xy_list = list()
-    for sublist in c:
-      for xy_pair in sublist[::4]:
-        xy_list.append(
-          (xy_pair[0], xy_pair[1])
-        )
-
+    xy_list = contour_to_xy_list(c)
+    img_center_pt = (img_center_x, img_center_y)
     # we rotate the contour until the xmin-ymax is as small as possible,
     # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
     best_rotation_angle = 0.0
@@ -189,7 +197,7 @@ def contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c
       xmin = 9999.0
       xmax = 0.0
       for pt in xy_list:
-        rx, ry = rotate((img_center_x, img_center_y), pt, rotation_angle)
+        rx, ry = rotate(img_center_pt, pt, rotation_angle)
         if rx > xmax:
           xmax = rx
         if rx < xmin:
@@ -200,6 +208,186 @@ def contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c
         best_rotation_angle = rotation_angle
 
     return best_rotation_angle
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def contour_railiness(img_center_x, img_center_y, num_rotation_steps, c):
+    xy_list = contour_to_xy_list(c)
+
+    # we rotate the contour until the xmin-ymax is as small as possible,
+    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
+    best_rotation_angle = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
+
+    img_center_pt = (img_center_x, img_center_y)
+
+    #print(f'best_rotation_angle = {best_rotation_angle}')
+    rotated_xy_list = list()
+    for pt in xy_list:
+      rotated_xy_list.append(
+        rotate(img_center_pt, pt, best_rotation_angle)
+      )
+
+    xdiff = max([x for (x,y) in rotated_xy_list ]) - min([x for (x,y) in rotated_xy_list ])
+    ydiff = max([y for (x,y) in rotated_xy_list ]) - min([y for (x,y) in rotated_xy_list ])
+
+    # Larger ydiffs relative to x will be first in line
+    if int(xdiff) == 0:
+      xdiff = 1.0
+
+    return float(ydiff) / float(xdiff)
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def contour_railiness_and_angle(img_center_x, img_center_y, num_rotation_steps, c):
+    xy_list = contour_to_xy_list(c)
+
+    # we rotate the contour until the xmin-ymax is as small as possible,
+    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
+    best_rotation_angle = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
+
+    #print(f'best_rotation_angle = {best_rotation_angle}')
+    img_center_pt = (img_center_x, img_center_y)
+    rotated_xy_list = list()
+    for pt in xy_list:
+      rotated_xy_list.append(
+        rotate(img_center_pt, pt, best_rotation_angle)
+      )
+
+    xdiff = max([x for (x,y) in rotated_xy_list ]) - min([x for (x,y) in rotated_xy_list ])
+    ydiff = max([y for (x,y) in rotated_xy_list ]) - min([y for (x,y) in rotated_xy_list ])
+
+    # Larger ydiffs relative to x will be first in line
+    if int(xdiff) == 0:
+      xdiff = 1.0
+
+    return (float(ydiff) / float(xdiff)), best_rotation_angle
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def rotate_xy_list(xy_list, img_center_x, img_center_y, rotation_angle):
+  rotated_xy_list = list()
+  for pt in xy_list:
+    rotated_xy_list.append(
+      rotate((img_center_x, img_center_y), pt, rotation_angle)
+    )
+  return rotated_xy_list
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def contour_railiness_given_rotation(img_center_x, img_center_y, best_rotation_angle, c):
+    xy_list = contour_to_xy_list(c)
+
+    #print(f'best_rotation_angle = {best_rotation_angle}')
+    rotated_xy_list = rotate_xy_list(xy_list, img_center_x, img_center_y, best_rotation_angle)
+
+    xdiff = max([x for (x,y) in rotated_xy_list ]) - min([x for (x,y) in rotated_xy_list ])
+    ydiff = max([y for (x,y) in rotated_xy_list ]) - min([y for (x,y) in rotated_xy_list ])
+
+    # Larger ydiffs relative to x will be first in line
+    if int(xdiff) == 0:
+      xdiff = 1.0
+
+    return float(ydiff) / float(xdiff)
+
+
+def extract_rail_contours_and_rot_angle(contours, img_center_x, img_center_y, num_rotation_steps):
+
+  best_rot_angle = 0
+  # First, solve for the best image rotation angle by picking the all trivial rails (no aligned rotation)
+  # > a height/width radion of 15
+  all_rotation_angles = []
+  for c in contours:
+    railiness, rotation_angle = contour_railiness_and_angle(img_center_x, img_center_y, num_rotation_steps, c)
+    if railiness > 15.0:
+      all_rotation_angles.append(rotation_angle)
+
+  all_rotation_angles.sort()
+
+  if len(all_rotation_angles) < 1:
+    return [], 0.0
+
+  best_rot_angle = statistics.median(all_rotation_angles)
+
+  rail_contours = []
+  for c in contours:
+    railiness = contour_railiness_given_rotation(img_center_x, img_center_y, best_rot_angle, c)
+    if railiness > 15.0:
+      rail_contours.append(c)
+
+  return rail_contours, best_rot_angle
+
+# Brute-forces many a,b combos, selecting the
+best_four_rail_a_b_cache = dict()
+def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps):
+  global best_four_rail_a_b_cache
+  if id(img) in best_four_rail_a_b_cache:
+    return best_four_rail_a_b_cache[id(img)]
+
+  best_a = 210
+  best_b = 260
+  img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+  img_center_x = int(width / 2.0)
+  img_center_y = int(height / 2.0)
+
+  # search for smallest number of railiness contours
+  # which have >= 3 contours;
+  #  - at least one of which does not share overlapping rotated Y values.
+  #  - at least one of which shares highly overlapping X values (average X val differs by <10px)
+
+  smallest_rail_contours_and_angle = None # (None, 0.0)
+
+  for a in range(0, 256, 16):
+    for b in range(0, 256, 16):
+      ret,thresh = cv2.threshold(img_gray, a, b, 0)
+      contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+      rail_contours, best_rot_angle = extract_rail_contours_and_rot_angle(contours, img_center_x, img_center_y, num_rotation_steps)
+      if smallest_rail_contours_and_angle is None:
+        smallest_rail_contours_and_angle = (rail_contours, best_rot_angle)
+
+      if len(rail_contours) >= 3:
+        # Identify the rotated-y-"bottom" by finding the most-common lowest y point % 10px
+        most_common_rot_y_in_contour_counts = dict()
+        for c in rail_contours:
+          xy_list = contour_to_xy_list(c)
+          rotated_xy_list = rotate_xy_list(xy_list, img_center_x, img_center_y, best_rot_angle)
+
+          smallest_y = 9999999
+
+          for (x,y) in rotated_xy_list:
+            if y < smallest_y:
+              smallest_y = y
+
+          rounded_y = int(smallest_y) // 5
+
+          if not rounded_y in most_common_rot_y_in_contour_counts:
+            most_common_rot_y_in_contour_counts[rounded_y] = 0
+          most_common_rot_y_in_contour_counts[rounded_y] += 1
+
+        # Get int(y) % 5 w/ most count
+        highest_count_rot_y_key = None
+        for rounded_y, num_counts in most_common_rot_y_in_contour_counts.items():
+          if highest_count_rot_y_key is None:
+            highest_count_rot_y_key = rounded_y
+          if most_common_rot_y_in_contour_counts[rounded_y] > most_common_rot_y_in_contour_counts[highest_count_rot_y_key]:
+            highest_count_rot_y_key = rounded_y
+
+        highest_count_rot_y_val = highest_count_rot_y_key * 5
+        print(f'highest_count_rot_y_val = {highest_count_rot_y_val}')
+
+
+        # Throw out IF we do not have 2 contours w/ highly overlapping X values
+        # Remember contours are currently in image coordinates
+        #   xy_list = contour_to_xy_list(c)
+
+        if len(rail_contours) < len(smallest_rail_contours_and_angle[0]):
+          smallest_rail_contours_and_angle = (rail_contours, best_rot_angle)
+          best_a = a
+          best_b = b
+
+
+
+  best_four_rail_a_b_cache[id(img)] = (best_a, best_b)
+
+  return best_four_rail_a_b_cache[id(img)]
 
 
 def do_track_detection(img, width, height):
@@ -225,10 +413,20 @@ def do_track_detection(img, width, height):
   #img = cv2.Canny(img, int_a, int_b)
   #img = cv2.Canny(img, 120, 450)
 
+  img_w, img_h, _img_channels = img.shape
+  img_center_x = int(img_w / 2.0)
+  img_center_y = int(img_h / 2.0)
+  #num_rotation_steps = 32
+  num_rotation_steps = 180 * 2
+
+
+  a, b = get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps)
+  print(f'a = {a:.2f} b = {b:.2f}')
 
   img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-  ret,thresh = cv2.threshold(img_gray, 210, 260, 0)
+  #ret,thresh = cv2.threshold(img_gray, 210, 260, 0)
+  ret,thresh = cv2.threshold(img_gray, a, b, 0)
   contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
   rail_mask_img = img.copy()
@@ -242,47 +440,9 @@ def do_track_detection(img, width, height):
     (0, 0, 255),
   ]
 
-  img_w, img_h, _img_channels = img.shape
-  img_center_x = int(img_w / 2.0)
-  img_center_y = int(img_h / 2.0)
-  #num_rotation_steps = 32
-  num_rotation_steps = 180 * 2
-
-  def contour_railiness(c):
-    xy_list = list()
-    for sublist in c:
-      for xy_pair in sublist[::4]:
-        xy_list.append(
-          (xy_pair[0], xy_pair[1])
-        )
-
-    # we rotate the contour until the xmin-ymax is as small as possible,
-    # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
-    best_rotation_angle = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
-
-    #print(f'best_rotation_angle = {best_rotation_angle}')
-    rotated_xy_list = list()
-    for pt in xy_list:
-      rotated_xy_list.append(
-        rotate((img_center_x, img_center_y), pt, best_rotation_angle)
-      )
-
-    xdiff = max([x for (x,y) in rotated_xy_list ]) - min([x for (x,y) in rotated_xy_list ])
-    ydiff = max([y for (x,y) in rotated_xy_list ]) - min([y for (x,y) in rotated_xy_list ])
-
-    # Larger ydiffs relative to x will be first in line
-    if int(xdiff) == 0:
-      xdiff = 1.0
-
-    return float(ydiff) / float(xdiff)
 
   def contour_centeriness(c):
-    xy_list = list()
-    for sublist in c:
-      for xy_pair in sublist[::4]:
-        xy_list.append(
-          (xy_pair[0], xy_pair[1])
-        )
+    xy_list = contour_to_xy_list(c)
 
     # we rotate the contour until the xmin-ymax is as small as possible,
     # then throw out (return 99999) oriented contours which are not at least 3x as tall as they are wide.
@@ -311,12 +471,15 @@ def do_track_detection(img, width, height):
   # we will then use that to normalize the image by rotating along that, essentially
   # using a multitude of rail measurements as a single keypoint in theta space
 
+  def inner_contour_railiness(c):
+    return contour_railiness(img_center_x, img_center_y, num_rotation_steps, c)
+
   with timed('Determine img_rotation_radians'):
     all_best_contour_angles = list()
     num_best_contour_angles = 0
     for max_contour_amnt in [30, 25, 20, 15, 10, 5]:
-      for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
-        r = contour_railiness(c)
+      for i,c in enumerate(sorted(contours, key=inner_contour_railiness, reverse=True)):
+        r = contour_railiness(img_center_x, img_center_y, num_rotation_steps, c)
         if r < 15.0:
           continue
         sr = contour_skinniest_rotation(img_center_x, img_center_y, num_rotation_steps, c)
@@ -335,9 +498,9 @@ def do_track_detection(img, width, height):
 
   with timed('Paint all contours'):
     nearest_center_score = 9999.0
-    for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
+    for i,c in enumerate(sorted(contours, key=inner_contour_railiness, reverse=True)):
       try:
-        r = contour_railiness(c)
+        r = contour_railiness(img_center_x, img_center_y, num_rotation_steps, c)
         if r < 10.0:
           continue
         center_score = contour_centeriness(c)
@@ -346,12 +509,12 @@ def do_track_detection(img, width, height):
       except:
         traceback.print_exc()
 
-    for i,c in enumerate(sorted(contours, key=contour_railiness, reverse=True)):
+    for i,c in enumerate(sorted(contours, key=inner_contour_railiness, reverse=True)):
       # c is a [ [[x,y]], [[x,y]], ] of contour points
 
       # compute the center of the contour
       try:
-        r = contour_railiness(c)
+        r = contour_railiness(img_center_x, img_center_y, num_rotation_steps, c)
         if r < 15.0:
           continue
 
@@ -385,105 +548,23 @@ def do_track_detection(img, width, height):
    rot_mat = cv2.getRotationMatrix2D((img_center_x, img_center_y), rotation_deg, 1.0)
    rail_mask_img = cv2.warpAffine(rail_mask_img, rot_mat, rail_mask_img.shape[1::-1], flags=cv2.INTER_LINEAR)
 
-  with timed('radon rail_radon_img (greyscale of img.copy())'):
-    rail_radon_img = img.copy()
-    rail_radon_img = cv2.cvtColor(rail_radon_img, cv2.COLOR_BGR2GRAY)
-
-    # Get avg avg brightness of input; light bgs need to be inverted to make lines distinct!
-    total_brightness = 0
-    for y in range(0, rail_radon_img.shape[0], 2):
-      for x in range(0, rail_radon_img.shape[1], 2):
-        total_brightness += rail_radon_img[y][x]
-    avg_brightness = total_brightness / float((rail_radon_img.shape[0]/2)*(rail_radon_img.shape[1]/2))
-
-    theta = numpy.linspace(0., 180., max(rail_radon_img.shape), endpoint=False)
-
-    if avg_brightness > 128:
-      sinogram = radon(cv2.bitwise_not(rail_radon_img), theta=theta)
-    else:
-      sinogram = radon(rail_radon_img, theta=theta)
-
-    int_sinogram = numpy.rint(sinogram).astype(int)
-    # print(f'int_sinogram = {int_sinogram}')
-    print(f'int_sinogram.shape = {int_sinogram.shape}')
-    print(f'rail_radon_img.shape = {rail_radon_img.shape}')
-    for y in range(0, rail_radon_img.shape[0]):
-      for x in range(0, rail_radon_img.shape[1]):
-        rail_radon_img[y][x] = max(0, min(255, int_sinogram[y][x]))
+  with timed('rail_center_detect (from img.copy())'):
+    rail_center_detect = img.copy()
 
 
-  with timed('contour rail_radon_img'):
-    rail_radon_img_thresh = rail_radon_img.copy()
 
-    desired_xy_contours = [
-      (270, 190),
-      (270, 280),
-      (593, 187),
-    ]
-
-    best_a_b_dist = (237, 1, 999999)
-    if False:
-      for a in range(0, 300, 1):
-        for b in range(0, 300, 1):
-
-          ret,thresh = cv2.threshold(rail_radon_img_thresh, a, b, 0)
-          contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-          closest_3_total_d = 0.0
-          for desired_x, desired_y in desired_xy_contours:
-            closest_c_xy = (0,0)
-            closest_c_xy_dist = 99999.0
-
-            for c in contours:
-              M = cv2.moments(c)
-              if M["m00"] == 0:
-                M["m00"] = 0.005
-              cX = int(M["m10"] / M["m00"])
-              cY = int(M["m01"] / M["m00"])
-              dis_xy_dist = abs(cX - desired_x) + abs(cY - desired_y)
-              if dis_xy_dist < closest_c_xy_dist:
-                closest_c_xy_dist = dis_xy_dist
-                closest_c_xy = (cX, cY)
-
-            closest_3_total_d += closest_c_xy_dist
-          if closest_3_total_d < best_a_b_dist[2]:
-            best_a_b_dist = (a, b, closest_3_total_d)
-
-    print(f'best_a_b_dist = {best_a_b_dist}')
-    ret,thresh = cv2.threshold(rail_radon_img_thresh, best_a_b_dist[0], best_a_b_dist[1], 0)
-    contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
-    rail_radon_img_thresh = cv2.cvtColor(rail_radon_img_thresh, cv2.COLOR_GRAY2RGB)
-    # Paint
-    for i,c in enumerate(contours):
-      M = cv2.moments(c)
-      if M["m00"] == 0:
-        M["m00"] = 0.005
-      cX = int(M["m10"] / M["m00"])
-      cY = int(M["m01"] / M["m00"])
-
-      if not ((cX > 240 and cX < 290) or (cX > 570 and cX < 620)):
-        continue
-
-      cv2.drawContours(rail_radon_img_thresh, [c], -1, colors[i%6], 1)
-
-      dbg_s = f'{i} {cX:.1f},{cY:.1f}'
-      cv2.putText(rail_radon_img_thresh, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 3, cv2.LINE_AA)
-      cv2.putText(rail_radon_img_thresh, dbg_s, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, colors[i%6], 1, cv2.LINE_AA)
-
-
-  dbg_s = f'A: {best_a_b_dist[0]} B: {best_a_b_dist[1]}'
-  cv2.putText(rail_radon_img_thresh, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
-  cv2.putText(rail_radon_img_thresh, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
+  #dbg_s = f'A: {best_a_b_dist[0]} B: {best_a_b_dist[1]}'
+  #cv2.putText(rail_radon_img_thresh, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA)
+  #cv2.putText(rail_radon_img_thresh, dbg_s, (10, int(height-30)), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 1, cv2.LINE_AA)
 
   img_final = cv2.hconcat(try_convert_to_rgb([
     #img, search_img, search_masked
     #img, rail_mask_img, rail_radon_img
-    rail_mask_img, rail_radon_img, rail_radon_img_thresh
+    rail_mask_img, rail_center_detect
   ]))
 
   cv2.imwrite('/tmp/last_rail_mask_img.png', rail_mask_img)
-  cv2.imwrite('/tmp/last_rail_radon_img.png', rail_radon_img)
-  cv2.imwrite('/tmp/last_rail_radon_img_thresh.png', rail_radon_img_thresh)
+  cv2.imwrite('/tmp/last_rail_center_detect.png', rail_center_detect)
 
   return img_final
 
