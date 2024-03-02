@@ -163,7 +163,7 @@ input, label {
     <input type="button" value="Enter" onclick="submitInputForm()" style="margin-left:172pt;"/>
     <br/>
     <i>
-      Numbers turn into key presses, 'r' becomes a clockwise dial rotation, 'l' becomes a counter-clockwise dial rotation.
+      Numbers turn into key presses, 'r' becomes a counter-clockwise dial rotation, 'l' becomes a clockwise dial rotation.
       '=' performs the same as '=' on keyboard or numpad.
     </i>
   </form>
