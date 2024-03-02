@@ -3,6 +3,8 @@
 # Keep in sync with gpio-motor-control.zig
 PMEM_FILE = "/mnt/usb1/pmem.bin"
 GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in"
+PASSWORD_FILE = '/mnt/usb1/webserver-password.txt'
+
 
 import os
 import sys
@@ -15,6 +17,7 @@ import logging
 import struct
 import datetime
 import random
+import base64
 
 py_env_dir = os.path.join(os.path.dirname(__file__), '.py-env')
 os.makedirs(py_env_dir, exist_ok=True)
@@ -51,10 +54,56 @@ def get_loc_ip():
     traceback.print_exc()
   return local_ip
 
+async def get_current_password():
+  try:
+    if os.path.exists(PASSWORD_FILE):
+      with open(PASSWORD_FILE, 'r') as fd:
+        return fd.read().strip()
+  except:
+    traceback.print_exc()
+  return None
 
+async def set_current_password(password):
+  try:
+    with open(PASSWORD_FILE, 'w') as fd:
+      fd.write(password.strip())
+  except:
+    traceback.print_exc()
+
+
+
+# Returns None if auth is good, else a aiohttp.web.Response object to be sent back by caller.
+async def maybe_redirect_for_auth(request):
+  supplied_auth = request.headers.getone('Authorization', 'Basic ==')
+  supplied_pw = None
+  try:
+    supplied_pw = base64.b64decode(supplied_auth[5:].strip())
+    if not isinstance(supplied_pw, str):
+      supplied_pw = supplied_pw.decode('utf-8')
+    if supplied_pw[0] == ':': # trim protocol char off
+      supplied_pw = supplied_pw[1:]
+    supplied_pw = supplied_pw.strip()
+  except:
+    traceback.print_exc()
+  print(f'supplied_pw = {supplied_pw}')
+  current_pw = await get_current_password()
+  if current_pw is None:
+    return None # cannot do password check, not yet set!
+  if supplied_pw is None or not supplied_pw == current_pw:
+    return aiohttp.web.Response(
+          body=b'',
+          status=401,
+          reason='UNAUTHORIZED',
+          headers={
+              aiohttp.hdrs.WWW_AUTHENTICATE: 'Basic realm="Transfer Table Password"',
+              aiohttp.hdrs.CONTENT_TYPE: 'text/html; charset=utf-8',
+              aiohttp.hdrs.CONNECTION: 'keep-alive',
+          },
+      )
+  return None
 
 async def index_handle(request):
-  index_html = '''
+  index_html = ('''
 <!doctype html>
 <html lang="en">
 <head>
@@ -78,11 +127,11 @@ html, body {
   display: block;
   padding: 2pt;
 }
-#inputForm {
+#inputForm, #setPasswordForm {
   max-width: 592pt;
   padding: 2pt;
 }
-h2, #status_iframe, #inputForm {
+h2, #status_iframe, #inputForm, #setPasswordForm {
   margin: 2pt;
 }
 input, label {
@@ -94,6 +143,12 @@ input, label {
   <script>
     function submitInputForm() {
       var frm = document.getElementById('inputForm');
+       frm.submit();
+       frm.reset();
+       return false;
+    }
+    function submitSetPasswordForm() {
+      var frm = document.getElementById('setPasswordForm');
        frm.submit();
        frm.reset();
        return false;
@@ -116,12 +171,30 @@ input, label {
   <br/>
   <br/>
   <br/>
-  <h2>Table Status</h2>
-  <iframe src="/status" id="status_iframe" style="border:1px solid black;border-radius:3pt;"/>
+  <details>
+    <summary>Table Status</summary>
+    <iframe src="/status" id="status_iframe" style="border:1px solid black;border-radius:3pt;"></iframe>
+  </details>
+  <br/>
+  <br/>
+  <br/>
+  <form id="setPasswordForm" action="/set-control-password" method="POST" target="dummyFormFrame">
+    <label for="pw">Set Control Password</label>
+    <input name="pw" id="pw" value="" type="password" />
+    <br/><br/>
+    <input type="button" value="Enter" onclick="submitSetPasswordForm()" style="margin-left:172pt;"/>
+    <br/>
+    <i>
+      If set, the current password is stored at '''+PASSWORD_FILE+''' on the control server. Remove this file to "reset" the password if forgotten. /mnt/usb1 is the USB drive.
+    </i>
+  </form>
+  <br/>
+  <br/>
+  <br/>
 
 </body>
 </html>
-'''.strip()
+''').strip()
   return aiohttp.web.Response(text=index_html, content_type='text/html')
 
 
@@ -190,6 +263,10 @@ html, body {{
 
 
 async def input_handle(request):
+  auth_resp = await maybe_redirect_for_auth(request)
+  if auth_resp is not None:
+    return auth_resp
+
   data = await request.post()
   print(f'input_handle data = {data}')
 
@@ -243,6 +320,19 @@ async def input_handle(request):
     break
 
   return aiohttp.web.Response(text=f'Done, input_file_keycode_s={input_file_keycode_s}', content_type='text/plain')
+
+async def set_control_password_handle(request):
+  auth_resp = await maybe_redirect_for_auth(request)
+  if auth_resp is not None:
+    return auth_resp
+
+  data = await request.post()
+  print(f'set_control_password_handle data = {data}')
+
+  input_file_keycode_s = ''
+  pw_val = data['pw'].lower()
+  await set_current_password(pw_val)
+  return aiohttp.web.Response(text=f'Done, pw_val={"*" * len(pw_val)}', content_type='text/plain')
 
 
 last_video_frame_num = 0
@@ -318,6 +408,7 @@ def build_app():
     aiohttp.web.get('/video', video_handle),
     aiohttp.web.get('/status', status_handle),
     aiohttp.web.post('/input', input_handle),
+    aiohttp.web.post('/set-control-password', set_control_password_handle)
   ])
   return app
 

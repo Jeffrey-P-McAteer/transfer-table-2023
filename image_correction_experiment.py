@@ -320,11 +320,11 @@ best_four_rail_a_b_cache = list()
 def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps):
   global best_four_rail_a_b_cache
 
-  if len(best_four_rail_a_b_cache) > 1 and random.choice([False, False] + ([True] * len(best_four_rail_a_b_cache)) ):
+  if len(best_four_rail_a_b_cache) > 1 and random.choice([False] + ([True] * len(best_four_rail_a_b_cache)) ):
     # Return avg of previous vals as performance optimization:
     total_best_a = 0
     total_best_b = 0
-    for best_a, best_b, addtl_ret_vals in best_four_rail_a_b_cache:
+    for best_a, best_b in best_four_rail_a_b_cache:
       total_best_a += best_a
       total_best_b += best_b
 
@@ -343,10 +343,9 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
   #  - at least one of which shares highly overlapping X values (average X val differs by <10px)
 
   smallest_rail_contours_and_angle = None # (None, 0.0)
-  addtl_ret_vals = ()
 
-  for a in range(0, 256, 16):
-    for b in range(0, 256, 16):
+  for a in range(0, 256, 8):
+    for b in range(0, 256, 8):
       ret,thresh = cv2.threshold(img_gray, a, b, 0)
       contours, hierarchy = cv2.findContours(thresh.astype(numpy.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
       rail_contours, best_rot_angle = extract_rail_contours_and_rot_angle(contours, img_center_x, img_center_y, num_rotation_steps)
@@ -359,6 +358,7 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
       if len(rail_contours) >= 3:
         # Identify the rotated-y-"bottom" by finding the most-common lowest y point % 10px
         most_common_rot_y_in_contour_counts = dict()
+        rot_y_denominator = 5
         for c in rail_contours:
           xy_list = contour_to_xy_list(c)
           rotated_xy_list = rotate_xy_list(xy_list, img_center_x, img_center_y, best_rot_angle)
@@ -369,7 +369,7 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
             if y < smallest_y:
               smallest_y = y
 
-          rounded_y = int(smallest_y) // 5
+          rounded_y = int(smallest_y) // rot_y_denominator
 
           if not rounded_y in most_common_rot_y_in_contour_counts:
             most_common_rot_y_in_contour_counts[rounded_y] = 0
@@ -383,8 +383,8 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
           if most_common_rot_y_in_contour_counts[rounded_y] > most_common_rot_y_in_contour_counts[highest_count_rot_y_key]:
             highest_count_rot_y_key = rounded_y
 
-        highest_count_rot_y_val = highest_count_rot_y_key * 5
-        #print(f'highest_count_rot_y_val = {highest_count_rot_y_val}')
+        highest_count_rot_y_val = highest_count_rot_y_key * rot_y_denominator
+        print(f'highest_count_rot_y_val = {highest_count_rot_y_val}')
 
 
         # Throw out IF we do not have 2 contours w/ highly overlapping X values
@@ -395,11 +395,10 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
           smallest_rail_contours_and_angle = (rail_contours, best_rot_angle)
           best_a = a
           best_b = b
-          addtl_ret_vals = ( highest_count_rot_y_val, )
 
 
-  best_four_rail_a_b_cache.append( (best_a, best_b, addtl_ret_vals) )
-  return (best_a, best_b, addtl_ret_vals)
+  best_four_rail_a_b_cache.append( (best_a, best_b) )
+  return (best_a, best_b)
 
 
 def do_track_detection(img, width, height):
@@ -432,8 +431,8 @@ def do_track_detection(img, width, height):
   num_rotation_steps = 180 * 2
 
 
-  a, b, addtl_ret_vals = get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps)
-  print(f'a = {a:.2f} b = {b:.2f} addtl_ret_vals = {addtl_ret_vals}')
+  a, b = get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps)
+  print(f'a = {a:.2f} b = {b:.2f}')
 
 
   img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
