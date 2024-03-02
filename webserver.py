@@ -375,7 +375,7 @@ async def read_video_t():
 async def ensure_video_is_being_read():
   global last_video_frame_num, last_video_frame_s, last_video_frame
   last_frame_age = time.time() - last_video_frame_s
-  if last_frame_age > 4.0:
+  if last_frame_age > 9.0:
     asyncio.create_task(read_video_t())
 
 
