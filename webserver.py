@@ -430,9 +430,18 @@ def build_app():
   ])
   return app
 
+def try_to_clean_hardware():
+  try:
+    subprocess.run([
+      'sh', '-c', "usbreset | grep -i camera | sed 's/.*  .*  //g' | tr '\\n' '\\0' | xargs -0 sudo usbreset"
+    ])
+  except:
+    traceback.print_exc()
+
 def main(args=sys.argv):
   if len(os.environ.get('DEBUG', '')) > 0:
     logging.basicConfig(level=logging.DEBUG)
+  try_to_clean_hardware()
   local_ip = get_loc_ip()
   hostname = socket.gethostname()
   if os.geteuid() == 0:
