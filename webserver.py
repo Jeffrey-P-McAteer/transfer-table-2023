@@ -355,6 +355,8 @@ async def read_video_t():
         continue
       try:
         camera = cv2.VideoCapture(f'/dev/video{cam_num}')
+        if not camera.isOpened():
+          raise RuntimeError('Cannot open camera')
       except:
         traceback.print_exc()
       if camera is not None:
