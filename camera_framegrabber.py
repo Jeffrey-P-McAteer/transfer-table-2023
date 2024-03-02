@@ -87,7 +87,11 @@ def main(args=sys.argv):
       if num_exceptions > 50:
         break
 
+  if camera is not None:
+    camera.release()
+
   print('Goodbye!')
+
 
 if __name__ == '__main__':
   main()

@@ -372,7 +372,7 @@ async def ensure_video_is_being_read():
       sys.executable, os.path.join(os.path.dirname(__file__), 'camera_framegrabber.py')
     ]
     print(f'video_p_running={video_p_running}, spawning {video_p_cmd}')
-    video_p = subprocess.Popen(video_p_cmd)
+    video_p = subprocess.Popen(video_p_cmd, preexec_fn=os.setpgrp) # we do not kill this process when we exit! see setpgrp
     print(f'video_p = {video_p}')
 
 
@@ -402,8 +402,8 @@ async def on_app_shutdown(app):
   global app_is_shutting_down, video_p
   app_is_shutting_down = True
   print(f'app_is_shutting_down = {app_is_shutting_down}!')
-  if video_p is not None:
-    video_p.kill()
+  #if video_p is not None:
+  #  video_p.kill()
 
 def build_app():
   app = aiohttp.web.Application()
