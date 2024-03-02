@@ -70,6 +70,7 @@ def main(args=sys.argv):
       time.sleep(0.09)
       frame_num += 1
       rounded_frame_num = frame_num % 1000
+      print(f'frame_num = {frame_num}')
 
       _, img = camera.read()
 
