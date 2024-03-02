@@ -7,6 +7,8 @@ PASSWORD_FILE = '/mnt/usb1/webserver-password.txt'
 #FRAME_HANDLE_DELAY_S = 0.08
 FRAME_HANDLE_DELAY_S = 0.19
 
+CURRENT_FRAME_FILE = '/tmp/camframe.jpg' # shared w/ camera_framegrabber.py
+
 import os
 import sys
 import subprocess
@@ -43,8 +45,15 @@ except:
   ])
   import cv2
 
-# Used to signal worker threads to exit gracefully
-app_is_shutting_down = False
+
+try:
+  import psutil
+except:
+  subprocess.run([
+    sys.executable, '-m', 'pip', 'install', f'--target={py_env_dir}', 'psutil'
+  ])
+  import psutil
+
 
 def get_loc_ip():
   local_ip = None
@@ -72,7 +81,6 @@ async def set_current_password(password):
       fd.write(password.strip())
   except:
     traceback.print_exc()
-
 
 
 # Returns None if auth is good, else a aiohttp.web.Response object to be sent back by caller.
@@ -338,113 +346,64 @@ async def set_control_password_handle(request):
   return aiohttp.web.Response(text=f'Done, pw_val={"*" * len(pw_val)}', content_type='text/plain')
 
 
-last_video_frame_num = 0
-last_video_frame_s = 0
-last_video_frame = None
-known_bad_camera_nums = set()
-video_t_is_running = False
-def read_video_t():
-  global last_video_frame_num, last_video_frame_s, last_video_frame, known_bad_camera_nums, video_t_is_running
-  cam_num = 0
-  camera = None
-  try:
-    video_t_is_running = False
-    for cam_num in range(0, 99):
+last_s_checked_video_p_running = 0
+video_p_running = False
+video_p = None
+async def ensure_video_is_being_read():
+  global age_s_checked_video_p_running, video_p_running, video_p
+  age_s_checked_video_p_running = time.time() - last_s_checked_video_p_running
+  if not video_p_running or age_s_checked_video_p_running > 90.0:
+    # check & spawn python camera_framegrabber.py if not running
+    age_s_checked_video_p_running = time.time()
+    proc_pids = psutil.pids()
+    video_p_running = False # assume not running by default!
+    for pid in proc_pids:
       try:
-        camera = cv2.VideoCapture(cam_num) # auto-select "best"
-        test, frame = camera.read()
-        if not (frame is None):
-          break
+        if psutil.pid_exists(pid):
+          p = psutil.Process(pid)
+          cmd_str = ' '.join(p.cmdline())
+          if 'camera_framegrabber.py' in cmd_str:
+            video_p_running = True
+            break
       except:
         traceback.print_exc()
-
-    print(f'cam_num = {cam_num} camera = {camera}')
-
-    #if camera is None or not camera.isOpened():
-    #    raise RuntimeError('Cannot open camera')
-
-    # camera.release() # we re-open on each "frame"
-
-    none_reads_count = 0
-    while not app_is_shutting_down:
-      video_t_is_running = True
-      last_video_frame_s = time.time()
-      last_video_frame_num += 1
-
-      _, img = camera.read()
-
-      if img is None:
-        none_reads_count += 1
-        print(f'none_reads_count = {none_reads_count}')
-        if none_reads_count > 20:
-          break
-        continue
-      none_reads_count = 0
-
-      #camera = cv2.VideoCapture()
-      #_, img = camera.read()
-
-      #camera.release()
-
-      rounded_frame_num = last_video_frame_num % 1000
-
-      cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
-      cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
-
-      last_video_frame = cv2.imencode('.jpg', img)[1].tobytes()
-
-      time.sleep(FRAME_HANDLE_DELAY_S)
-
-  except:
-    video_t_is_running = False
-    traceback.print_exc()
-    known_bad_camera_nums.add(cam_num)
-  finally:
-    video_t_is_running = False
-    last_video_frame_num = 0
-    last_video_frame_s = 0
-    last_video_frame = None
-    try:
-      camera.release()
-    except:
-      traceback.print_exc()
-
-
-async def ensure_video_is_being_read():
-  global last_video_frame_num, last_video_frame_s, last_video_frame
-  last_frame_age = time.time() - last_video_frame_s
-  #if last_frame_age > 6.0:
-  #  asyncio.create_task(read_video_t())
-  if not video_t_is_running:
-    #asyncio.create_task(read_video_t())
-    t = threading.Thread(target=read_video_t, args=(), daemon=True)
-    t.start()
+  if not video_p_running:
+    video_p_cmd = [
+      sys.executable, os.path.join(os.path.dirname(__file__), 'camera_framegrabber.py')
+    ]
+    print(f'video_p_running={video_p_running}, spawning {video_p_cmd}')
+    video_p = subprocess.Popen(video_p_cmd)
+    print(f'video_p = {video_p}')
 
 
 async def video_handle(request):
   global last_video_frame_num, last_video_frame_s, last_video_frame
 
-  asyncio.create_task(ensure_video_is_being_read())
+  #asyncio.create_task(ensure_video_is_being_read())
+  await ensure_video_is_being_read()
 
   response = aiohttp.web.StreamResponse()
   response.content_type = 'multipart/x-mixed-replace; boundary=frame'
 
   await response.prepare(request)
 
-  last_read_frame_num = 0
   while True:
-    if last_video_frame is not None and last_read_frame_num != last_video_frame:
-      await response.write(
-        b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+last_video_frame+b'\r\n'
-      )
+    if os.path.exists(CURRENT_FRAME_FILE):
+      with open(CURRENT_FRAME_FILE, 'rb') as fd:
+        frame_jpg_bytes = fd.read()
+        await response.write(
+          b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+frame_jpg_bytes+b'\r\n'
+        )
     await asyncio.sleep(FRAME_HANDLE_DELAY_S)
 
   return response
 
 async def on_app_shutdown(app):
-  global app_is_shutting_down
+  global app_is_shutting_down, video_p
   app_is_shutting_down = True
   print(f'app_is_shutting_down = {app_is_shutting_down}!')
+  if video_p is not None:
+    video_p.kill()
 
 def build_app():
   app = aiohttp.web.Application()

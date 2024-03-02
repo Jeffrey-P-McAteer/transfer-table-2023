@@ -90,5 +90,9 @@ python image_correction_experiment.py research-photos/mpv-shot0001.jpg research-
 
 find /tmp -maxdepth 1 -iname 'int_*' -print -exec sh -c 'cat {} ; echo ' \;
 
+sudo ffmpeg -i /dev/video0 -vf fps=fps=1/20 -update 1 /tmp/img.jpg
+
+
+
 ```
 
