@@ -23,6 +23,9 @@ py_env_dir = os.path.join(os.path.dirname(__file__), '.py-env')
 os.makedirs(py_env_dir, exist_ok=True)
 sys.path.insert(0, py_env_dir)
 
+# Safer cv2 behavior around releasing cameras
+os.environ['OPENCV_VIDEOIO_PRIORITY_MSMF'] = '0'
+
 try:
   import aiohttp
 except:
@@ -338,19 +341,28 @@ async def set_control_password_handle(request):
 last_video_frame_num = 0
 last_video_frame_s = 0
 last_video_frame = None
+known_bad_camera_nums = set()
 async def read_video_t():
-  global last_video_frame_num, last_video_frame_s, last_video_frame
+  global last_video_frame_num, last_video_frame_s, last_video_frame, known_bad_camera_nums
+  cam_num = 0
+  camera = None
   try:
     frame_delay_s = FRAME_HANDLE_DELAY_S
-
-    camera = None
     for cam_num in range(0, 999):
+      if cam_num in known_bad_camera_nums:
+        continue
       try:
         camera = cv2.VideoCapture(f'/dev/video{cam_num}')
       except:
         traceback.print_exc()
       if camera is not None:
         break
+
+    if camera is None:
+      try:
+        camera = cv2.VideoCapture(-1) # auto-select "best"
+      except:
+        traceback.print_exc()
 
     if camera is None or not camera.isOpened():
         raise RuntimeError('Cannot open camera')
@@ -372,6 +384,7 @@ async def read_video_t():
 
   except:
     traceback.print_exc()
+    known_bad_camera_nums.add(cam_num)
   finally:
     last_video_frame_num = 0
     last_video_frame_s = 0
