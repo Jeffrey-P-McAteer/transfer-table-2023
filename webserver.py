@@ -4,7 +4,7 @@
 PMEM_FILE = "/mnt/usb1/pmem.bin"
 GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in"
 PASSWORD_FILE = '/mnt/usb1/webserver-password.txt'
-
+FRAME_HANDLE_DELAY_S = 0.08
 
 import os
 import sys
@@ -341,10 +341,10 @@ last_video_frame = None
 async def read_video_t():
   global last_video_frame_num, last_video_frame_s, last_video_frame
   try:
-    frame_delay_s = 0.05
+    frame_delay_s = FRAME_HANDLE_DELAY_S
 
     camera = None
-    for cam_num in range(0, 9):
+    for cam_num in range(0, 999):
       try:
         camera = cv2.VideoCapture(f'/dev/video{cam_num}')
       except:
@@ -400,7 +400,7 @@ async def video_handle(request):
       await response.write(
         b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+last_video_frame+b'\r\n'
       )
-    await asyncio.sleep(0.05)
+    await asyncio.sleep(FRAME_HANDLE_DELAY_S)
 
   return response
 
