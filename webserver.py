@@ -4,7 +4,8 @@
 PMEM_FILE = "/mnt/usb1/pmem.bin"
 GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in"
 PASSWORD_FILE = '/mnt/usb1/webserver-password.txt'
-FRAME_HANDLE_DELAY_S = 0.08
+#FRAME_HANDLE_DELAY_S = 0.08
+FRAME_HANDLE_DELAY_S = 0.19
 
 import os
 import sys
@@ -348,6 +349,7 @@ async def read_video_t():
   camera = None
   try:
     frame_delay_s = FRAME_HANDLE_DELAY_S
+    print(f'known_bad_camera_nums = {known_bad_camera_nums}')
     for cam_num in range(0, 999):
       if cam_num in known_bad_camera_nums:
         continue
@@ -367,12 +369,21 @@ async def read_video_t():
     if camera is None or not camera.isOpened():
         raise RuntimeError('Cannot open camera')
 
+    none_reads_count = 0
     while True:
       last_video_frame_s = time.time()
       last_video_frame_num += 1
 
       _, img = camera.read()
       # img = cv2.resize(img, resolution)
+
+      if img is None:
+        none_reads_count += 1
+        await asyncio.sleep(frame_delay_s) # allow other tasks to run
+        if none_reads_count > 20:
+          raise Exception(f'Read None from camera {none_reads_count} times!')
+        continue
+
       rounded_frame_num = last_video_frame_num % 1000
 
       cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
@@ -380,7 +391,7 @@ async def read_video_t():
 
       last_video_frame = cv2.imencode('.jpg', img)[1].tobytes()
 
-      await asyncio.sleep(frame_delay_s) # 50ms, allow other tasks to run
+      await asyncio.sleep(frame_delay_s) # allow other tasks to run
 
   except:
     traceback.print_exc()
