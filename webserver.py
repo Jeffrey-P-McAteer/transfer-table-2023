@@ -24,9 +24,6 @@ py_env_dir = os.path.join(os.path.dirname(__file__), '.py-env')
 os.makedirs(py_env_dir, exist_ok=True)
 sys.path.insert(0, py_env_dir)
 
-# Safer cv2 behavior around releasing cameras
-# os.environ['OPENCV_VIDEOIO_PRIORITY_MSMF'] = '0'
-
 try:
   import aiohttp
 except:
@@ -444,13 +441,11 @@ def build_app():
   ])
   return app
 
-def try_to_clean_hardware():
+def try_to_use_core_2_excl():
   try:
+    pid = os.getpid()
     subprocess.run([
-      'sh', '-c', "usbreset | grep -i camera | sed 's/.*  .*  //g' | tr '\\n' '\\0' | xargs -0 usbreset"
-    ])
-    subprocess.run([ # -n does not do pw prompts, just fails immediately
-      'sh', '-c', "usbreset | grep -i camera | sed 's/.*  .*  //g' | tr '\\n' '\\0' | xargs -0 sudo -n usbreset"
+      'taskset', '-cp', '2', str(pid)
     ])
   except:
     traceback.print_exc()
@@ -459,7 +454,7 @@ def main(args=sys.argv):
   if len(os.environ.get('DEBUG', '')) > 0:
     logging.basicConfig(level=logging.DEBUG)
 
-  # try_to_clean_hardware()
+  try_to_use_core_2_excl()
 
   local_ip = get_loc_ip()
   hostname = socket.gethostname()

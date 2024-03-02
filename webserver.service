@@ -19,6 +19,10 @@ WorkingDirectory=/
 ExecStart=/usr/bin/python /home/user/transfer-table-2023/webserver.py
 RuntimeMaxSec=180m
 TimeoutStopSec=2
+LimitAS=infinity
+LimitRSS=infinity
+LimitCORE=infinity
+LimitNOFILE=infinity
 
 [Install]
 WantedBy=multi-user.target
