@@ -19,6 +19,7 @@ import struct
 import datetime
 import random
 import base64
+import threading
 
 py_env_dir = os.path.join(os.path.dirname(__file__), '.py-env')
 os.makedirs(py_env_dir, exist_ok=True)
@@ -42,7 +43,8 @@ except:
   ])
   import cv2
 
-
+# Used to signal worker threads to exit gracefully
+app_is_shutting_down = False
 
 def get_loc_ip():
   local_ip = None
@@ -341,51 +343,48 @@ last_video_frame_s = 0
 last_video_frame = None
 known_bad_camera_nums = set()
 video_t_is_running = False
-async def read_video_t():
+def read_video_t():
   global last_video_frame_num, last_video_frame_s, last_video_frame, known_bad_camera_nums, video_t_is_running
   cam_num = 0
   camera = None
   try:
     video_t_is_running = False
-    frame_delay_s = FRAME_HANDLE_DELAY_S
-    print(f'known_bad_camera_nums = {known_bad_camera_nums}')
-    for cam_num in range(0, 999):
-      if cam_num in known_bad_camera_nums:
-        continue
+    for cam_num in range(0, 99):
       try:
-        camera = cv2.VideoCapture(f'/dev/video{cam_num}')
-        if not camera.isOpened():
-          known_bad_camera_nums.add(cam_num)
-          raise RuntimeError('Cannot open camera')
-      except:
-        traceback.print_exc()
-      if camera is not None:
-        break
-
-    if camera is None:
-      try:
-        camera = cv2.VideoCapture(-1) # auto-select "best"
+        camera = cv2.VideoCapture(cam_num) # auto-select "best"
+        test, frame = camera.read()
+        if not (frame is None):
+          break
       except:
         traceback.print_exc()
 
-    if camera is None or not camera.isOpened():
-        raise RuntimeError('Cannot open camera')
+    print(f'cam_num = {cam_num} camera = {camera}')
+
+    #if camera is None or not camera.isOpened():
+    #    raise RuntimeError('Cannot open camera')
+
+    # camera.release() # we re-open on each "frame"
 
     none_reads_count = 0
-    while True:
+    while not app_is_shutting_down:
       video_t_is_running = True
       last_video_frame_s = time.time()
       last_video_frame_num += 1
 
       _, img = camera.read()
-      # img = cv2.resize(img, resolution)
 
       if img is None:
         none_reads_count += 1
-        await asyncio.sleep(frame_delay_s) # allow other tasks to run
+        print(f'none_reads_count = {none_reads_count}')
         if none_reads_count > 20:
-          raise Exception(f'Read None from camera {none_reads_count} times!')
+          break
         continue
+      none_reads_count = 0
+
+      #camera = cv2.VideoCapture()
+      #_, img = camera.read()
+
+      #camera.release()
 
       rounded_frame_num = last_video_frame_num % 1000
 
@@ -394,7 +393,7 @@ async def read_video_t():
 
       last_video_frame = cv2.imencode('.jpg', img)[1].tobytes()
 
-      await asyncio.sleep(frame_delay_s) # allow other tasks to run
+      time.sleep(FRAME_HANDLE_DELAY_S)
 
   except:
     video_t_is_running = False
@@ -405,6 +404,11 @@ async def read_video_t():
     last_video_frame_num = 0
     last_video_frame_s = 0
     last_video_frame = None
+    try:
+      camera.release()
+    except:
+      traceback.print_exc()
+
 
 async def ensure_video_is_being_read():
   global last_video_frame_num, last_video_frame_s, last_video_frame
@@ -412,7 +416,9 @@ async def ensure_video_is_being_read():
   #if last_frame_age > 6.0:
   #  asyncio.create_task(read_video_t())
   if not video_t_is_running:
-    asyncio.create_task(read_video_t())
+    #asyncio.create_task(read_video_t())
+    t = threading.Thread(target=read_video_t, args=(), daemon=True)
+    t.start()
 
 
 async def video_handle(request):
@@ -435,6 +441,10 @@ async def video_handle(request):
 
   return response
 
+async def on_app_shutdown(app):
+  global app_is_shutting_down
+  app_is_shutting_down = True
+  print(f'app_is_shutting_down = {app_is_shutting_down}!')
 
 def build_app():
   app = aiohttp.web.Application()
@@ -446,6 +456,7 @@ def build_app():
     aiohttp.web.post('/input', input_handle),
     aiohttp.web.post('/set-control-password', set_control_password_handle)
   ])
+  app.on_cleanup.append(on_app_shutdown)
   return app
 
 def try_to_use_core_2_excl():
