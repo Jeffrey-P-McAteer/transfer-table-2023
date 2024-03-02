@@ -435,6 +435,9 @@ def try_to_clean_hardware():
     subprocess.run([
       'sh', '-c', "usbreset | grep -i camera | sed 's/.*  .*  //g' | tr '\\n' '\\0' | xargs -0 usbreset"
     ])
+    subprocess.run([ # -n does not do pw prompts, just fails immediately
+      'sh', '-c', "usbreset | grep -i camera | sed 's/.*  .*  //g' | tr '\\n' '\\0' | xargs -0 sudo -n usbreset"
+    ])
   except:
     traceback.print_exc()
 
