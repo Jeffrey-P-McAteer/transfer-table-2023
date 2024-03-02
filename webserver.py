@@ -361,6 +361,11 @@ async def read_video_t():
 
       _, img = camera.read()
       # img = cv2.resize(img, resolution)
+      rounded_frame_num = last_video_frame_num % 1000
+
+      cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
+      cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
+
       last_video_frame = cv2.imencode('.jpg', img)[1].tobytes()
 
       await asyncio.sleep(frame_delay_s) # 50ms, allow other tasks to run
