@@ -433,7 +433,7 @@ def build_app():
 def try_to_clean_hardware():
   try:
     subprocess.run([
-      'sh', '-c', "usbreset | grep -i camera | sed 's/.*  .*  //g' | tr '\\n' '\\0' | xargs -0 sudo usbreset"
+      'sh', '-c', "usbreset | grep -i camera | sed 's/.*  .*  //g' | tr '\\n' '\\0' | xargs -0 usbreset"
     ])
   except:
     traceback.print_exc()
