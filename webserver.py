@@ -356,6 +356,7 @@ async def read_video_t():
       try:
         camera = cv2.VideoCapture(f'/dev/video{cam_num}')
         if not camera.isOpened():
+          known_bad_camera_nums.add(cam_num)
           raise RuntimeError('Cannot open camera')
       except:
         traceback.print_exc()
