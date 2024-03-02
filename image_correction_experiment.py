@@ -10,6 +10,7 @@ import time
 import math
 from contextlib import contextmanager
 import statistics
+import random
 
 python_libs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '.py-env'))
 os.makedirs(python_libs_dir, exist_ok=True)
@@ -315,11 +316,19 @@ def extract_rail_contours_and_rot_angle(contours, img_center_x, img_center_y, nu
   return rail_contours, best_rot_angle
 
 # Brute-forces many a,b combos, selecting the
-best_four_rail_a_b_cache = dict()
+best_four_rail_a_b_cache = list()
 def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_steps):
   global best_four_rail_a_b_cache
-  if id(img) in best_four_rail_a_b_cache:
-    return best_four_rail_a_b_cache[id(img)]
+
+  if len(best_four_rail_a_b_cache) > 1 and random.choice([False, False] + ([True] * len(best_four_rail_a_b_cache)) ):
+    # Return avg of previous vals as performance optimization:
+    total_best_a = 0
+    total_best_b = 0
+    for best_a, best_b, addtl_ret_vals in best_four_rail_a_b_cache:
+      total_best_a += best_a
+      total_best_b += best_b
+
+    return total_best_a / len(best_four_rail_a_b_cache), total_best_b / len(best_four_rail_a_b_cache), addtl_ret_vals
 
   best_a = 210
   best_b = 260
@@ -389,10 +398,8 @@ def get_best_four_rail_contours_threshold_a_b(img, width, height, num_rotation_s
           addtl_ret_vals = ( highest_count_rot_y_val, )
 
 
-
-  best_four_rail_a_b_cache[id(img)] = (best_a, best_b, addtl_ret_vals)
-
-  return best_four_rail_a_b_cache[id(img)]
+  best_four_rail_a_b_cache.append( (best_a, best_b, addtl_ret_vals) )
+  return (best_a, best_b, addtl_ret_vals)
 
 
 def do_track_detection(img, width, height):
