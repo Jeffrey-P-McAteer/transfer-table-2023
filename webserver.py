@@ -25,7 +25,7 @@ os.makedirs(py_env_dir, exist_ok=True)
 sys.path.insert(0, py_env_dir)
 
 # Safer cv2 behavior around releasing cameras
-os.environ['OPENCV_VIDEOIO_PRIORITY_MSMF'] = '0'
+# os.environ['OPENCV_VIDEOIO_PRIORITY_MSMF'] = '0'
 
 try:
   import aiohttp
