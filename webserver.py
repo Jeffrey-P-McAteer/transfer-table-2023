@@ -458,7 +458,9 @@ def try_to_clean_hardware():
 def main(args=sys.argv):
   if len(os.environ.get('DEBUG', '')) > 0:
     logging.basicConfig(level=logging.DEBUG)
-  try_to_clean_hardware()
+
+  # try_to_clean_hardware()
+
   local_ip = get_loc_ip()
   hostname = socket.gethostname()
   if os.geteuid() == 0:
