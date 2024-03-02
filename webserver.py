@@ -340,11 +340,13 @@ last_video_frame_num = 0
 last_video_frame_s = 0
 last_video_frame = None
 known_bad_camera_nums = set()
+video_t_is_running = False
 async def read_video_t():
-  global last_video_frame_num, last_video_frame_s, last_video_frame, known_bad_camera_nums
+  global last_video_frame_num, last_video_frame_s, last_video_frame, known_bad_camera_nums, video_t_is_running
   cam_num = 0
   camera = None
   try:
+    video_t_is_running = False
     frame_delay_s = FRAME_HANDLE_DELAY_S
     print(f'known_bad_camera_nums = {known_bad_camera_nums}')
     for cam_num in range(0, 999):
@@ -371,6 +373,7 @@ async def read_video_t():
 
     none_reads_count = 0
     while True:
+      video_t_is_running = True
       last_video_frame_s = time.time()
       last_video_frame_num += 1
 
@@ -394,9 +397,11 @@ async def read_video_t():
       await asyncio.sleep(frame_delay_s) # allow other tasks to run
 
   except:
+    video_t_is_running = False
     traceback.print_exc()
     known_bad_camera_nums.add(cam_num)
   finally:
+    video_t_is_running = False
     last_video_frame_num = 0
     last_video_frame_s = 0
     last_video_frame = None
@@ -404,7 +409,9 @@ async def read_video_t():
 async def ensure_video_is_being_read():
   global last_video_frame_num, last_video_frame_s, last_video_frame
   last_frame_age = time.time() - last_video_frame_s
-  if last_frame_age > 6.0:
+  #if last_frame_age > 6.0:
+  #  asyncio.create_task(read_video_t())
+  if not video_t_is_running:
     asyncio.create_task(read_video_t())
 
 
