@@ -72,6 +72,9 @@ def main(args=sys.argv):
       rounded_frame_num = frame_num % 1000
       print(f'frame_num = {frame_num}')
 
+      if width == 0 and height == 0:
+        break # error above, leave ASAP
+
       _, img = camera.read()
 
       cv2.putText(img, f'{rounded_frame_num}', (8, height-20), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
