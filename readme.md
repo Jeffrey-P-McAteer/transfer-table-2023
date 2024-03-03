@@ -75,6 +75,9 @@ sudo systemctl enable --now gpio-motor-control-watcher
  - https://www.omc-stepperonline.com/download/DM556T.pdf
  - https://en.wikipedia.org/wiki/Radon_transform
 
+Possibly go to the vendor's code for ideal webcam performance? https://github.com/yokeap/ELP_H264_UVC
+
+
 # Command notes
 
 ```bash
