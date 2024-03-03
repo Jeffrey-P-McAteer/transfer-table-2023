@@ -352,7 +352,7 @@ video_p = None
 async def ensure_video_is_being_read():
   global age_s_checked_video_p_running, video_p_running, video_p
   age_s_checked_video_p_running = time.time() - last_s_checked_video_p_running
-  if not video_p_running or age_s_checked_video_p_running > 90.0:
+  if not video_p_running or age_s_checked_video_p_running > 30.0:
     # check & spawn python camera_framegrabber.py if not running
     age_s_checked_video_p_running = time.time()
     proc_pids = psutil.pids()
