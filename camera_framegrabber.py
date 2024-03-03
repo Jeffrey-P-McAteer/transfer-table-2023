@@ -77,6 +77,10 @@ def main(args=sys.argv):
 
       _, img = camera.read()
 
+      if img is None:
+        time.sleep(0.25)
+        continue
+
       cv2.putText(img, f'{rounded_frame_num}', (8, height-20), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
       cv2.putText(img, f'{rounded_frame_num}', (8, height-20), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
 
