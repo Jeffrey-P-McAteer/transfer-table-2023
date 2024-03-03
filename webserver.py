@@ -432,7 +432,7 @@ def try_to_use_core_2_excl():
   try:
     pid = os.getpid()
     subprocess.run([
-      'taskset', '-cp', '1,2', str(pid)
+      'taskset', '-cp', '0,1,2', str(pid)
     ])
   except:
     traceback.print_exc()
