@@ -85,7 +85,7 @@ def main(args=sys.argv):
     except:
       traceback.print_exc()
       num_exceptions += 1
-      if num_exceptions > 10:
+      if num_exceptions > 2:
         break
 
   if camera is not None:
