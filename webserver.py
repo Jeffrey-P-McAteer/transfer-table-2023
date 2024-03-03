@@ -387,13 +387,23 @@ async def video_handle(request):
 
   await response.prepare(request)
 
+  last_frame_file_mtime_ns = 0
   while True:
     if os.path.exists(CURRENT_FRAME_FILE):
+      # Limited poll quickly until mtime changes, then read + sleep
+      for _ in range(0, 20):
+        if os.stat(CURRENT_FRAME_FILE).st_mtime_ns != last_frame_file_mtime_ns:
+          break
+        await asyncio.sleep(FRAME_HANDLE_DELAY_S / 5.0)
+
+      last_frame_file_mtime_ns = os.stat(CURRENT_FRAME_FILE).st_mtime_ns
+
       with open(CURRENT_FRAME_FILE, 'rb') as fd:
         frame_jpg_bytes = fd.read()
         await response.write(
           b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+frame_jpg_bytes+b'\r\n'
         )
+
     await asyncio.sleep(FRAME_HANDLE_DELAY_S)
 
   return response
