@@ -51,7 +51,7 @@ def main(args=sys.argv):
   signal.signal(signal.SIGINT, signal_handler)
   try_to_use_core_2_excl() # shared w/ webserver
   camera = None
-  for cam_num in range(0, 99):
+  for cam_num in range(0, 50):
     try:
       camera = cv2.VideoCapture(cam_num)
       test, frame = camera.read()
