@@ -174,7 +174,7 @@ input, label {
     <input type="button" value="Enter" onclick="submitInputForm()" style="margin-left:172pt;"/>
     <br/>
     <i>
-      Numbers turn into key presses, 'r' becomes a counter-clockwise dial rotation, 'l' becomes a clockwise dial rotation.
+      Numbers turn into key presses, 'r' becomes a clockwise dial rotation, 'l' becomes a counter-clockwise dial rotation.
       '=' performs the same as '=' on keyboard or numpad.
     </i>
   </form>
@@ -309,9 +309,9 @@ async def input_handle(request):
       elif number == '9': # KEY_KP9 == 73
         input_file_keycode_s += f'73,'
       elif number == 'r': # right/clockwise rotation dial
-        input_file_keycode_s += f'114,'
-      elif number == 'l': # left/counte-clockwise rotation dial
         input_file_keycode_s += f'115,'
+      elif number == 'l': # left/counte-clockwise rotation dial
+        input_file_keycode_s += f'114,'
       elif number == '=': # equals is 13
         input_file_keycode_s += f'13,'
     except:
