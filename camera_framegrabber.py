@@ -67,7 +67,7 @@ def main(args=sys.argv):
   num_exceptions = 0
   while not exit_flag:
     try:
-      time.sleep(0.09)
+      time.sleep(0.001)
       frame_num += 1
       rounded_frame_num = frame_num % 1000
       print(f'frame_num = {frame_num}')

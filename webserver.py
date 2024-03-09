@@ -5,7 +5,7 @@ PMEM_FILE = "/mnt/usb1/pmem.bin"
 GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in"
 PASSWORD_FILE = '/mnt/usb1/webserver-password.txt'
 #FRAME_HANDLE_DELAY_S = 0.08
-FRAME_HANDLE_DELAY_S = 0.19
+FRAME_HANDLE_DELAY_S = 0.05
 
 CURRENT_FRAME_FILE = '/tmp/camframe.jpg' # shared w/ camera_framegrabber.py
 
