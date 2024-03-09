@@ -91,8 +91,9 @@ async def maybe_redirect_for_auth(request):
     supplied_pw = base64.b64decode(supplied_auth[5:].strip())
     if not isinstance(supplied_pw, str):
       supplied_pw = supplied_pw.decode('utf-8')
-    if supplied_pw[0] == ':': # trim protocol char off
-      supplied_pw = supplied_pw[1:]
+    if ':' in supplied_pw:
+      supplied_pw = supplied_pw.split(':', 1)[1].strip()
+
     supplied_pw = supplied_pw.strip()
   except:
     traceback.print_exc()
