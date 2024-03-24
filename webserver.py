@@ -639,9 +639,59 @@ async def read_video_t():
     last_video_frame_s = 0
     last_video_frame = None
 
-
+AUTOMOVE_RESET_PERIOD_S = 45
+AUTOMOVE_ADJUSTMENTS_ALLOWED = 9
+last_automove_reset_s = 0
+automove_remaining_adjustments_allowed = 0
 async def with_rail_px_diff(rail_px_diff):
-  pass
+  global last_automove_reset_s, automove_remaining_adjustments_allowed
+  try:
+    # If we have not reset our safety limit, reset it
+    if time.time() - last_automove_reset_s > AUTOMOVE_RESET_PERIOD_S:
+      automove_remaining_adjustments_allowed = AUTOMOVE_ADJUSTMENTS_ALLOWED
+      last_automove_reset_s = time.time()
+
+    # If we have exhausted our safety limit, leave!
+    if automove_remaining_adjustments_allowed < 1:
+      if automove_remaining_adjustments_allowed > -1:
+        print(f'automove_remaining_adjustments_allowed = {automove_remaining_adjustments_allowed}, leaving b/c < 1')
+        automove_remaining_adjustments_allowed = -1 # to silence many errors!
+      return
+
+    # No rail detected, leave
+    if rail_px_diff is None:
+      return
+
+    # Table is moving, leave
+    if os.path.exists('/tmp/gpio_motor_is_active'):
+      print(f'/tmp/gpio_motor_is_active, not performing automove!')
+      return
+
+    # Book keeping
+    automove_remaining_adjustments_allowed -= 1
+
+    # Perform the move!
+    input_file_keycode_s = ''
+    if rail_px_diff < 0:
+      input_file_keycode_s = '115' # TODO these may be backwards!!!!
+    else:
+      input_file_keycode_s = '114'
+
+    # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
+    for _ in range(0, 100):
+      input_num = random.randrange(1000, 9000)
+      input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
+      if os.path.exists(input_f_name):
+        continue
+      with open(input_f_name, 'w') as fd:
+        fd.write(input_file_keycode_s)
+
+      print(f'AutoMove Wrote "{input_file_keycode_s}" to {input_f_name}')
+
+      break
+
+  except:
+    traceback.print_exc()
 
 async def ensure_video_is_being_read():
   global last_video_frame_num, last_video_frame_s, last_video_frame
