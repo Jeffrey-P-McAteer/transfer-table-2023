@@ -191,6 +191,22 @@ def calc_alpha_beta_auto_brightness_adj(gray_img):
 
   return alpha, beta
 
+@numba.jit(nopython=True, nogil=True, cache=True)
+def brightness_from_px(pixel):
+  if len(pixel) == 3:
+    # Assume BGR
+    B = pixel[0]
+    G = pixel[1]
+    R = pixel[2]
+    return int( (R+R+R+B+G+G+G+G)>>3 ) # Fast approx from https://stackoverflow.com/a/596241
+
+  elif len(pixel) == 1:
+    # Assume gray
+    return pixel[0]
+
+  else:
+    raise Exception(f'Error, bad pixel value! pixel = {pixel}')
+
 def do_track_detection(img, width, height):
 
   int_a = 0
@@ -228,22 +244,100 @@ def do_track_detection(img, width, height):
   gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
   alpha, beta = calc_alpha_beta_auto_brightness_adj(gray)
   auto_adj_img = cv2.convertScaleAbs(cropped, alpha=alpha, beta=beta)
+  # For diagnostics, we write to this so our output doesn't change the input (auto_adj_img) being processed
+  debug_adj_img = auto_adj_img.copy()
 
   # We also use these manually measured offsets to insersect the
   # table rail and layout-side rail.
   # Coordinates are measured in absolute units and converted at-time-of-use
   table_rail_y = 330
   layout_rail_y = 350
+  rail_pair_width_px = 96 # measured center-to-center
+
+  # Calc crop-space rail_y values
+  crop_table_rail_y = table_rail_y-crop_y
+  crop_layout_rail_y = layout_rail_y-crop_y
+
+  # Log debug assumptions
+  cv2.line(debug_adj_img, (0, table_rail_y-crop_y), (crop_w, crop_table_rail_y), (255, 0, 0), thickness=1)
+  cv2.line(debug_adj_img, (0, layout_rail_y-crop_y), (crop_w, crop_layout_rail_y), (0, 255, 0), thickness=1)
+
+  # Scan along table_rail_y to find two high signals approx rail_pair_width_px apart,
+  # and record X coords of both.
+  table_rail_brightnesses = []
+  layout_rail_brightnesses = []
+  for x in range(0, crop_w):
+    table_px = auto_adj_img[crop_table_rail_y,x]
+    layout_px = auto_adj_img[crop_layout_rail_y,x]
+    table_rail_brightnesses.append(
+      brightness_from_px(table_px)
+    )
+    layout_rail_brightnesses.append(
+      brightness_from_px(layout_px)
+    )
+
+  avg_table_rail_brightnesses = sum(table_rail_brightnesses) / len(table_rail_brightnesses)
+  avg_layout_rail_brightnesses = sum(layout_rail_brightnesses) / len(layout_rail_brightnesses)
+
+  # The true average segmentation includes too much non-rail material -
+  # therefore we increase the "average" brightness up by 65% to capture
+  # somethig closer to the top 25% brightness values
+  avg_table_rail_brightnesses *= 1.65
+  avg_layout_rail_brightnesses *= 1.65
+
+  table_rail_signal = [x > avg_table_rail_brightnesses for x in table_rail_brightnesses]
+  layout_rail_signal = [x > avg_layout_rail_brightnesses for x in layout_rail_brightnesses]
+
+  # Log more
+  for x in range(0, crop_w):
+    debug_adj_img[crop_table_rail_y+1,x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
+    debug_adj_img[crop_table_rail_y+2,x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
+
+    debug_adj_img[crop_layout_rail_y+1,x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
+    debug_adj_img[crop_layout_rail_y+2,x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
+
+  # Now we scan for the FIRST rail from the left ->
+  # by checking the signal True values AND reading the same TRUE value
+  # rail_pair_width_px items later
+  table_rail_left_idxs = None
+  layout_rail_left_idxs = None
+  for x in range(0, crop_w-rail_pair_width_px):
+    if table_rail_left_idxs is None and table_rail_signal[x] and table_rail_signal[x+rail_pair_width_px]:
+      # Found it!
+      table_rail_left_idxs = (x, x+rail_pair_width_px)
+
+    if layout_rail_left_idxs is None and layout_rail_signal[x] and layout_rail_signal[x+rail_pair_width_px]:
+      # Found it!
+      layout_rail_left_idxs = (x, x+rail_pair_width_px)
 
 
-  cv2.line(auto_adj_img, (0, table_rail_y-crop_y), (crop_w, table_rail_y-crop_y), (0, 255, 0), thickness=1)
-  cv2.line(auto_adj_img, (0, layout_rail_y-crop_y), (crop_w, layout_rail_y-crop_y), (0, 0, 255), thickness=1)
+  if not (table_rail_left_idxs is None):
+    # Log the rail!
+    x1, x2 = table_rail_left_idxs
+    debug_adj_img[crop_table_rail_y+3, x1] = [0,0,255]
+    debug_adj_img[crop_table_rail_y+4, x1] = [0,0,255]
+
+    debug_adj_img[crop_table_rail_y+3, x2] = [0,0,255]
+    debug_adj_img[crop_table_rail_y+4, x2] = [0,0,255]
+
+  if not (layout_rail_left_idxs is None):
+    # Log the rail!
+    x1, x2 = layout_rail_left_idxs
+    debug_adj_img[crop_layout_rail_y+3, x1] = [0,0,255]
+    debug_adj_img[crop_layout_rail_y+4, x1] = [0,0,255]
+
+    debug_adj_img[crop_layout_rail_y+3, x2] = [0,0,255]
+    debug_adj_img[crop_layout_rail_y+4, x2] = [0,0,255]
+
+  #print(f'table_rail_signal = {table_rail_signal}')
+  #print(f'layout_rail_signal = {layout_rail_signal}')
+
 
 
 
   img_final = cv2.hconcat(try_convert_to_rgb([
     #img, auto_adj_img
-    auto_adj_img
+    auto_adj_img, debug_adj_img
   ]))
 
   return img_final
