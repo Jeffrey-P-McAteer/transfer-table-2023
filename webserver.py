@@ -58,7 +58,7 @@ try:
   import numba
 except:
   subprocess.run([
-    sys.executable, '-m', 'pip', 'install', f'--target={python_libs_dir}', 'numba'
+    sys.executable, '-m', 'pip', 'install', f'--target={py_env_dir}', 'numba'
   ])
   import numba
 
@@ -631,8 +631,8 @@ async def read_video_t():
       debug_img = cv2.resize(debug_img, (640, 480))
 
       # combine images for a single output stream
-      #combined_img = cv2.vconcat([img, debug_img])
-      combined_img = img
+      combined_img = cv2.vconcat([img, debug_img])
+      #combined_img = img
 
       last_video_frame = cv2.imencode('.jpg', combined_img)[1].tobytes()
 
@@ -714,7 +714,7 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
 async def ensure_video_is_being_read():
   global last_video_frame_num, last_video_frame_s, last_video_frame
   last_frame_age = time.time() - last_video_frame_s
-  if last_frame_age > 9.0:
+  if last_frame_age > 30.0:
     asyncio.create_task(read_video_t())
 
 
