@@ -347,64 +347,325 @@ async def set_control_password_handle(request):
   return aiohttp.web.Response(text=f'Done, pw_val={"*" * len(pw_val)}', content_type='text/plain')
 
 
-last_s_checked_video_p_running = 0
-video_p_running = False
-video_p = None
-async def ensure_video_is_being_read():
-  global age_s_checked_video_p_running, video_p_running, video_p
-  age_s_checked_video_p_running = time.time() - last_s_checked_video_p_running
-  if not video_p_running or age_s_checked_video_p_running > 10.0:
-    # check & spawn python camera_framegrabber.py if not running
-    age_s_checked_video_p_running = time.time()
-    proc_pids = psutil.pids()
-    video_p_running = False # assume not running by default!
-    for pid in proc_pids:
+
+def calc_alpha_beta_auto_brightness_adj(gray_img):
+  clip_hist_percent = 20
+
+  # Calculate grayscale histogram
+  hist = cv2.calcHist([gray_img],[0],None,[256],[0,256])
+  hist_size = len(hist)
+
+  # Calculate cumulative distribution from the histogram
+  accumulator = []
+  accumulator.append(float(hist[0]))
+  for index in range(1, hist_size):
+      accumulator.append(accumulator[index -1] + float(hist[index]))
+
+  # Locate points to clip
+  maximum = accumulator[-1]
+  clip_hist_percent *= (maximum/100.0)
+  clip_hist_percent /= 2.0
+
+  # Locate left cut
+  minimum_gray = 0
+  while accumulator[minimum_gray] < clip_hist_percent:
+      minimum_gray += 1
+
+  # Locate right cut
+  maximum_gray = hist_size -1
+  while accumulator[maximum_gray] >= (maximum - clip_hist_percent):
+      maximum_gray -= 1
+
+  # Calculate alpha and beta values
+  alpha = 255 / (maximum_gray - minimum_gray)
+  beta = -minimum_gray * alpha
+
+  return alpha, beta
+
+def brightness_from_px(pixel):
+  if len(pixel) == 3:
+    # Assume BGR
+    B = pixel[0]
+    G = pixel[1]
+    R = pixel[2]
+    return int( (R+R+R+B+G+G+G+G)>>3 ) # Fast approx from https://stackoverflow.com/a/596241
+
+  elif len(pixel) == 1:
+    # Assume gray
+    return pixel[0]
+
+  else:
+    raise Exception(f'Error, bad pixel value! pixel = {pixel}')
+
+async def do_image_analysis_processing(img):
+
+  # if the image is not the same size as our research texts, fix it!
+  img_h, img_w, img_channels = img.shape
+  if img_w != 640 or img_h != 480:
+    print(f'WARNING: input image was {img_w}x{img_h} pixels, we resized to 640x480')
+    img = cv2.resize(img, (640, 480))
+
+  # This variable is returned alongside the debug frame.
+  # When None indicates no rails detected!
+  rail_px_diff = None
+
+  # First let's crop to a manually-measured section we want to measure.
+  crop_x = 150
+  crop_y = 200
+  crop_w = 450 - crop_x
+  crop_h = 400 - crop_y
+
+  cropped = img[crop_y:crop_y+crop_h, crop_x:crop_x+crop_w]
+
+  # Next, let's normalize the input images using a common technique
+  # to normalize the contrast and brightness incoming images.
+  # If the brightness of the room/track changes this will prevent the algorithms
+  # below from failing.
+  # See https://stackoverflow.com/questions/56905592/automatic-contrast-and-brightness-adjustment-of-a-color-photo-of-a-sheet-of-pape
+
+  gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+  alpha, beta = calc_alpha_beta_auto_brightness_adj(gray)
+  auto_adj_img = cv2.convertScaleAbs(cropped, alpha=alpha, beta=beta)
+  # For diagnostics, we write to this so our output doesn't change the input (auto_adj_img) being processed
+  debug_adj_img = auto_adj_img.copy()
+
+  # We also use these manually measured offsets to insersect the
+  # table rail and layout-side rail.
+  # Coordinates are measured in absolute units and converted at-time-of-use
+  table_rail_y = 330
+  layout_rail_y = 350
+  rail_pair_width_px = 96 # measured center-to-center
+
+  # Calc crop-space rail_y values
+  crop_table_rail_y = table_rail_y-crop_y
+  crop_layout_rail_y = layout_rail_y-crop_y
+
+  # Log debug assumptions
+  cv2.line(debug_adj_img, (0, table_rail_y-crop_y), (crop_w, crop_table_rail_y), (255, 0, 0), thickness=1)
+  cv2.line(debug_adj_img, (0, layout_rail_y-crop_y), (crop_w, crop_layout_rail_y), (0, 255, 0), thickness=1)
+
+  # Scan along table_rail_y to find two high signals approx rail_pair_width_px apart,
+  # and record X coords of both.
+  table_rail_brightnesses = []
+  layout_rail_brightnesses = []
+  for x in range(0, crop_w):
+    table_px = auto_adj_img[crop_table_rail_y,x]
+    layout_px = auto_adj_img[crop_layout_rail_y,x]
+    table_rail_brightnesses.append(
+      brightness_from_px(table_px)
+    )
+    layout_rail_brightnesses.append(
+      brightness_from_px(layout_px)
+    )
+
+  avg_table_rail_brightnesses = sum(table_rail_brightnesses) / len(table_rail_brightnesses)
+  avg_layout_rail_brightnesses = sum(layout_rail_brightnesses) / len(layout_rail_brightnesses)
+
+  # The true average segmentation includes too much non-rail material -
+  # therefore we increase the "average" brightness up by 65% to capture
+  # somethig closer to the top 25% brightness values
+  avg_table_rail_brightnesses *= 1.65
+  avg_layout_rail_brightnesses *= 1.65
+
+  table_rail_signal = [x > avg_table_rail_brightnesses for x in table_rail_brightnesses]
+  layout_rail_signal = [x > avg_layout_rail_brightnesses for x in layout_rail_brightnesses]
+
+  # Log more
+  for x in range(0, crop_w):
+    debug_adj_img[crop_table_rail_y+1,x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
+    debug_adj_img[crop_table_rail_y+2,x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
+
+    debug_adj_img[crop_layout_rail_y+1,x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
+    debug_adj_img[crop_layout_rail_y+2,x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
+
+  # Now we scan for the FIRST rail from the left ->
+  # by checking the signal True values AND reading the same TRUE value
+  # rail_pair_width_px items later
+  table_rail_left_idxs = None
+  layout_rail_left_idxs = None
+  for x in range(0, crop_w-rail_pair_width_px):
+    if table_rail_left_idxs is None and table_rail_signal[x] and table_rail_signal[x+rail_pair_width_px]:
+      # Found it!
+      table_rail_left_idxs = (x, x+rail_pair_width_px)
+
+    if layout_rail_left_idxs is None and layout_rail_signal[x] and layout_rail_signal[x+rail_pair_width_px]:
+      # Found it!
+      layout_rail_left_idxs = (x, x+rail_pair_width_px)
+
+
+  if not (table_rail_left_idxs is None):
+    # Log the rail!
+    x1, x2 = table_rail_left_idxs
+    debug_adj_img[crop_table_rail_y+3, x1] = [0,0,255]
+    debug_adj_img[crop_table_rail_y+4, x1] = [0,0,255]
+
+    debug_adj_img[crop_table_rail_y+3, x2] = [0,0,255]
+    debug_adj_img[crop_table_rail_y+4, x2] = [0,0,255]
+
+  if not (layout_rail_left_idxs is None):
+    # Log the rail!
+    x1, x2 = layout_rail_left_idxs
+    debug_adj_img[crop_layout_rail_y+3, x1] = [0,0,255]
+    debug_adj_img[crop_layout_rail_y+4, x1] = [0,0,255]
+
+    debug_adj_img[crop_layout_rail_y+3, x2] = [0,0,255]
+    debug_adj_img[crop_layout_rail_y+4, x2] = [0,0,255]
+
+  if table_rail_left_idxs is not None and layout_rail_left_idxs is not None:
+    # Now we can see how much to move the table by!
+    table_x1, table_x2 = table_rail_left_idxs
+    layout_x1, layout_x2 = layout_rail_left_idxs
+
+    x1_diff = layout_x1 - table_x1
+    x2_diff = layout_x2 - table_x2 # this will be identical b/c detection uses rail_pair_width_px
+
+    MAX_ALLOWED_RAIL_OFFSET = 2
+    if abs(x1_diff) > MAX_ALLOWED_RAIL_OFFSET:
+      cv2.arrowedLine(debug_adj_img, (table_x1, crop_table_rail_y-10), (layout_x1, crop_table_rail_y-10), (0,0,0), 2)
+      cv2.arrowedLine(debug_adj_img, (table_x1, crop_table_rail_y-10), (layout_x1, crop_table_rail_y-10), (0,0,255), 1)
+
+      # print(f'x1_diff = {x1_diff}')
+      rail_px_diff = x1_diff # Write to our returned variable so processing logic can move table!
+
+    else:
+      # Rail position good!
+      cv2.arrowedLine(debug_adj_img, (table_x1, max(0, crop_table_rail_y-60) ), (layout_x1, crop_table_rail_y), (0,0,0), 2)
+      cv2.arrowedLine(debug_adj_img, (table_x1, max(0, crop_table_rail_y-60) ), (layout_x1, crop_table_rail_y), (0,255,0), 1)
+
+  else:
+    # No rails found!
+    cv2.putText(debug_adj_img,'[NO RAIL]',
+      (int(crop_w/6), max(0, crop_table_rail_y-40)),
+      cv2.FONT_HERSHEY_SIMPLEX,
+      1, (0,0,0), 2, 2
+    )
+    cv2.putText(debug_adj_img,'[NO RAIL]',
+      (int(crop_w/6), max(0, crop_table_rail_y-40)),
+      cv2.FONT_HERSHEY_SIMPLEX,
+      1, (0,0,255), 1, 2
+    )
+
+  return rail_px_diff, debug_adj_img
+
+
+
+
+
+
+
+last_video_frame_num = 0
+last_video_frame_s = 0
+last_video_frame = None
+async def read_video_t():
+  global last_video_frame_num, last_video_frame_s, last_video_frame
+  cam_num = 0
+  camera = None
+  try:
+    frame_delay_s = FRAME_HANDLE_DELAY_S
+    for cam_num in range(0, 99):
       try:
-        if psutil.pid_exists(pid):
-          p = psutil.Process(pid)
-          cmd_str = ' '.join(p.cmdline())
-          if 'camera_framegrabber.py' in cmd_str:
-            video_p_running = True
-            break
+        camera = cv2.VideoCapture(f'/dev/video{cam_num}')
+        if not camera.isOpened():
+          raise RuntimeError('Cannot open camera')
       except:
         traceback.print_exc()
-  if not video_p_running:
-    video_p_cmd = [
-      sys.executable, os.path.join(os.path.dirname(__file__), 'camera_framegrabber.py')
-    ]
-    print(f'video_p_running={video_p_running}, spawning {video_p_cmd}')
-    video_p = subprocess.Popen(video_p_cmd, preexec_fn=os.setpgrp) # we do not kill this process when we exit! see setpgrp
-    print(f'video_p = {video_p}')
+      if camera is not None:
+        break
+
+    if camera is None:
+      try:
+        camera = cv2.VideoCapture(-1) # auto-select "best"
+      except:
+        traceback.print_exc()
+
+    if camera is None or not camera.isOpened():
+        raise RuntimeError('Cannot open camera')
+
+    none_reads_count = 0
+    while True:
+
+      _, img = camera.read()
+      # img = cv2.resize(img, resolution)
+
+      if img is None:
+        none_reads_count += 1
+        await asyncio.sleep(frame_delay_s) # allow other tasks to run
+        if none_reads_count > 20:
+          raise Exception(f'Read None from camera {none_reads_count} times!')
+        continue
+
+      rounded_frame_num = last_video_frame_num % 1000
+
+      img_w, img_h, _img_channels = img.shape
+
+      # Upper-left
+      #cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
+      #cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
+
+      # Lower-left
+      cv2.putText(img, f'{rounded_frame_num}', (10, img_h-180), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
+      cv2.putText(img, f'{rounded_frame_num}', (10, img_h-180), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
+
+      # last_video_frame = cv2.imencode('.jpg', img)[1].tobytes()
+      rail_px_diff = None
+      debug_img = img
+      try:
+        rail_px_diff, debug_img = await do_image_analysis_processing(img)
+      except:
+        traceback.print_exc()
+
+      # Finally ensure debug_img is the same size as img
+      debug_img = cv2.resize(debug_img, (640, 480))
+
+      # combine images for a single output stream
+      combined_img = cv2.vconcat([img, debug_img])
+
+      last_video_frame = cv2.imencode('.jpg', combined_img)[1].tobytes()
+
+      # Signal to other thread images are ready!
+      last_video_frame_s = time.time()
+      last_video_frame_num += 1
+
+      # Fork off with_rail_px_diff to it's own thread,
+      # I'd prefer it be as far away from image processing as possible
+      asyncio.create_task(with_rail_px_diff(rail_px_diff))
+
+      await asyncio.sleep(frame_delay_s) # allow other tasks to run
+
+  except:
+    traceback.print_exc()
+  finally:
+    last_video_frame_num = 0
+    last_video_frame_s = 0
+    last_video_frame = None
+
+
+async def with_rail_px_diff(rail_px_diff):
+  pass
+
+async def ensure_video_is_being_read():
+  global last_video_frame_num, last_video_frame_s, last_video_frame
+  last_frame_age = time.time() - last_video_frame_s
+  if last_frame_age > 9.0:
+    asyncio.create_task(read_video_t())
 
 
 async def video_handle(request):
   global last_video_frame_num, last_video_frame_s, last_video_frame
 
-  #asyncio.create_task(ensure_video_is_being_read())
-  await ensure_video_is_being_read()
+  asyncio.create_task(ensure_video_is_being_read())
 
   response = aiohttp.web.StreamResponse()
   response.content_type = 'multipart/x-mixed-replace; boundary=frame'
 
   await response.prepare(request)
 
-  last_frame_file_mtime_ns = 0
+  last_read_frame_num = 0
   while True:
-    if os.path.exists(CURRENT_FRAME_FILE):
-      # Limited poll quickly until mtime changes, then read + sleep
-      for _ in range(0, 20):
-        if os.stat(CURRENT_FRAME_FILE).st_mtime_ns != last_frame_file_mtime_ns:
-          break
-        await asyncio.sleep(FRAME_HANDLE_DELAY_S / 5.0)
-
-      last_frame_file_mtime_ns = os.stat(CURRENT_FRAME_FILE).st_mtime_ns
-
-      with open(CURRENT_FRAME_FILE, 'rb') as fd:
-        frame_jpg_bytes = fd.read()
-        await response.write(
-          b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+frame_jpg_bytes+b'\r\n'
-        )
-
+    if last_video_frame is not None and last_read_frame_num != last_video_frame:
+      await response.write(
+        b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+last_video_frame+b'\r\n'
+      )
     await asyncio.sleep(FRAME_HANDLE_DELAY_S)
 
   return response
