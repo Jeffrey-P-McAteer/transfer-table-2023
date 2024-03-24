@@ -54,14 +54,6 @@ except:
   ])
   import psutil
 
-try:
-  import numba
-except:
-  subprocess.run([
-    sys.executable, '-m', 'pip', 'install', f'--target={py_env_dir}', 'numba'
-  ])
-  import numba
-
 
 def get_loc_ip():
   local_ip = None
@@ -390,7 +382,6 @@ def calc_alpha_beta_auto_brightness_adj(gray_img):
 
   return alpha, beta
 
-@numba.jit(nopython=True, nogil=True, cache=True)
 def brightness_from_px(pixel):
   if len(pixel) == 3:
     # Assume BGR

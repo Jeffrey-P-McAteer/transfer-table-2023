@@ -191,7 +191,7 @@ def calc_alpha_beta_auto_brightness_adj(gray_img):
 
   return alpha, beta
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+# @numba.jit(nopython=True, nogil=True, cache=True)
 def brightness_from_px(pixel):
   if len(pixel) == 3:
     # Assume BGR
