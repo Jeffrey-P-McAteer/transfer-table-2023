@@ -419,9 +419,9 @@ async def do_image_analysis_processing(img):
   rail_px_diff = None
 
   # First let's crop to a manually-measured section we want to measure.
-  crop_x = 150
+  crop_x = 175
   crop_y = 200
-  crop_w = 450 - crop_x
+  crop_w = 425 - crop_x
   crop_h = 400 - crop_y
 
   cropped = img[crop_y:crop_y+crop_h, crop_x:crop_x+crop_w]
@@ -559,14 +559,14 @@ async def do_image_analysis_processing(img):
     )
 
   seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-  if seconds_since_last_table_move > 9.0:
+  if seconds_since_last_table_move > 30.0:
     # Notify user we will not be moving!
-    cv2.putText(debug_adj_img,'9s NO MOTION',
+    cv2.putText(debug_adj_img,'30s NO MOTION',
       (8, 30),
       cv2.FONT_HERSHEY_SIMPLEX,
       1, (0,0,0), 2, 2
     )
-    cv2.putText(debug_adj_img,'9s NO MOTION',
+    cv2.putText(debug_adj_img,'30s NO MOTION',
       (8, 30),
       cv2.FONT_HERSHEY_SIMPLEX,
       1, (0,0,255), 1, 2
@@ -703,8 +703,8 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
 
     # We also refuse to move IF it has been >6s since last_s_when_gpio_motor_is_active
     seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-    if seconds_since_last_table_move > 9.0:
-      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 9.0, not performing automove!')
+    if seconds_since_last_table_move > 30.0:
+      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 30.0, not performing automove!')
       return
 
 
