@@ -67,6 +67,9 @@ const cpigpio = @cImport({
 const PMEM_FILE = "/mnt/usb1/pmem.bin";
 const GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in";
 
+// When this file exists, other programs should assume the table is being driven and ought NOT perform analysis routines.
+const GPIO_MOTOR_ACTIVE_FLAG_FILE = "/tmp/gpio_motor_is_active";
+
 // Hardware Constants
 const PREFERRED_CPU = 3;
 
@@ -195,6 +198,9 @@ pub fn main() !void {
             performInputEvents(false);
         }
 
+        // If we have exited from performInputEvents, the table motion is complete!
+        delete_motor_active_file();
+
         // Handle event loop incrementing
         evt_loop_i += 1;
         if (evt_loop_i > std.math.maxInt(u32) / 4) {
@@ -202,6 +208,25 @@ pub fn main() !void {
         }
     }
     std.debug.print("main() exiting!\n", .{});
+}
+
+
+pub fn create_motor_active_file() void {
+    var fd = cfcntl.open(GPIO_MOTOR_ACTIVE_FLAG_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
+    if (fd >= 0) {
+        const active_file_bytes = "---";
+        _ = cunistd.write(fd, active_file_bytes, @sizeOf(@TypeOf(active_file_bytes)));
+        _ = cunistd.close(fd);
+    }
+}
+
+pub fn delete_motor_active_file() void {
+    std.fs.accessAbsolute(GPIO_MOTOR_ACTIVE_FLAG_FILE, .{ .mode = std.fs.File.OpenMode.read_only }) catch {
+        return; // If we cannot access the path, it does not exist!
+    };
+    std.fs.deleteFileAbsolute(GPIO_MOTOR_ACTIVE_FLAG_FILE) catch |err| {
+        std.debug.print("deleteFileAbsolute failed: {}\n", .{err});
+    };
 }
 
 pub fn motorControlSignalHandler(sig_val: c_int) callconv(.C) void {
@@ -496,6 +521,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         }
         else if (code == 114) {
           // Clockwise dial spin
+          create_motor_active_file();
           std.debug.print("Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |i| {
@@ -508,6 +534,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         }
         else if (code == 115) {
           // Counter-Clockwise dial spin
+          create_motor_active_file();
           std.debug.print("Counter-Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_ENABLE_SIGNAL);
           for (0..dial_num_steps_per_click) |i| {
@@ -553,6 +580,9 @@ pub fn move_to_position(pos_num: u8) void {
     std.debug.print("Refusing to move to invalid position {d}!\n", .{pos_num});
     return;
   }
+
+  create_motor_active_file();
+
   var target_position: i32 = pmem.positions[pos_num-1].step_position;
   std.debug.print("Moving from pmem.step_position = {d} to target_position = {d}\n", .{pmem.step_position, target_position});
 
