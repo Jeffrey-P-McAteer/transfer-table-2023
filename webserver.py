@@ -714,7 +714,7 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
 async def ensure_video_is_being_read():
   global last_video_frame_num, last_video_frame_s, last_video_frame
   last_frame_age = time.time() - last_video_frame_s
-  if last_frame_age > 30.0:
+  if last_frame_age > 90.0:
     asyncio.create_task(read_video_t())
 
 
