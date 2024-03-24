@@ -561,6 +561,10 @@ async def read_video_t():
   cam_num = 0
   camera = None
   try:
+    # Temporary use of /tmp/no-automove.txt to have automove be OFF by default!
+    with open('/tmp/no-automove.txt', 'w') as fd:
+      fd.write('---')
+
     frame_delay_s = FRAME_HANDLE_DELAY_S
     for cam_num in range(0, 99):
       try:
@@ -626,9 +630,9 @@ async def read_video_t():
       last_video_frame_s = time.time()
       last_video_frame_num += 1
 
-      # Fork off with_rail_px_diff to it's own thread,
+      # Fork off do_automove_with_rail_px_diff to it's own thread,
       # I'd prefer it be as far away from image processing as possible
-      asyncio.create_task(with_rail_px_diff(rail_px_diff))
+      asyncio.create_task(do_automove_with_rail_px_diff(rail_px_diff))
 
       await asyncio.sleep(frame_delay_s) # allow other tasks to run
 
@@ -643,7 +647,7 @@ AUTOMOVE_RESET_PERIOD_S = 45
 AUTOMOVE_ADJUSTMENTS_ALLOWED = 9
 last_automove_reset_s = 0
 automove_remaining_adjustments_allowed = 0
-async def with_rail_px_diff(rail_px_diff):
+async def do_automove_with_rail_px_diff(rail_px_diff):
   global last_automove_reset_s, automove_remaining_adjustments_allowed
   try:
     # If we have not reset our safety limit, reset it
@@ -676,6 +680,10 @@ async def with_rail_px_diff(rail_px_diff):
       input_file_keycode_s = '115' # TODO these may be backwards!!!!
     else:
       input_file_keycode_s = '114'
+
+    if os.path.exists('/tmp/no-automove.txt'):
+      print(f'Refusing to write {input_file_keycode_s} to controller b/c /tmp/no-automove.txt exists!')
+      return
 
     # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
     for _ in range(0, 100):
