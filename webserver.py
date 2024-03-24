@@ -97,7 +97,7 @@ async def maybe_redirect_for_auth(request):
     supplied_pw = supplied_pw.strip()
   except:
     traceback.print_exc()
-  print(f'supplied_pw = {supplied_pw}')
+  # print(f'supplied_pw = {supplied_pw}')
   current_pw = await get_current_password()
   if current_pw is None:
     return None # cannot do password check, not yet set!
