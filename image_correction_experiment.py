@@ -329,10 +329,41 @@ def do_track_detection(img, width, height):
     debug_adj_img[crop_layout_rail_y+3, x2] = [0,0,255]
     debug_adj_img[crop_layout_rail_y+4, x2] = [0,0,255]
 
-  #print(f'table_rail_signal = {table_rail_signal}')
-  #print(f'layout_rail_signal = {layout_rail_signal}')
+  if table_rail_left_idxs is not None and layout_rail_left_idxs is not None:
+    # Now we can see how much to move the table by!
+    table_x1, table_x2 = table_rail_left_idxs
+    layout_x1, layout_x2 = layout_rail_left_idxs
 
+    x1_diff = layout_x1 - table_x1
+    x2_diff = layout_x2 - table_x2 # this will be identical b/c detection uses rail_pair_width_px
 
+    if abs(x1_diff) > 2:
+      cv2.arrowedLine(debug_adj_img, (table_x1, crop_table_rail_y-10), (layout_x1, crop_table_rail_y-10), (0,0,0), 2)
+      cv2.arrowedLine(debug_adj_img, (table_x1, crop_table_rail_y-10), (layout_x1, crop_table_rail_y-10), (0,0,255), 1)
+
+      print(f'x1_diff = {x1_diff}')
+      if x1_diff > 0:
+        pass
+
+      else: # x1_diff > 0
+        pass
+    else:
+      # Rail position good!
+      cv2.arrowedLine(debug_adj_img, (table_x1, max(0, crop_table_rail_y-60) ), (layout_x1, crop_table_rail_y), (0,0,0), 2)
+      cv2.arrowedLine(debug_adj_img, (table_x1, max(0, crop_table_rail_y-60) ), (layout_x1, crop_table_rail_y), (0,255,0), 1)
+
+  else:
+    # No rails found!
+    cv2.putText(debug_adj_img,'[NO RAIL]',
+      (int(crop_w/6), max(0, crop_table_rail_y-40)),
+      cv2.FONT_HERSHEY_SIMPLEX,
+      1, (0,0,0), 2, 2
+    )
+    cv2.putText(debug_adj_img,'[NO RAIL]',
+      (int(crop_w/6), max(0, crop_table_rail_y-40)),
+      cv2.FONT_HERSHEY_SIMPLEX,
+      1, (0,0,255), 1, 2
+    )
 
 
   img_final = cv2.hconcat(try_convert_to_rgb([
