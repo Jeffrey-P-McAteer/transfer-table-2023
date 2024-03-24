@@ -622,7 +622,8 @@ async def read_video_t():
       debug_img = cv2.resize(debug_img, (640, 480))
 
       # combine images for a single output stream
-      combined_img = cv2.vconcat([img, debug_img])
+      #combined_img = cv2.vconcat([img, debug_img])
+      combined_img = img
 
       last_video_frame = cv2.imencode('.jpg', combined_img)[1].tobytes()
 
