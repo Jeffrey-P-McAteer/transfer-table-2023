@@ -519,7 +519,7 @@ async def do_image_analysis_processing(img):
     x1_diff = layout_x1 - table_x1
     x2_diff = layout_x2 - table_x2 # this will be identical b/c detection uses rail_pair_width_px
 
-    MAX_ALLOWED_RAIL_OFFSET = 2
+    MAX_ALLOWED_RAIL_OFFSET = 1
     if abs(x1_diff) > MAX_ALLOWED_RAIL_OFFSET:
       cv2.arrowedLine(debug_adj_img, (table_x1, crop_table_rail_y-10), (layout_x1, crop_table_rail_y-10), (0,0,0), 2)
       cv2.arrowedLine(debug_adj_img, (table_x1, crop_table_rail_y-10), (layout_x1, crop_table_rail_y-10), (0,0,255), 1)
