@@ -627,8 +627,8 @@ async def read_video_t():
       except:
         traceback.print_exc()
 
-      # Finally ensure debug_img is the same size as img
-      debug_img = cv2.resize(debug_img, (640, 480))
+      # Finally ensure debug_img is the same WIDTH as img
+      debug_img = cv2.resize(debug_img, (640, 380))
 
       # combine images for a single output stream
       combined_img = cv2.vconcat([img, debug_img])
