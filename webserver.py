@@ -407,7 +407,7 @@ def count_num_true_ahead(signal, begin_i):
 
 
 async def do_image_analysis_processing(img):
-
+  global last_s_when_gpio_motor_is_active
   # if the image is not the same size as our research texts, fix it!
   img_h, img_w, img_channels = img.shape
   if img_w != 640 or img_h != 480:
@@ -558,6 +558,20 @@ async def do_image_analysis_processing(img):
       1, (0,0,255), 1, 2
     )
 
+  seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
+  if seconds_since_last_table_move > 9.0:
+    # Notify user we will not be moving!
+    cv2.putText(debug_adj_img,'9s NO MOTION',
+      (8, 30),
+      cv2.FONT_HERSHEY_SIMPLEX,
+      1, (0,0,0), 2, 2
+    )
+    cv2.putText(debug_adj_img,'9s NO MOTION',
+      (8, 30),
+      cv2.FONT_HERSHEY_SIMPLEX,
+      1, (0,0,255), 1, 2
+    )
+
   return rail_px_diff, debug_adj_img
 
 
@@ -661,8 +675,9 @@ AUTOMOVE_RESET_PERIOD_S = 30
 AUTOMOVE_ADJUSTMENTS_ALLOWED = 28
 last_automove_reset_s = 0
 automove_remaining_adjustments_allowed = 0
+last_s_when_gpio_motor_is_active = 0
 async def do_automove_with_rail_px_diff(rail_px_diff):
-  global last_automove_reset_s, automove_remaining_adjustments_allowed
+  global last_automove_reset_s, automove_remaining_adjustments_allowed, last_s_when_gpio_motor_is_active
   try:
     # If we have not reset our safety limit, reset it
     if time.time() - last_automove_reset_s > AUTOMOVE_RESET_PERIOD_S:
@@ -682,8 +697,16 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
 
     # Table is moving, leave
     if os.path.exists('/tmp/gpio_motor_is_active'):
+      last_s_when_gpio_motor_is_active = time.time()
       print(f'/tmp/gpio_motor_is_active, not performing automove!')
       return
+
+    # We also refuse to move IF it has been >6s since last_s_when_gpio_motor_is_active
+    seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
+    if seconds_since_last_table_move > 9.0:
+      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 9.0, not performing automove!')
+      return
+
 
     # Book keeping
     automove_remaining_adjustments_allowed -= 1
