@@ -195,10 +195,10 @@ def calc_alpha_beta_auto_brightness_adj(gray_img):
 def brightness_from_px(pixel):
   if len(pixel) == 3:
     # Assume BGR
-    B = pixel[0]
-    G = pixel[1]
-    R = pixel[2]
-    return int( (R+R+R+B+G+G+G+G)>>3 ) # Fast approx from https://stackoverflow.com/a/596241
+    B = int(pixel[0])
+    G = int(pixel[1])
+    R = int(pixel[2])
+    return int( float(R+R+R+B+G+G+G+G)/6.0 ) # Fast approx from https://stackoverflow.com/a/596241
 
   elif len(pixel) == 1:
     # Assume gray
