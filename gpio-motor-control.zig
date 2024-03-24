@@ -199,7 +199,10 @@ pub fn main() !void {
         }
 
         // If we have exited from performInputEvents, the table motion is complete!
-        delete_motor_active_file();
+        // This need not be immediate, so we allow it to only be checked every 240ms
+        if (evt_loop_i % 40 == 1) {
+            delete_motor_active_file();
+        }
 
         // Handle event loop incrementing
         evt_loop_i += 1;
