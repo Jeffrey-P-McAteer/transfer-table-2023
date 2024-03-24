@@ -658,7 +658,7 @@ async def read_video_t():
     last_video_frame = None
 
 AUTOMOVE_RESET_PERIOD_S = 30
-AUTOMOVE_ADJUSTMENTS_ALLOWED = 16
+AUTOMOVE_ADJUSTMENTS_ALLOWED = 28
 last_automove_reset_s = 0
 automove_remaining_adjustments_allowed = 0
 async def do_automove_with_rail_px_diff(rail_px_diff):
