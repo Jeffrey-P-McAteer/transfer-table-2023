@@ -229,12 +229,21 @@ def do_track_detection(img, width, height):
   alpha, beta = calc_alpha_beta_auto_brightness_adj(gray)
   auto_adj_img = cv2.convertScaleAbs(cropped, alpha=alpha, beta=beta)
 
+  # We also use these manually measured offsets to insersect the
+  # table rail and layout-side rail.
+  # Coordinates are measured in absolute units and converted at-time-of-use
+  table_rail_y = 330
+  layout_rail_y = 350
+
+
+  cv2.line(auto_adj_img, (0, table_rail_y-crop_y), (crop_w, table_rail_y-crop_y), (0, 255, 0), thickness=1)
+  cv2.line(auto_adj_img, (0, layout_rail_y-crop_y), (crop_w, layout_rail_y-crop_y), (0, 0, 255), thickness=1)
 
 
 
   img_final = cv2.hconcat(try_convert_to_rgb([
     #img, auto_adj_img
-    cropped, auto_adj_img
+    auto_adj_img
   ]))
 
   return img_final
