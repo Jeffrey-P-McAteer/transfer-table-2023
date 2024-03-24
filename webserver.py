@@ -642,7 +642,11 @@ async def read_video_t():
 
       # Fork off do_automove_with_rail_px_diff to it's own thread,
       # I'd prefer it be as far away from image processing as possible
-      asyncio.create_task(do_automove_with_rail_px_diff(rail_px_diff))
+      # We also do not do automove on the first 4 frames on the assumption the
+      # camera may be stabalizing itself, and the image we get will be washed out
+      # and unusable for targeting.
+      if last_video_frame_num > 4:
+        asyncio.create_task(do_automove_with_rail_px_diff(rail_px_diff))
 
       await asyncio.sleep(frame_delay_s) # allow other tasks to run
 
