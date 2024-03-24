@@ -397,6 +397,15 @@ def brightness_from_px(pixel):
   else:
     raise Exception(f'Error, bad pixel value! pixel = {pixel}')
 
+def count_num_true_ahead(signal, begin_i):
+  num_true_ahead = 0
+  for i in range(begin_i, len(signal)):
+    if not signal[i]:
+      break
+    num_true_ahead += 1
+  return num_true_ahead
+
+
 async def do_image_analysis_processing(img):
 
   # if the image is not the same size as our research texts, fix it!
@@ -462,10 +471,10 @@ async def do_image_analysis_processing(img):
   avg_layout_rail_brightnesses = sum(layout_rail_brightnesses) / len(layout_rail_brightnesses)
 
   # The true average segmentation includes too much non-rail material -
-  # therefore we increase the "average" brightness up by 65% to capture
+  # therefore we increase the "average" brightness up by 50% to capture
   # somethig closer to the top 25% brightness values
-  avg_table_rail_brightnesses *= 1.65
-  avg_layout_rail_brightnesses *= 1.65
+  avg_table_rail_brightnesses *= 1.55
+  avg_layout_rail_brightnesses *= 1.55
 
   table_rail_signal = [x > avg_table_rail_brightnesses for x in table_rail_brightnesses]
   layout_rail_signal = [x > avg_layout_rail_brightnesses for x in layout_rail_brightnesses]
@@ -486,11 +495,15 @@ async def do_image_analysis_processing(img):
   for x in range(0, crop_w-rail_pair_width_px):
     if table_rail_left_idxs is None and table_rail_signal[x] and table_rail_signal[x+rail_pair_width_px]:
       # Found it!
-      table_rail_left_idxs = (x, x+rail_pair_width_px)
+      #table_rail_left_idxs = (x, x+rail_pair_width_px)
+      center_offset = int(count_num_true_ahead(table_rail_signal, x) // 2)
+      table_rail_left_idxs = (x + center_offset, x + rail_pair_width_px + center_offset)
 
     if layout_rail_left_idxs is None and layout_rail_signal[x] and layout_rail_signal[x+rail_pair_width_px]:
       # Found it!
-      layout_rail_left_idxs = (x, x+rail_pair_width_px)
+      #layout_rail_left_idxs = (x, x+rail_pair_width_px)
+      center_offset = int(count_num_true_ahead(layout_rail_signal, x) // 2)
+      layout_rail_left_idxs = (x + center_offset, x + rail_pair_width_px + center_offset)
 
 
   if not (table_rail_left_idxs is None):
@@ -561,10 +574,6 @@ async def read_video_t():
   cam_num = 0
   camera = None
   try:
-    # Temporary use of /tmp/no-automove.txt to have automove be OFF by default!
-    with open('/tmp/no-automove.txt', 'w') as fd:
-      fd.write('---')
-
     frame_delay_s = FRAME_HANDLE_DELAY_S
     for cam_num in range(0, 99):
       try:
