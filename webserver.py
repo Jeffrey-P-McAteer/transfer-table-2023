@@ -473,8 +473,8 @@ async def do_image_analysis_processing(img):
   # The true average segmentation includes too much non-rail material -
   # therefore we increase the "average" brightness up by 50% to capture
   # somethig closer to the top 25% brightness values
-  avg_table_rail_brightnesses *= 1.55
-  avg_layout_rail_brightnesses *= 1.55
+  avg_table_rail_brightnesses *= 1.50
+  avg_layout_rail_brightnesses *= 1.50
 
   table_rail_signal = [x > avg_table_rail_brightnesses for x in table_rail_brightnesses]
   layout_rail_signal = [x > avg_layout_rail_brightnesses for x in layout_rail_brightnesses]
