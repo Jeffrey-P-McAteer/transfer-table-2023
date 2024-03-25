@@ -559,7 +559,7 @@ async def do_image_analysis_processing(img):
     )
 
   seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-  if seconds_since_last_table_move > 30.0:
+  if seconds_since_last_table_move > 22.0:
     # Notify user we will not be moving!
     cv2.putText(debug_adj_img,'SAFE TO MOVE',
       (4, 30),
@@ -703,8 +703,8 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
 
     # We also refuse to move IF it has been >6s since last_s_when_gpio_motor_is_active
     seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-    if seconds_since_last_table_move > 30.0:
-      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 30.0, not performing automove!')
+    if seconds_since_last_table_move > 22.0:
+      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 22.0, not performing automove!')
       return
 
 
