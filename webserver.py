@@ -618,6 +618,10 @@ async def read_video_t():
         none_reads_count += 1
         await asyncio.sleep(frame_delay_s) # allow other tasks to run
         if none_reads_count > 20:
+          # This indicates we need to re-boot ourselves
+          subprocess.run([
+            'sudo', 'systemctl', 'restart', 'webserver.service'
+          ], check=False)
           raise Exception(f'Read None from camera {none_reads_count} times!')
         continue
 
