@@ -562,12 +562,12 @@ async def do_image_analysis_processing(img):
   if seconds_since_last_table_move > 30.0:
     # Notify user we will not be moving!
     cv2.putText(debug_adj_img,'SAFE TO MOVE',
-      (8, 30),
+      (4, 30),
       cv2.FONT_HERSHEY_SIMPLEX,
       1, (0,0,0), 2, 2
     )
     cv2.putText(debug_adj_img,'SAFE TO MOVE',
-      (8, 30),
+      (4, 30),
       cv2.FONT_HERSHEY_SIMPLEX,
       1, (0,255,0), 1, 2
     )
