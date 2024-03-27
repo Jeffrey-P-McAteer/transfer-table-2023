@@ -154,13 +154,20 @@ input, label {
 <body>
   <script>
     function submitInputForm() {
-      var frm = document.getElementById('inputForm');
+       var frm = document.getElementById('inputForm');
+       frm.submit();
+       frm.reset();
+       return false;
+    }
+    function submitStop() {
+       document.getElementById('number').value = '!!!';
+       var frm = document.getElementById('inputForm');
        frm.submit();
        frm.reset();
        return false;
     }
     function submitSetPasswordForm() {
-      var frm = document.getElementById('setPasswordForm');
+       var frm = document.getElementById('setPasswordForm');
        frm.submit();
        frm.reset();
        return false;
@@ -172,8 +179,11 @@ input, label {
     <label for="number">Number</label>
     <input name="number" id="number" value="" type="text" />
     <br/><br/>
-    <input type="button" value="Enter" onclick="submitInputForm()" style="margin-left:172pt;"/>
-    <br/>
+    <div style="display:block;">
+      <input type="button" value="STOP" onclick="submitStop()" style="margin-left:6pt;background-color:red;color:white;font-weight:bold;display:inline-block;">
+      <input type="button" value="Enter" onclick="submitInputForm()" style="margin-left:100pt;display:inline-block;"/>
+    </div>
+    <br/><br/>
     <i>
       Numbers turn into key presses, 'r' becomes a clockwise dial rotation, 'l' becomes a counter-clockwise dial rotation.
       '=' performs the same as '=' on keyboard or numpad.
@@ -275,15 +285,31 @@ html, body {{
 
 
 async def input_handle(request):
-  auth_resp = await maybe_redirect_for_auth(request)
-  if auth_resp is not None:
-    return auth_resp
-
   data = await request.post()
   print(f'input_handle data = {data}')
 
   input_file_keycode_s = ''
   number_val = data['number'].lower()
+
+  # Special-case emergency stop - normalize to a single '!' and DO NOT DO AUTH
+  if '!' in number_val:
+    input_file_keycode_s += '1,15,51,83'
+    # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
+    for _ in range(0, 10000):
+      input_num = random.randrange(1000, 9000)
+      input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
+      if os.path.exists(input_f_name):
+        continue
+      with open(input_f_name, 'w') as fd:
+        fd.write(input_file_keycode_s)
+      break
+
+    return aiohttp.web.Response(text=f'EMERGENCY STOP, input_file_keycode_s={input_file_keycode_s}', content_type='text/plain')
+
+
+  auth_resp = await maybe_redirect_for_auth(request)
+  if auth_resp is not None:
+    return auth_resp
 
   for number in number_val:
     # convert int format to linux keycode number
@@ -481,11 +507,11 @@ async def do_image_analysis_processing(img):
 
   # Log more
   for x in range(0, crop_w):
-    debug_adj_img[crop_table_rail_y+1,x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
-    debug_adj_img[crop_table_rail_y+2,x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
+    debug_adj_img[min(crop_h-1, crop_table_rail_y+1),x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
+    debug_adj_img[min(crop_h-1, crop_table_rail_y+2),x] = [255,255,255] if table_rail_signal[x] else [0,0,0]
 
-    debug_adj_img[crop_layout_rail_y+1,x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
-    debug_adj_img[crop_layout_rail_y+2,x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
+    debug_adj_img[min(crop_h-1, crop_layout_rail_y+1),x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
+    debug_adj_img[min(crop_h-1, crop_layout_rail_y+2),x] = [255,255,255] if layout_rail_signal[x] else [0,0,0]
 
   # Now we scan for the FIRST rail from the left ->
   # by checking the signal True values AND reading the same TRUE value
@@ -509,20 +535,20 @@ async def do_image_analysis_processing(img):
   if not (table_rail_left_idxs is None):
     # Log the rail!
     x1, x2 = table_rail_left_idxs
-    debug_adj_img[crop_table_rail_y+3, x1] = [0,0,255]
-    debug_adj_img[crop_table_rail_y+4, x1] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_table_rail_y+3), x1] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_table_rail_y+4), x1] = [0,0,255]
 
-    debug_adj_img[crop_table_rail_y+3, x2] = [0,0,255]
-    debug_adj_img[crop_table_rail_y+4, x2] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_table_rail_y+3), min(crop_w-1, x2)] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_table_rail_y+4), min(crop_w-1, x2)] = [0,0,255]
 
   if not (layout_rail_left_idxs is None):
     # Log the rail!
     x1, x2 = layout_rail_left_idxs
-    debug_adj_img[crop_layout_rail_y+3, x1] = [0,0,255]
-    debug_adj_img[crop_layout_rail_y+4, x1] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_layout_rail_y+3), x1] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_layout_rail_y+4), x1] = [0,0,255]
 
-    debug_adj_img[crop_layout_rail_y+3, x2] = [0,0,255]
-    debug_adj_img[crop_layout_rail_y+4, x2] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_layout_rail_y+3), min(crop_w-1, x2)] = [0,0,255]
+    debug_adj_img[min(crop_h-1, crop_layout_rail_y+4), min(crop_w-1, x2)] = [0,0,255]
 
   if table_rail_left_idxs is not None and layout_rail_left_idxs is not None:
     # Now we can see how much to move the table by!
