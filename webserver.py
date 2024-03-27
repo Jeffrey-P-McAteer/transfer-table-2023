@@ -314,6 +314,9 @@ async def input_handle(request):
         break
     except:
       traceback.print_exc()
+    # ^^ The above will not be read until AFTER the move is complete!
+    # TODO send a SIGUSER1 or similar & handle in zig?
+
     return aiohttp.web.Response(text=f'EMERGENCY STOP, input_file_keycode_s={input_file_keycode_s}', content_type='text/plain')
 
   auth_resp = await maybe_redirect_for_auth(request)
