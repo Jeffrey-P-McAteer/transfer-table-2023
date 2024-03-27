@@ -584,8 +584,12 @@ async def do_image_analysis_processing(img):
       1, (0,0,255), 1, 2
     )
 
+  # Do the faster decay checl using the mtime on /tmp/gpio_motor_last_active_mtime
+  if os.path.exists('/tmp/gpio_motor_last_active_mtime'):
+    last_s_when_gpio_motor_is_active = os.path.getmtime('/tmp/gpio_motor_last_active_mtime')
+
   seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-  if seconds_since_last_table_move > 22.0:
+  if seconds_since_last_table_move > 4.4:
     # Notify user we will not be moving!
     cv2.putText(debug_adj_img,'SAFE TO MOVE',
       (4, 30),
@@ -731,10 +735,14 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
       print(f'/tmp/gpio_motor_is_active, not performing automove!')
       return
 
+    # Do the faster decay checl using the mtime on /tmp/gpio_motor_last_active_mtime
+    if os.path.exists('/tmp/gpio_motor_last_active_mtime'):
+      last_s_when_gpio_motor_is_active = os.path.getmtime('/tmp/gpio_motor_last_active_mtime')
+
     # We also refuse to move IF it has been >6s since last_s_when_gpio_motor_is_active
     seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-    if seconds_since_last_table_move > 22.0:
-      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 22.0, not performing automove!')
+    if seconds_since_last_table_move > 4.5 and seconds_since_last_table_move < 20.0:
+      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 4.5, not performing automove!')
       return
 
 

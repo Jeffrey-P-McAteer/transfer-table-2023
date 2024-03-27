@@ -69,6 +69,7 @@ const GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in";
 
 // When this file exists, other programs should assume the table is being driven and ought NOT perform analysis routines.
 const GPIO_MOTOR_ACTIVE_FLAG_FILE = "/tmp/gpio_motor_is_active";
+const GPIO_MOTOR_ACTIVE_MTIME_FILE = "/tmp/gpio_motor_last_active_mtime";
 
 // Hardware Constants
 const PREFERRED_CPU = 3;
@@ -220,6 +221,12 @@ pub fn create_motor_active_file() void {
         const active_file_bytes = "---";
         _ = cunistd.write(fd, active_file_bytes, @sizeOf(@TypeOf(active_file_bytes)));
         _ = cunistd.close(fd);
+    }
+    var fd2 = cfcntl.open(GPIO_MOTOR_ACTIVE_MTIME_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
+    if (fd2 >= 0) {
+        const active_file_bytes = "---";
+        _ = cunistd.write(fd2, active_file_bytes, @sizeOf(@TypeOf(active_file_bytes)));
+        _ = cunistd.close(fd2);
     }
 }
 
