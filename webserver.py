@@ -589,7 +589,7 @@ async def do_image_analysis_processing(img):
     last_s_when_gpio_motor_is_active = os.path.getmtime('/tmp/gpio_motor_last_active_mtime')
 
   seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-  if seconds_since_last_table_move > 4.4:
+  if seconds_since_last_table_move > 4.5:
     # Notify user we will not be moving!
     cv2.putText(debug_adj_img,'SAFE TO MOVE',
       (4, 30),
@@ -657,15 +657,15 @@ async def read_video_t():
 
       rounded_frame_num = last_video_frame_num % 1000
 
-      img_w, img_h, _img_channels = img.shape
+      img_h, img_w, _img_channels = img.shape
 
       # Upper-left
       #cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
       #cv2.putText(img, f'{rounded_frame_num}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
 
       # Lower-left
-      cv2.putText(img, f'{rounded_frame_num}', (10, img_h-180), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
-      cv2.putText(img, f'{rounded_frame_num}', (10, img_h-180), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
+      cv2.putText(img, f'{rounded_frame_num}', (10, img_w-180), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 10, 10), 3, cv2.LINE_AA) # black outline
+      cv2.putText(img, f'{rounded_frame_num}', (10, img_w-180), cv2.FONT_HERSHEY_SIMPLEX, 1, (240, 240, 240), 2, cv2.LINE_AA) # White text
 
       # last_video_frame = cv2.imencode('.jpg', img)[1].tobytes()
       rail_px_diff = None
@@ -680,7 +680,15 @@ async def read_video_t():
 
       # combine images for a single output stream
       combined_img = cv2.vconcat([img, debug_img])
-      #combined_img = img
+      combined_img_h, combined_img_w, combined_img_channels = combined_img.shape
+
+      if os.path.exists('/tmp/gpio_motor_last_active_mtime'):
+        last_s_when_gpio_motor_is_active = os.path.getmtime('/tmp/gpio_motor_last_active_mtime')
+
+      seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
+      if seconds_since_last_table_move > 4.5:
+        # Green box around BOTH images
+        cv2.rectangle(combined_img, (1, 1), (combined_img_w-2, combined_img_h-2), color=(0,255,0), thickness=4)
 
       last_video_frame = cv2.imencode('.jpg', combined_img)[1].tobytes()
 
