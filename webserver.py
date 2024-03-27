@@ -232,12 +232,15 @@ async def status_handle(request):
     #   step_position: i32,
     #   positions: [12]pos_dat align(1),
 
-    if len(pmem_bytes) > 104:
-      print(f'len(pmem_bytes) = {len(pmem_bytes)}')
-      pmem_bytes = pmem_bytes[:104] # todo better
+    #if len(pmem_bytes) > 104:
+    #  print(f'len(pmem_bytes) = {len(pmem_bytes)}')
+    #  pmem_bytes = pmem_bytes[:104] # todo better
+
+    # num_numbers = 12
+    num_numbers = int((len(pmem_bytes) - 8) / 8.0)
 
     pmem_data = struct.unpack(
-      'Ii'+('if'*12),
+      'Ii'+('if'*num_numbers),
       pmem_bytes
     )
     logical_position = pmem_data[0]
@@ -247,13 +250,13 @@ async def status_handle(request):
     track_data += f'step_position = {step_position}'+os.linesep
     track_data += '================================='+os.linesep
 
-    for pos_num in range(0, 12):
+    for pos_num in range(0, num_numbers):
       step_position = pmem_data[2+(pos_num*2)]
       track_data += f'Position {pos_num+1} step_position = {step_position}'+os.linesep
     track_data += '================================='+os.linesep
 
     track_data += '==== Zero position init code ===='+os.linesep
-    for pos_num in range(0, 12):
+    for pos_num in range(0, num_numbers):
       step_position = pmem_data[2+(pos_num*2)]
       track_data += f'pmem.positions[{pos_num}].step_position = {step_position};'+os.linesep
     track_data += os.linesep
