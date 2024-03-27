@@ -435,9 +435,9 @@ def count_num_true_ahead(signal, begin_i):
     num_true_ahead += 1
   return num_true_ahead
 
-
+ought_to_save_automove_pos_begin_s = 0
 async def do_image_analysis_processing(img):
-  global last_s_when_gpio_motor_is_active
+  global last_s_when_gpio_motor_is_active, ought_to_save_automove_pos_begin_s
   # if the image is not the same size as our research texts, fix it!
   img_h, img_w, img_channels = img.shape
   if img_w != 640 or img_h != 480:
@@ -593,6 +593,11 @@ async def do_image_analysis_processing(img):
     last_s_when_gpio_motor_is_active = os.path.getmtime('/tmp/gpio_motor_last_active_mtime')
 
   seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
+
+  # Table moved recently, record we OUGHT to save soon (done w/ 15 second window)
+  if seconds_since_last_table_move < 3.0:
+    ought_to_save_automove_pos_begin_s = time.time()
+
   if seconds_since_last_table_move > 4.5:
     # Notify user we will not be moving!
     cv2.putText(debug_adj_img,'SAFE TO MOVE',
@@ -605,6 +610,27 @@ async def do_image_analysis_processing(img):
       cv2.FONT_HERSHEY_SIMPLEX,
       1, (0,255,0), 1, 2
     )
+
+    # Also; when we know it's safe to move, send a '=' to the controller at least once.
+    ought_to_save_age_s = time.time() - ought_to_save_automove_pos_begin_s
+    if ought_to_save_age_s > 6.0 and ought_to_save_age_s < 20.0:
+      ought_to_save_automove_pos_begin_s = 0.0 # go back in time to prevent doing this a second time!
+      try:
+        input_file_keycode_s = '113,14'
+        # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
+        for _ in range(0, 100):
+          input_num = random.randrange(1000, 9000)
+          input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
+          if os.path.exists(input_f_name):
+            continue
+          with open(input_f_name, 'w') as fd:
+            fd.write(input_file_keycode_s)
+          break
+          print(f'AutoMove Wrote "{input_file_keycode_s}" to {input_f_name} to save new position!')
+
+      except:
+        traceback.print_exc()
+      ought_to_save_automove_pos_begin_s = 0.0
 
   return rail_px_diff, debug_adj_img
 
@@ -651,13 +677,16 @@ async def read_video_t():
       if img is None:
         none_reads_count += 1
         await asyncio.sleep(frame_delay_s) # allow other tasks to run
-        if none_reads_count > 20:
+        if none_reads_count > 3:
           # This indicates we need to re-boot ourselves
           subprocess.run([
             'sudo', 'systemctl', 'restart', 'webserver.service'
           ], check=False)
           raise Exception(f'Read None from camera {none_reads_count} times!')
         continue
+
+      # img is not None, reset count
+      none_reads_count = 0
 
       rounded_frame_num = last_video_frame_num % 1000
 
