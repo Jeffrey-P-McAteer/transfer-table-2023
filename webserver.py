@@ -154,16 +154,18 @@ input, label {
 <body>
   <script>
     function submitInputForm() {
+       console.log('submitInputForm');
        var frm = document.getElementById('inputForm');
        frm.submit();
-       frm.reset();
+       setTimeout(function() { frm.reset(); }, 4600);
        return false;
     }
     function submitStop() {
+       console.log('submitStop');
        document.getElementById('number').value = '!!!';
        var frm = document.getElementById('inputForm');
        frm.submit();
-       frm.reset();
+       setTimeout(function() { frm.reset(); }, 4600);
        return false;
     }
     function submitSetPasswordForm() {
@@ -179,16 +181,18 @@ input, label {
     <label for="number">Number</label>
     <input name="number" id="number" value="" type="text" />
     <br/><br/>
-    <div style="display:block;">
-      <input type="button" value="STOP" onclick="submitStop()" style="margin-left:6pt;background-color:red;color:white;font-weight:bold;display:inline-block;">
-      <input type="button" value="Enter" onclick="submitInputForm()" style="margin-left:100pt;display:inline-block;"/>
-    </div>
+    <input type="submit" value="Enter" onclick="submitInputForm()" style="margin-left:180pt;display:inline-block;" />
     <br/><br/>
-    <i>
-      Numbers turn into key presses, 'r' becomes a clockwise dial rotation, 'l' becomes a counter-clockwise dial rotation.
-      '=' performs the same as '=' on keyboard or numpad.
-    </i>
   </form>
+
+  <input type="button" value="STOP" onclick="submitStop()" style="margin-left:6pt;background-color:red;color:white;font-weight:bold;display:inline-block;position:relative;top:-44pt;" />
+  <br/>
+
+  <i>
+    Numbers turn into key presses, 'r' becomes a clockwise dial rotation, 'l' becomes a counter-clockwise dial rotation.
+    '=' performs the same as '=' on keyboard or numpad.
+  </i>
+
   <iframe name="dummyFormFrame" id="dummyFormFrame" style="display: none;"></iframe>
   <br/>
   <br/>
@@ -299,17 +303,18 @@ async def input_handle(request):
   if '!' in number_val:
     input_file_keycode_s += '1,15,51,83'
     # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
-    for _ in range(0, 10000):
-      input_num = random.randrange(1000, 9000)
-      input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
-      if os.path.exists(input_f_name):
-        continue
-      with open(input_f_name, 'w') as fd:
-        fd.write(input_file_keycode_s)
-      break
-
+    try:
+      for _ in range(0, 10000):
+        input_num = random.randrange(1000, 9000)
+        input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
+        if os.path.exists(input_f_name):
+          continue
+        with open(input_f_name, 'w') as fd:
+          fd.write(input_file_keycode_s)
+        break
+    except:
+      traceback.print_exc()
     return aiohttp.web.Response(text=f'EMERGENCY STOP, input_file_keycode_s={input_file_keycode_s}', content_type='text/plain')
-
 
   auth_resp = await maybe_redirect_for_auth(request)
   if auth_resp is not None:
@@ -352,14 +357,17 @@ async def input_handle(request):
   input_file_keycode_s += '96'
 
   # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
-  for _ in range(0, 100):
-    input_num = random.randrange(1000, 9000)
-    input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
-    if os.path.exists(input_f_name):
-      continue
-    with open(input_f_name, 'w') as fd:
-      fd.write(input_file_keycode_s)
-    break
+  try:
+    for _ in range(0, 100):
+      input_num = random.randrange(1000, 9000)
+      input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
+      if os.path.exists(input_f_name):
+        continue
+      with open(input_f_name, 'w') as fd:
+        fd.write(input_file_keycode_s)
+      break
+  except:
+    traceback.print_exc()
 
   return aiohttp.web.Response(text=f'Done, input_file_keycode_s={input_file_keycode_s}', content_type='text/plain')
 
