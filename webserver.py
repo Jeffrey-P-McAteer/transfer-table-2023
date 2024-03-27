@@ -742,9 +742,7 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
     # We also refuse to move IF it has been >6s since last_s_when_gpio_motor_is_active
     seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
     if seconds_since_last_table_move > 4.5:
-      if seconds_since_last_table_move < 20.0:
-        print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 4.5, not performing automove!')
-
+      print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 4.5, not performing automove!')
       return
 
 
