@@ -609,7 +609,7 @@ async def do_image_analysis_processing(img):
   if seconds_since_last_table_move < 5.0:
     ought_to_save_automove_pos_begin_s = time.time()
 
-  if seconds_since_last_table_move > 8.0:
+  if seconds_since_last_table_move > 9.0:
     # Notify user we will not be moving!
     cv2.putText(debug_adj_img,'SAFE TO MOVE',
       (4, 30),
@@ -730,7 +730,7 @@ async def read_video_t():
         last_s_when_gpio_motor_is_active = max(last_s_when_gpio_motor_is_active, os.path.getmtime('/tmp/gpio_motor_last_active_mtime'))
 
       seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-      if seconds_since_last_table_move > 8.0:
+      if seconds_since_last_table_move > 9.0:
         # Green box around BOTH images
         cv2.rectangle(combined_img, (1, 1), (combined_img_w-2, combined_img_h-2), color=(0,255,0), thickness=4)
 
@@ -793,7 +793,7 @@ async def do_automove_with_rail_px_diff(rail_px_diff):
 
     # We also refuse to move IF it has been >6s since last_s_when_gpio_motor_is_active
     seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
-    if seconds_since_last_table_move > 8.0:
+    if seconds_since_last_table_move > 9.0:
       print(f'seconds_since_last_table_move ({int(seconds_since_last_table_move)}) > 6.0, not performing automove!')
       return
 
