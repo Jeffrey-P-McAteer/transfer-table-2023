@@ -233,6 +233,7 @@ async def status_handle(request):
     #   positions: [12]pos_dat align(1),
 
     if len(pmem_bytes) > 104:
+      print(f'len(pmem_bytes) = {len(pmem_bytes)}')
       pmem_bytes = pmem_bytes[:104] # todo better
 
     pmem_data = struct.unpack(
@@ -267,7 +268,7 @@ async def status_handle(request):
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="2" />
+  <meta http-equiv="refresh" content="6" />
   <style>
 html, body {{
   margin: 0;
@@ -614,7 +615,7 @@ last_video_frame_num = 0
 last_video_frame_s = 0
 last_video_frame = None
 async def read_video_t():
-  global last_video_frame_num, last_video_frame_s, last_video_frame
+  global last_video_frame_num, last_video_frame_s, last_video_frame, last_s_when_gpio_motor_is_active
   cam_num = 0
   camera = None
   try:
