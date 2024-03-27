@@ -598,7 +598,7 @@ async def do_image_analysis_processing(img):
 
   # Do the faster decay checl using the mtime on /tmp/gpio_motor_last_active_mtime
   if os.path.exists('/tmp/gpio_motor_last_active_mtime'):
-    last_s_when_gpio_motor_is_active = os.path.getmtime('/tmp/gpio_motor_last_active_mtime')
+    last_s_when_gpio_motor_is_active = max(last_s_when_gpio_motor_is_active, os.path.getmtime('/tmp/gpio_motor_last_active_mtime'))
 
   seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
 
@@ -724,7 +724,7 @@ async def read_video_t():
       combined_img_h, combined_img_w, combined_img_channels = combined_img.shape
 
       if os.path.exists('/tmp/gpio_motor_last_active_mtime'):
-        last_s_when_gpio_motor_is_active = os.path.getmtime('/tmp/gpio_motor_last_active_mtime')
+        last_s_when_gpio_motor_is_active = max(last_s_when_gpio_motor_is_active, os.path.getmtime('/tmp/gpio_motor_last_active_mtime'))
 
       seconds_since_last_table_move = time.time() - last_s_when_gpio_motor_is_active
       if seconds_since_last_table_move > 4.5:
