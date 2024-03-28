@@ -119,6 +119,9 @@ var pmem: pmem_struct = undefined;
 
 pub fn main() !void {
 
+    _ = csignal.signal(csignal.SIGUSR1, motorControlSignalHandler);
+    _ = csignal.signal(csignal.SIGUSR2, motorControlSignalHandler);
+
     if (!(cpigpio.gpioInitialise()>=0)) {
       std.debug.print("Error in gpioInitialise(), exiting!\n", .{});
       return;
@@ -126,8 +129,10 @@ pub fn main() !void {
 
     c_linux_pat.set_priority_and_cpu_affinity(PREFERRED_CPU, -20);
 
-    _ = cpigpio.gpioSetSignalFunc(csignal.SIGINT, motorControlSignalHandler);
+    _ = cpigpio.gpioSetSignalFunc(csignal.SIGINT,  motorControlSignalHandler);
     _ = cpigpio.gpioSetSignalFunc(csignal.SIGTERM, motorControlSignalHandler);
+    _ = cpigpio.gpioSetSignalFunc(csignal.SIGUSR1, motorControlSignalHandler);
+    _ = cpigpio.gpioSetSignalFunc(csignal.SIGUSR2, motorControlSignalHandler);
 
     _ = cpigpio.gpioSetMode(MOTOR_ENABLE_PIN, cpigpio.PI_OUTPUT);
     _ = cpigpio.gpioSetMode(MOTOR_DIRECTION_PIN, cpigpio.PI_OUTPUT);
@@ -241,6 +246,16 @@ pub fn delete_motor_active_file() void {
 
 pub fn motorControlSignalHandler(sig_val: c_int) callconv(.C) void {
     std.debug.print("Caught signal {d}\n", .{sig_val});
+    // Handle a remote-process halt command
+    if (sig_val == csignal.SIGUSR1 or sig_val == csignal.SIGUSR2) {
+        std.debug.print("REMOTE PROCESS HALT\n", .{});
+
+        motor_stop_requested = true;
+        std.debug.print("Motor stop requested! (sig_val={d})\n", .{sig_val});
+        _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL); // IMMEDIATELY pull power from motor
+
+        return;
+    }
     exit_requested = true;
 }
 

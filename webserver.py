@@ -22,6 +22,7 @@ import datetime
 import random
 import base64
 import threading
+import signal
 
 py_env_dir = os.path.join(os.path.dirname(__file__), '.py-env')
 os.makedirs(py_env_dir, exist_ok=True)
@@ -79,6 +80,17 @@ async def set_current_password(password):
   try:
     with open(PASSWORD_FILE, 'w') as fd:
       fd.write(password.strip())
+  except:
+    traceback.print_exc()
+
+def send_sigusr1_to_gpio_proc():
+  try:
+    for proc in psutil.process_iter():
+      if 'gpio-motor-control' in proc.name().lower():
+        # Send signal
+        os.kill(proc.pid, signal.SIGUSR1)
+        print(f'Sent SIGUSR1 to {proc.pid}, proc.name() = {proc.name()}')
+
   except:
     traceback.print_exc()
 
@@ -299,11 +311,12 @@ async def input_handle(request):
   input_file_keycode_s = ''
   number_val = data['number'].lower()
 
-  # Special-case emergency stop - normalize to a single '!' and DO NOT DO AUTH
+  # Special-case emergency stop DO NOT DO AUTH
   if '!' in number_val:
     input_file_keycode_s += '1,15,51,83'
     # Find first non-existent file under GPIO_MOTOR_KEYS_IN_DIR
     try:
+      send_sigusr1_to_gpio_proc()
       for _ in range(0, 10000):
         input_num = random.randrange(1000, 9000)
         input_f_name = os.path.join(GPIO_MOTOR_KEYS_IN_DIR, f'{input_num}.txt')
@@ -312,8 +325,11 @@ async def input_handle(request):
         with open(input_f_name, 'w') as fd:
           fd.write(input_file_keycode_s)
         break
+      send_sigusr1_to_gpio_proc()
     except:
+      send_sigusr1_to_gpio_proc()
       traceback.print_exc()
+
     # ^^ The above will not be read until AFTER the move is complete!
     # TODO send a SIGUSER1 or similar & handle in zig?
 
