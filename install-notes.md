@@ -50,7 +50,8 @@ wlan_devs=(
 for wlan in "${wlan_devs[@]}" ; do
   iwctl station "$wlan" scan
   sleep 1
-  iwctl station "$wlan" connect "$network_to_connect_to"
+  # iwctl station "$wlan" connect "$network_to_connect_to"
+  iwctl --passphrase TODO PASSPHRASE station "$wlan" connect "$network_to_connect_to"
 done
 
 EOF
