@@ -87,6 +87,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
     }
   };
 
+  let (fb_w, fb_h) = fb.get_size();
+  let fb_w = fb_w as usize;
+  let fb_h = fb_h as usize;
   println!("FB Size in pixels: {:?}", fb.get_size());
   let fb_bpp = fb.get_bytes_per_pixel() as usize;
   println!("FB Bytes per pixel: {:?}", fb_bpp);
@@ -135,6 +138,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       // Decode YCbCr 4:2:2 pixels into BGR pixels
 
+      for i in 0..img_buf.len() {
+        img_buf[i] = 0;
+      }
+
       for y in 0..img_fmt_h {
         for x in 0..img_fmt_w {
           let fb_px_offset = ( ((y*img_fmt_h) + x) * fb_bpp) as usize;
@@ -153,7 +160,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             continue;
           }*/
 
-          let frame_y = frame_yuv_buf[((y*img_fmt_h) + x) as usize]; // top 8 bits
+          //let frame_y = frame_yuv_buf[((y*img_fmt_h) + x) as usize]; // top 8 bits
+          let frame_y = frame_yuv_buf[camera_px_offset as usize]; // top 8 bits
           let y_end_pos = (img_fmt_h*img_fmt_w) as usize;
           let frame_u = 63; // frame_yuv_buf[y_end_pos + ((y/2)*img_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom high 4 nibble
           let frame_v = 63; // frame_yuv_buf[y_end_pos + ((y/2)*img_fmt_h) + (y*img_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom low 4 nibble
@@ -174,24 +182,32 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       // Process the BGR/RGB/whatevs pixels
 
-
+      // Blank framebuffer
+      for i in 0..fb_mem.len() {
+        fb_mem[i] = 0;
+      }
 
       // send to framebuffer!
-      for y in 0..img_fmt_h {
-        for x in 0..img_fmt_w {
-          let fb_px_offset = ( ((y*img_fmt_h) + x) * fb_bpp) as usize;
-          if fb_px_offset+fb_bpp >= frame_yuv_buf.len() || fb_px_offset+fb_bpp > fb_mem.len() || fb_px_offset+fb_bpp > img_buf.len() {
-            continue;
+      for y in 0..fb_w {
+        for x in 0..fb_h {
+          if y < img_fmt_h && x < img_fmt_w {
+            let fb_px_offset = ( ((y*fb_h) + x) * fb_bpp) as usize;
+            let img_buf_px_offset = (((y*img_fmt_h) + x) * fb_bpp) as usize;
+
+            let img_r_idx = img_buf_px_offset + (fb_pxlyt.red.offset / 8) as usize;
+            let img_g_idx = img_buf_px_offset + (fb_pxlyt.green.offset / 8) as usize;
+            let img_b_idx = img_buf_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+
+            let fb_r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
+            let fb_g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
+            let fb_b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+
+
+            fb_mem[fb_r_idx] = img_buf[img_r_idx];
+            fb_mem[fb_g_idx] = img_buf[img_g_idx];
+            fb_mem[fb_b_idx] = img_buf[img_b_idx];
+
           }
-
-          let r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-          let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-          let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
-
-          fb_mem[r_idx] = img_buf[r_idx];
-          fb_mem[g_idx] = img_buf[g_idx];
-          fb_mem[b_idx] = img_buf[b_idx];
-
         }
       }
 
