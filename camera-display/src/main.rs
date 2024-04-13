@@ -115,18 +115,15 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
       let (frame_yuv_buf, meta) = stream.next()?;
-      println!(
-          "Buffer size: {}, seq: {}, timestamp: {}",
-          frame_yuv_buf.len(),
-          meta.sequence,
-          meta.timestamp
-      );
 
-      // To process the captured data, you can pass it somewhere else.
-      // If you want to modify the data or extend its lifetime, you have to
-      // copy it. This is a best-effort tradeoff solution that allows for
-      // zero-copy readers while enforcing a full clone of the data for
-      // writers.
+      if loop_i % 20 == 0 {
+        println!(
+            "Buffer size: {}, seq: {}, timestamp: {}",
+            frame_yuv_buf.len(),
+            meta.sequence,
+            meta.timestamp
+        );
+      }
 
       let mut fb_mem = match fb.map() {
         Ok(m) => m,
@@ -191,8 +188,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       for y in 0..fb_w {
         for x in 0..fb_h {
           if y < img_fmt_h && x < img_fmt_w {
-            let fb_px_offset = ( ((y*fb_h) + x) * fb_bpp) as usize;
-            let img_buf_px_offset = (((y*img_fmt_h) + x) * fb_bpp) as usize;
+            let fb_px_offset = ( ((y*fb_w) + x) * fb_bpp) as usize;
+            let img_buf_px_offset = (((y*img_fmt_w) + x) * fb_bpp) as usize;
 
             let img_r_idx = img_buf_px_offset + (fb_pxlyt.red.offset / 8) as usize;
             let img_g_idx = img_buf_px_offset + (fb_pxlyt.green.offset / 8) as usize;
