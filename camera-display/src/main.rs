@@ -146,6 +146,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
+          // TODO use this as pixel offset calculation reference - https://i.stack.imgur.com/Vprp4.png
+
           let camera_px_offset = (((y*img_fmt_h) + x) * img_bpp) as usize;
           if camera_px_offset+img_bpp > frame_yuv_buf.len() {
             continue;
