@@ -1,0 +1,29 @@
+
+# sudo cp camera-display/camera-display.service /etc/systemd/system/camera-display.service
+# sudo systemctl enable --now camera-display.service
+
+[Unit]
+Description=Rust tool that reads webcam frames, performs image analysis, displays image to primary framebuffer, and writes out table commands.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+Group=root
+StandardError=journal
+StandardOutput=journal
+StandardInput=null
+WorkingDirectory=/
+ExecStart=/home/user/transfer-table-2023/camera-display/target/release/camera-display
+RuntimeMaxSec=180m
+LimitAS=infinity
+LimitRSS=infinity
+LimitCORE=infinity
+LimitNOFILE=infinity
+
+
+[Install]
+WantedBy=multi-user.target
+

@@ -7,8 +7,6 @@ PASSWORD_FILE = '/mnt/usb1/webserver-password.txt'
 #FRAME_HANDLE_DELAY_S = 0.08
 FRAME_HANDLE_DELAY_S = 0.05
 
-CURRENT_FRAME_FILE = '/tmp/camframe.jpg' # shared w/ camera_framegrabber.py
-
 import os
 import sys
 import subprocess

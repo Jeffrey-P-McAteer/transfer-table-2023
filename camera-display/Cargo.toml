@@ -3,6 +3,18 @@ name = "camera-display"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+embedded-graphics-framebuf = "0.5"
+
+[dependencies.v4l]
+version = "0.14"
+# libv4l (old) and v4l2 (new) are mutually exclusive! TODO see which one our camera talks best to.
+# features = [ "libv4l" ]
+# default-features = false
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
