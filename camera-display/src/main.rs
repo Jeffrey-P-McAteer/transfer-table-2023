@@ -138,9 +138,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       for y in 0..img_fmt_h {
         for x in 0..img_fmt_w {
           let fb_px_offset = ( ((y*img_fmt_h) + x) * fb_bpp) as usize;
-          if fb_px_offset+fb_bpp >= frame_yuv_buf.len() || fb_px_offset+fb_bpp > fb_mem.len() || fb_px_offset+fb_bpp > img_buf.len() {
+          /*if fb_px_offset+fb_bpp > img_buf.len() {
             continue;
-          }
+          }*/
 
           let r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
           let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
@@ -149,13 +149,14 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           // TODO use this as pixel offset calculation reference - https://i.stack.imgur.com/Vprp4.png
 
           let camera_px_offset = (((y*img_fmt_h) + x) * img_bpp) as usize;
-          if camera_px_offset+img_bpp > frame_yuv_buf.len() {
+          /*if camera_px_offset+img_bpp > frame_yuv_buf.len() {
             continue;
-          }
+          }*/
 
-          let frame_y = frame_yuv_buf[camera_px_offset]; // top 8 bits
-          let frame_u = frame_yuv_buf[camera_px_offset] & 0xf0; // bottom high 4 nibble
-          let frame_v = frame_yuv_buf[camera_px_offset] & 0x0f; // bottom low 4 nibble
+          let frame_y = frame_yuv_buf[((y*img_fmt_h) + x) as usize]; // top 8 bits
+          let y_end_pos = (img_fmt_h*img_fmt_w) as usize;
+          let frame_u = 63; // frame_yuv_buf[y_end_pos + ((y/2)*img_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom high 4 nibble
+          let frame_v = 63; // frame_yuv_buf[y_end_pos + ((y/2)*img_fmt_h) + (y*img_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom low 4 nibble
 
           // Used conversion constants from https://stackoverflow.com/a/6959465
 
@@ -195,10 +196,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
 
-
-      if loop_i > 50 {
-        break;
-      }
 
   }
 
