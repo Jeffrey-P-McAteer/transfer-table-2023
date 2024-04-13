@@ -29,9 +29,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
   // Let's say we want to explicitly request another format
   let mut fmt = dev.format()?;
-  fmt.width = 1280;
-  fmt.height = 720;
+  fmt.width = 640;
+  fmt.height = 480;
   fmt.fourcc = FourCC::new(b"YUYV");
+  // fmt.fourcc = FourCC::new(b"MJPG"); // Slow!
   let fmt = dev.set_format(&fmt)?;
 
   // The actual format chosen by the device driver may differ from what we
