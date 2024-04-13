@@ -5,7 +5,8 @@ edition = "2021"
 
 
 [dependencies]
-embedded-graphics-framebuf = "0.5"
+linuxfb = "0.3"
+
 
 [dependencies.v4l]
 version = "0.14"
