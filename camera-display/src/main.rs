@@ -32,8 +32,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   fmt.width = 640;
   fmt.height = 480;
   fmt.fourcc = FourCC::new(b"YUYV"); // YCbCr 4:2:2 pixels
+  // See https://fourcc.org/pixel-format/yuv-yuy2/
+
   // fmt.fourcc = FourCC::new(b"MJPG"); // Slow!
+
   let fmt = dev.set_format(&fmt)?;
+
 
   // The actual format chosen by the device driver may differ from what we
   // requested! Print it out to get an idea of what is actually used now.
@@ -41,6 +45,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
   let img_fmt_h = fmt.height as usize;
   let img_fmt_w = fmt.width as usize;
+  let img_bpp = (fmt.size / (fmt.height * fmt.width)) as usize;
+  println!("Camera img_bpp = {:?}", img_bpp);
 
   // Now we'd like to capture some frames!
   // First, we need to create a stream to read buffers from. We choose a
@@ -92,6 +98,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
     println!("fb.blank() e = {:?}", e);
   }
 
+  // Allocate a buffer to use for processing image as RGB/BGR pixels
+  // (will end up matching the framebuffer pixel order)
+  let mut img_buf: Vec<u8> = Vec::with_capacity(img_fmt_h * img_fmt_w * fb_bpp);
+  img_buf.resize(img_fmt_h * img_fmt_w * fb_bpp, 0); // zero buffer
+
+
   let mut loop_i = 0;
   loop {
       loop_i += 1;
@@ -99,10 +111,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         loop_i = 0;
       }
 
-      let (buf, meta) = stream.next()?;
+      let (frame_yuv_buf, meta) = stream.next()?;
       println!(
           "Buffer size: {}, seq: {}, timestamp: {}",
-          buf.len(),
+          frame_yuv_buf.len(),
           meta.sequence,
           meta.timestamp
       );
@@ -121,11 +133,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         }
       };
 
-      // Decode YCbCr 4:2:2 pixels into BGR pixels and send to framebuffer!
+      // Decode YCbCr 4:2:2 pixels into BGR pixels
+
       for y in 0..img_fmt_h {
         for x in 0..img_fmt_w {
           let fb_px_offset = ( ((y*img_fmt_h) + x) * fb_bpp) as usize;
-          if fb_px_offset+fb_bpp >= buf.len() {
+          if fb_px_offset+fb_bpp >= frame_yuv_buf.len() || fb_px_offset+fb_bpp > fb_mem.len() || fb_px_offset+fb_bpp > img_buf.len() {
             continue;
           }
 
@@ -133,13 +146,52 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
-          fb_mem[r_idx] = 0xFF;
-          fb_mem[g_idx] = 0x00;
-          fb_mem[b_idx] = 0x00;
+          let camera_px_offset = (((y*img_fmt_h) + x) * img_bpp) as usize;
+          if camera_px_offset+img_bpp > frame_yuv_buf.len() {
+            continue;
+          }
 
+          let frame_y = frame_yuv_buf[camera_px_offset]; // top 8 bits
+          let frame_u = frame_yuv_buf[camera_px_offset] & 0xf0; // bottom high 4 nibble
+          let frame_v = frame_yuv_buf[camera_px_offset] & 0x0f; // bottom low 4 nibble
+
+          // Used conversion constants from https://stackoverflow.com/a/6959465
+
+          // Normalize to between 0.0 and 1.0
+          let y = (frame_y as f64) / 255.0;
+          let u = (frame_u as f64) / 127.0;
+          let v = (frame_v as f64) / 127.0;
+
+          img_buf[r_idx] = ((y + (1.139837398373983740*v) )*255.0) as u8;
+          img_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
+          img_buf[b_idx] = ((y + 2.032110091743119266*u)*255.0) as u8;
 
         }
       }
+
+      // Process the BGR/RGB/whatevs pixels
+
+
+
+      // send to framebuffer!
+      for y in 0..img_fmt_h {
+        for x in 0..img_fmt_w {
+          let fb_px_offset = ( ((y*img_fmt_h) + x) * fb_bpp) as usize;
+          if fb_px_offset+fb_bpp >= frame_yuv_buf.len() || fb_px_offset+fb_bpp > fb_mem.len() || fb_px_offset+fb_bpp > img_buf.len() {
+            continue;
+          }
+
+          let r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
+          let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
+          let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+
+          fb_mem[r_idx] = img_buf[r_idx];
+          fb_mem[g_idx] = img_buf[g_idx];
+          fb_mem[b_idx] = img_buf[b_idx];
+
+        }
+      }
+
 
 
       if loop_i > 50 {
