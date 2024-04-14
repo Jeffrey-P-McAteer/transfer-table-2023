@@ -121,10 +121,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   let font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::WHITE);
 
   // 800x480 is the design size of the Pi's monitor
-  const embed_fb_h: usize = 480;
-  const embed_fb_w: usize = 800;
-  const embed_fb_bpp: usize = 3; // Assumed
-  let mut embed_fb = Framebuffer::<Bgr888, _, LittleEndian, embed_fb_w, embed_fb_h, { buffer_size::<Bgr888>(embed_fb_w, embed_fb_h) }>::new();
+  const EMBED_FB_H: usize = 480;
+  const EMBED_FB_W: usize = 800;
+  const EMBED_FB_BPP: usize = 3; // Assumed
+  let mut embed_fb = Framebuffer::<Bgr888, _, LittleEndian, EMBED_FB_W, EMBED_FB_H, { buffer_size::<Bgr888>(EMBED_FB_W, EMBED_FB_H) }>::new();
 
 
   let mut loop_i = 0;
@@ -216,13 +216,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
 
-      Text::new("Hello Rust!", Point::new(embed_fb_w as i32 - 120, embed_fb_h as i32 - 40), font_style).draw(&mut embed_fb)?;
+      Text::new("Hello Rust!", Point::new(EMBED_FB_W as i32 - 120, EMBED_FB_H as i32 - 40), font_style).draw(&mut embed_fb)?;
 
-
-      // Blank framebuffer
-      for i in 0..fb_mem.len() {
-        fb_mem[i] = 0;
-      }
 
       // send to framebuffer!
       let embed_fb_data = embed_fb.data();
@@ -230,7 +225,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         for x in 0..fb_w {
 
           let fb_px_offset = ( ((y*fb_w) + x) * fb_bpp) as usize;
-          let embed_fb_px_offset = (((y*embed_fb_w) + x) * embed_fb_bpp) as usize;
+          let embed_fb_px_offset = (((y*EMBED_FB_W) + x) * EMBED_FB_BPP) as usize;
 
           let embed_fb_r_idx = embed_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
           let embed_fb_g_idx = embed_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
@@ -240,7 +235,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let fb_g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let fb_b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
-          if y < fb_h && y < embed_fb_h && x < fb_w && x < embed_fb_w {
+          if y < fb_h && y < EMBED_FB_H && x < fb_w && x < EMBED_FB_W {
             fb_mem[fb_r_idx] = embed_fb_data[embed_fb_r_idx];
             fb_mem[fb_g_idx] = embed_fb_data[embed_fb_g_idx];
             fb_mem[fb_b_idx] = embed_fb_data[embed_fb_b_idx];
