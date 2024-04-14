@@ -12,12 +12,11 @@ use embedded_graphics::{
     pixelcolor::{raw::LittleEndian},
     mono_font,
     mono_font::{MonoTextStyle},
+    primitives::{PrimitiveStyle, Line},
     pixelcolor::{Rgb888, Bgr888},
     prelude::*,
     text::Text,
 };
-
-
 
 
 const GPIO_MOTOR_KEYS_IN_DIR: &'static str = "/tmp/gpio_motor_keys_in";
@@ -176,7 +175,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let camera_v_px_offset = camera_end_of_u_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
           let camera_v_px_mask = if y % 2 == 0 { 0xf0 } else { 0x0f };
           */
-
           let camera_leaved_offset = camera_end_of_y_sect + (((y/2)*cam_fmt_w) + (x/2)) as usize;
 
 
@@ -188,7 +186,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
           // Normalize to between 0.0 and 1.0
           let y = (frame_y as f64) / 255.0;
-          let u = (frame_u as f64) / 127.0;
+          let u = 0.0; // (frame_u as f64) / 127.0;
           let v = 0.0; // (frame_v as f64) / 127.0;
 
           let r_idx = cam_rgb_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
@@ -221,8 +219,24 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         }
       }
 
+      // Use luminance value to locate rails
+      const table_rail_y: usize = 330;
+      const layout_rail_y: usize = 350;
+      const rail_pair_width_px: usize = 96; // measured center-to-center
 
-      Text::new("Hello Rust!", Point::new(EMBED_FB_W as i32 - 120, EMBED_FB_H as i32 - 40), font_style).draw(&mut embed_fb)?;
+      // Draw table_rail_y debug line
+      Line::new(Point::new(0, table_rail_y as i32), Point::new(cam_fmt_w as i32, table_rail_y as i32))
+        .into_styled(PrimitiveStyle::with_stroke(Bgr888::RED, 1))
+        .draw(&mut embed_fb)?;
+
+      Line::new(Point::new(0, layout_rail_y as i32), Point::new(cam_fmt_w as i32, layout_rail_y as i32))
+        .into_styled(PrimitiveStyle::with_stroke(Bgr888::BLUE, 1))
+        .draw(&mut embed_fb)?;
+
+
+
+
+      Text::new("Text Render\nTest", Point::new(EMBED_FB_W as i32 - 140, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
 
 
       // send to framebuffer!
