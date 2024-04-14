@@ -159,28 +159,23 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         cam_rgb_buf[i] = 0;
       }
 
+      let camera_end_of_y_sect = (cam_fmt_w*cam_fmt_h) as usize;
+      let camera_end_of_u_sect = (camera_end_of_y_sect + ((cam_fmt_w*cam_fmt_h) / 2)) as usize;
+
       for y in 0..cam_fmt_h {
         for x in 0..cam_fmt_w {
-          let fb_px_offset = ( ((y*cam_fmt_h) + x) * fb_bpp) as usize;
-          /*if fb_px_offset+fb_bpp > cam_rgb_buf.len() {
-            continue;
-          }*/
-
-          let r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-          let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-          let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+          let cam_rgb_fb_px_offset = ( ((y*cam_fmt_w) + x) * fb_bpp) as usize;
 
           // TODO use this as pixel offset calculation reference - https://i.stack.imgur.com/Vprp4.png
 
-          let camera_px_offset = (((y*cam_fmt_h) + x) * img_bpp) as usize;
-          /*if camera_px_offset+img_bpp > frame_yuv_buf.len() {
-            continue;
-          }*/
+          let camera_y_px_offset = (((y*cam_fmt_w) + x) * img_bpp) as usize;
+          let camera_u_px_offset = camera_end_of_y_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
+          let camera_v_px_offset = camera_end_of_u_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
 
-          //let frame_y = frame_yuv_buf[((y*cam_fmt_h) + x) as usize]; // top 8 bits
-          let frame_y = frame_yuv_buf[camera_px_offset as usize]; // top 8 bits
-          let frame_u = 63; // frame_yuv_buf[y_end_pos + ((y/2)*cam_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom high 4 nibble
-          let frame_v = 63; // frame_yuv_buf[y_end_pos + ((y/2)*cam_fmt_h) + (y*cam_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom low 4 nibble
+
+          let frame_y = frame_yuv_buf[camera_y_px_offset];
+          let frame_u = frame_yuv_buf[camera_u_px_offset];
+          let frame_v = frame_yuv_buf[camera_v_px_offset];
 
           // Used conversion constants from https://stackoverflow.com/a/6959465
 
@@ -188,6 +183,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let y = (frame_y as f64) / 255.0;
           let u = (frame_u as f64) / 127.0;
           let v = (frame_v as f64) / 127.0;
+
+          let r_idx = cam_rgb_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
+          let g_idx = cam_rgb_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
+          let b_idx = cam_rgb_fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
           cam_rgb_buf[r_idx] = ((y + (1.139837398373983740*v) )*255.0) as u8;
           cam_rgb_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
