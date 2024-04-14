@@ -1,12 +1,23 @@
 
-
-
 use v4l::buffer::Type;
 use v4l::io::mmap::Stream;
 use v4l::io::traits::CaptureStream;
 use v4l::video::Capture;
 use v4l::Device;
 use v4l::FourCC;
+
+use embedded_graphics::{
+    framebuffer,
+    framebuffer::{Framebuffer, buffer_size},
+    pixelcolor::{raw::LittleEndian},
+    mono_font,
+    mono_font::{MonoTextStyle},
+    pixelcolor::{Rgb888, Bgr888},
+    prelude::*,
+    text::Text,
+};
+
+
 
 
 const GPIO_MOTOR_KEYS_IN_DIR: &'static str = "/tmp/gpio_motor_keys_in";
@@ -43,8 +54,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   // requested! Print it out to get an idea of what is actually used now.
   println!("Camera Image Format in use:\n{}", fmt);
 
-  let img_fmt_h = fmt.height as usize;
-  let img_fmt_w = fmt.width as usize;
+  let cam_fmt_h = fmt.height as usize;
+  let cam_fmt_w = fmt.width as usize;
   let img_bpp = (fmt.size / (fmt.height * fmt.width)) as usize;
   println!("Camera img_bpp = {:?}", img_bpp);
 
@@ -103,8 +114,17 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
   // Allocate a buffer to use for processing image as RGB/BGR pixels
   // (will end up matching the framebuffer pixel order)
-  let mut img_buf: Vec<u8> = Vec::with_capacity(img_fmt_h * img_fmt_w * fb_bpp);
-  img_buf.resize(img_fmt_h * img_fmt_w * fb_bpp, 0); // zero buffer
+  let mut cam_rgb_buf: Vec<u8> = Vec::with_capacity(cam_fmt_h * cam_fmt_w * fb_bpp);
+  cam_rgb_buf.resize(cam_fmt_h * cam_fmt_w * fb_bpp, 0); // zero buffer
+
+  // See https://docs.rs/embedded-graphics/latest/embedded_graphics/mono_font/ascii/index.html
+  let font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::WHITE);
+
+  // 800x480 is the design size of the Pi's monitor
+  const embed_fb_h: usize = 480;
+  const embed_fb_w: usize = 800;
+  const embed_fb_bpp: usize = 3; // Assumed
+  let mut embed_fb = Framebuffer::<Bgr888, _, LittleEndian, embed_fb_w, embed_fb_h, { buffer_size::<Bgr888>(embed_fb_w, embed_fb_h) }>::new();
 
 
   let mut loop_i = 0;
@@ -135,14 +155,14 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       // Decode YCbCr 4:2:2 pixels into BGR pixels
 
-      for i in 0..img_buf.len() {
-        img_buf[i] = 0;
+      for i in 0..cam_rgb_buf.len() {
+        cam_rgb_buf[i] = 0;
       }
 
-      for y in 0..img_fmt_h {
-        for x in 0..img_fmt_w {
-          let fb_px_offset = ( ((y*img_fmt_h) + x) * fb_bpp) as usize;
-          /*if fb_px_offset+fb_bpp > img_buf.len() {
+      for y in 0..cam_fmt_h {
+        for x in 0..cam_fmt_w {
+          let fb_px_offset = ( ((y*cam_fmt_h) + x) * fb_bpp) as usize;
+          /*if fb_px_offset+fb_bpp > cam_rgb_buf.len() {
             continue;
           }*/
 
@@ -152,16 +172,16 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
           // TODO use this as pixel offset calculation reference - https://i.stack.imgur.com/Vprp4.png
 
-          let camera_px_offset = (((y*img_fmt_h) + x) * img_bpp) as usize;
+          let camera_px_offset = (((y*cam_fmt_h) + x) * img_bpp) as usize;
           /*if camera_px_offset+img_bpp > frame_yuv_buf.len() {
             continue;
           }*/
 
-          //let frame_y = frame_yuv_buf[((y*img_fmt_h) + x) as usize]; // top 8 bits
+          //let frame_y = frame_yuv_buf[((y*cam_fmt_h) + x) as usize]; // top 8 bits
           let frame_y = frame_yuv_buf[camera_px_offset as usize]; // top 8 bits
-          let y_end_pos = (img_fmt_h*img_fmt_w) as usize;
-          let frame_u = 63; // frame_yuv_buf[y_end_pos + ((y/2)*img_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom high 4 nibble
-          let frame_v = 63; // frame_yuv_buf[y_end_pos + ((y/2)*img_fmt_h) + (y*img_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom low 4 nibble
+          let y_end_pos = (cam_fmt_h*cam_fmt_w) as usize;
+          let frame_u = 63; // frame_yuv_buf[y_end_pos + ((y/2)*cam_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom high 4 nibble
+          let frame_v = 63; // frame_yuv_buf[y_end_pos + ((y/2)*cam_fmt_h) + (y*cam_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom low 4 nibble
 
           // Used conversion constants from https://stackoverflow.com/a/6959465
 
@@ -170,14 +190,35 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let u = (frame_u as f64) / 127.0;
           let v = (frame_v as f64) / 127.0;
 
-          img_buf[r_idx] = ((y + (1.139837398373983740*v) )*255.0) as u8;
-          img_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
-          img_buf[b_idx] = ((y + 2.032110091743119266*u)*255.0) as u8;
+          cam_rgb_buf[r_idx] = ((y + (1.139837398373983740*v) )*255.0) as u8;
+          cam_rgb_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
+          cam_rgb_buf[b_idx] = ((y + 2.032110091743119266*u)*255.0) as u8;
 
         }
       }
 
-      // Process the BGR/RGB/whatevs pixels
+      // Process the BGR/RGB/whatevs pixels, drawing onto &mut embed_fb
+
+      for y in 0..cam_fmt_h {
+        for x in 0..cam_fmt_w {
+          let fb_px_offset = ( ((y*cam_fmt_h) + x) * fb_bpp) as usize;
+
+          let r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
+          let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
+          let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+
+          embed_fb.set_pixel(
+            embedded_graphics::geometry::Point { x: x as i32, y: y as i32 },
+            embedded_graphics::pixelcolor::Bgr888::new(
+              cam_rgb_buf[r_idx], cam_rgb_buf[g_idx], cam_rgb_buf[b_idx]
+            )
+          );
+        }
+      }
+
+
+      Text::new("Hello Rust!", Point::new(embed_fb_w as i32 - 120, embed_fb_h as i32 - 40), font_style).draw(&mut embed_fb)?;
+
 
       // Blank framebuffer
       for i in 0..fb_mem.len() {
@@ -185,29 +226,33 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
       // send to framebuffer!
-      for y in 0..fb_w {
-        for x in 0..fb_h {
-          if y < img_fmt_h && x < img_fmt_w {
-            let fb_px_offset = ( ((y*fb_w) + x) * fb_bpp) as usize;
-            let img_buf_px_offset = (((y*img_fmt_w) + x) * fb_bpp) as usize;
+      let embed_fb_data = embed_fb.data();
+      for y in 0..fb_h {
+        for x in 0..fb_w {
 
-            let img_r_idx = img_buf_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-            let img_g_idx = img_buf_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-            let img_b_idx = img_buf_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+          let fb_px_offset = ( ((y*fb_w) + x) * fb_bpp) as usize;
+          let embed_fb_px_offset = (((y*embed_fb_w) + x) * embed_fb_bpp) as usize;
 
-            let fb_r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-            let fb_g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-            let fb_b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+          let embed_fb_r_idx = embed_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
+          let embed_fb_g_idx = embed_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
+          let embed_fb_b_idx = embed_fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
+          let fb_r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
+          let fb_g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
+          let fb_b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
-            fb_mem[fb_r_idx] = img_buf[img_r_idx];
-            fb_mem[fb_g_idx] = img_buf[img_g_idx];
-            fb_mem[fb_b_idx] = img_buf[img_b_idx];
-
+          if y < fb_h && y < embed_fb_h && x < fb_w && x < embed_fb_w {
+            fb_mem[fb_r_idx] = embed_fb_data[embed_fb_r_idx];
+            fb_mem[fb_g_idx] = embed_fb_data[embed_fb_g_idx];
+            fb_mem[fb_b_idx] = embed_fb_data[embed_fb_b_idx];
+          }
+          else {
+            fb_mem[fb_r_idx] = 0x00;
+            fb_mem[fb_g_idx] = 0x00;
+            fb_mem[fb_b_idx] = 0x00;
           }
         }
       }
-
 
 
   }
