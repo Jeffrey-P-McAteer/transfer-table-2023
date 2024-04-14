@@ -9,12 +9,12 @@ fi
 if ! [[ -z "NO_VERBOSE" ]] ; then
   exec rsync -az \
     --checksum --delete \
-    --exclude 'build' --exclude 'zig-out' --exclude 'zig-cache' --exclude '.py-env' --exclude 'gpio-motor-control' \
+    --exclude 'build' --exclude 'zig-out' --exclude 'zig-cache' --exclude '.py-env' --exclude 'gpio-motor-control' --exclude 'target' \
        $PWD/. user@$pi_ip:/home/user/transfer-table-2023
 else
   exec rsync -avz \
     --checksum --delete \
-    --exclude 'build' --exclude 'zig-out' --exclude 'zig-cache' --exclude '.py-env' --exclude 'gpio-motor-control' \
+    --exclude 'build' --exclude 'zig-out' --exclude 'zig-cache' --exclude '.py-env' --exclude 'gpio-motor-control' --exclude 'target' \
        $PWD/. user@$pi_ip:/home/user/transfer-table-2023
 fi
 
