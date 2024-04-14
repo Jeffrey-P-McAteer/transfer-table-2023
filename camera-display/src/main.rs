@@ -73,7 +73,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
   // Create the stream, which will internally 'allocate' (as in map) the
   // number of requested buffers for us.
-  let mut stream = Stream::with_buffers(&mut dev, Type::VideoCapture, 4)?;
+  let mut stream = Stream::with_buffers(&mut dev, Type::VideoCapture, 1)?;
 
   // At this point, the stream is ready and all buffers are setup.
   // We can now read frames (represented as buffers) by iterating through
@@ -179,7 +179,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
           //let frame_y = frame_yuv_buf[((y*cam_fmt_h) + x) as usize]; // top 8 bits
           let frame_y = frame_yuv_buf[camera_px_offset as usize]; // top 8 bits
-          let y_end_pos = (cam_fmt_h*cam_fmt_w) as usize;
           let frame_u = 63; // frame_yuv_buf[y_end_pos + ((y/2)*cam_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom high 4 nibble
           let frame_v = 63; // frame_yuv_buf[y_end_pos + ((y/2)*cam_fmt_h) + (y*cam_fmt_h) + (x/2) ] & (if x % 2 == 0 { 0xf0 } else { 0x0f} ); // bottom low 4 nibble
 
