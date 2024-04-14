@@ -7,8 +7,6 @@ edition = "2021"
 [dependencies]
 linuxfb = "0.3"
 embedded-graphics = "0.8"
-ffimage = "*"
-ffimage_yuv = "0.10"
 
 
 [dependencies.v4l]

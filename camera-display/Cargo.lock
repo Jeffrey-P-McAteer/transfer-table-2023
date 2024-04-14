@@ -92,8 +92,6 @@ name = "camera-display"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics",
- "ffimage",
- "ffimage_yuv",
  "linuxfb",
  "v4l",
 ]
@@ -161,25 +159,6 @@ checksum = "a258e46cdc063eb8519c00b9fc845fc47bcfca4130e2f08e88665ceda8474245"
 dependencies = [
  "libc",
  "windows-sys",
-]
-
-[[package]]
-name = "ffimage"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed0a72fa07ae1c1c2d50f9caeb30890b23596b73d1c2f6cd229a2ae658a15d36"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "ffimage_yuv"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cf7ab943a8157f1f133a07ae728d5844b30d982e43f24c1098d6dc6cf38efb3"
-dependencies = [
- "ffimage",
- "num-traits",
 ]
 
 [[package]]
