@@ -160,7 +160,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
       let camera_end_of_y_sect = (cam_fmt_w*cam_fmt_h) as usize;
-      let camera_end_of_u_sect = (camera_end_of_y_sect + ((cam_fmt_w*cam_fmt_h) / 2)) as usize;
+      //let camera_end_of_u_sect = (camera_end_of_y_sect + ((cam_fmt_w*cam_fmt_h) / 2)) as usize;
 
       for y in 0..cam_fmt_h {
         for x in 0..cam_fmt_w {
@@ -169,20 +169,27 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           // TODO use this as pixel offset calculation reference - https://i.stack.imgur.com/Vprp4.png
 
           let camera_y_px_offset = (((y*cam_fmt_w) + x) * img_bpp) as usize;
+
+          /*
           let camera_u_px_offset = camera_end_of_y_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
+          let camera_u_px_mask = if y % 2 == 0 { 0x0f } else { 0xf0 };
           let camera_v_px_offset = camera_end_of_u_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
+          let camera_v_px_mask = if y % 2 == 0 { 0xf0 } else { 0x0f };
+          */
+
+          let camera_leaved_offset = camera_end_of_y_sect + (((y/2)*cam_fmt_w) + (x/2)) as usize;
 
 
           let frame_y = frame_yuv_buf[camera_y_px_offset];
-          let frame_u = frame_yuv_buf[camera_u_px_offset];
-          let frame_v = frame_yuv_buf[camera_v_px_offset];
+          let frame_u = 0; //(frame_yuv_buf[camera_u_px_offset] & camera_u_px_mask1) + ((frame_yuv_buf[camera_u_px_offset] & camera_u_px_mask2) << 2);
+          let frame_v = 0; //frame_yuv_buf[camera_v_px_offset] & camera_v_px_mask;
 
           // Used conversion constants from https://stackoverflow.com/a/6959465
 
           // Normalize to between 0.0 and 1.0
           let y = (frame_y as f64) / 255.0;
           let u = (frame_u as f64) / 127.0;
-          let v = (frame_v as f64) / 127.0;
+          let v = 0.0; // (frame_v as f64) / 127.0;
 
           let r_idx = cam_rgb_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
           let g_idx = cam_rgb_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
