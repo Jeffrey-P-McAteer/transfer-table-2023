@@ -231,9 +231,24 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             if fb_bpp == 2 {
               let mut pixels: u16 = 0;
 
+              // Because of <8 bits, we must construct custom masks for each operation as 0xff is too wide!
+              // .length specifies number of bits
+              let r_mask = u16::MAX >> (16 - fb_pxlyt.red.length);
+              let r_max_val: u16 = 2u16.pow(fb_pxlyt.red.length);
 
-              fb_mem[fb_px_offset + 0] = 0x00;
-              fb_mem[fb_px_offset + 1] = 0x00;
+              let g_mask = u16::MAX >> (16 - fb_pxlyt.green.length);
+              let g_max_val: u16 = 2u16.pow(fb_pxlyt.green.length);
+
+              let b_mask = u16::MAX >> (16 - fb_pxlyt.blue.length);
+              let b_max_val: u16 = 2u16.pow(fb_pxlyt.blue.length);
+
+
+              pixels |= ((embed_fb_data[embed_fb_r_idx] as u16 / r_max_val) & r_mask) << fb_pxlyt.red.offset;
+              pixels |= ((embed_fb_data[embed_fb_g_idx] as u16 / g_max_val) & g_mask) << fb_pxlyt.green.offset;
+              pixels |= ((embed_fb_data[embed_fb_b_idx] as u16 / b_max_val) & b_mask) << fb_pxlyt.blue.offset;
+
+              fb_mem[fb_px_offset + 0] = ((pixels >> 0) & 0xff) as u8;
+              fb_mem[fb_px_offset + 1] = ((pixels >> 8) & 0xff) as u8;
             }
             else if fb_bpp == 3 || fb_bpp == 4 { // 4 just means "RGBA", which can be treated as rgb
               let mut pixels: u32 = 0;
