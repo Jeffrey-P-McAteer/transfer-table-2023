@@ -118,11 +118,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
     println!("fb.blank() e = {:?}", e);
   }
 
-  // Allocate a buffer to use for processing image as RGB/BGR pixels
-  // (will end up matching the framebuffer pixel order)
-  let mut cam_rgb_buf: Vec<u8> = Vec::with_capacity(cam_fmt_h * cam_fmt_w * fb_bpp);
-  cam_rgb_buf.resize(cam_fmt_h * cam_fmt_w * fb_bpp, 0); // zero buffer
-
   // See https://docs.rs/embedded-graphics/latest/embedded_graphics/mono_font/ascii/index.html
   let font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::WHITE);
 
@@ -154,72 +149,11 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       let mut jpeg_decoder = jpeg_decoder::Decoder::new(BufReader::new(frame_mjpg_buf));
 
       let cam_pixels = jpeg_decoder.decode()?;
+      const cam_bpp: usize = 3; // Cam pixels is always in RGB24 format! Yay! \o/
 
       if loop_i % 20 == 0 { // We pretty much always see RGB24
         if let Some(jpg_info) = jpeg_decoder.info() {
           println!("jpg_info = {:?}", jpg_info);
-        }
-      }
-
-      let mut fb_mem = match fb.map() {
-        Ok(m) => m,
-        Err(e) => {
-          println!("fb.map() e = {:?}", e);
-          return Ok(());
-        }
-      };
-
-      // Decode YCbCr 4:2:2 pixels into BGR pixels
-
-      for i in 0..cam_rgb_buf.len() {
-        cam_rgb_buf[i] = 0;
-      }
-
-      let camera_end_of_y_sect = (cam_fmt_w*cam_fmt_h) as usize;
-      //let camera_end_of_u_sect = (camera_end_of_y_sect + ((cam_fmt_w*cam_fmt_h) / 2)) as usize;
-
-      for y in 0..cam_fmt_h {
-        for x in 0..cam_fmt_w {
-          let cam_rgb_fb_px_offset = ( ((y*cam_fmt_w) + x) * fb_bpp) as usize;
-
-          // TODO use this as pixel offset calculation reference - https://i.stack.imgur.com/Vprp4.png
-
-          let camera_y_px_offset = (((y*cam_fmt_w) + x) * img_bpp) as usize;
-
-          let jpeg_px_offset = (((y*cam_fmt_w) + x) * 3) as usize;
-
-          /*
-          let camera_u_px_offset = camera_end_of_y_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
-          let camera_u_px_mask = if y % 2 == 0 { 0x0f } else { 0xf0 };
-          let camera_v_px_offset = camera_end_of_u_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
-          let camera_v_px_mask = if y % 2 == 0 { 0xf0 } else { 0x0f };
-          */
-          let camera_leaved_offset = camera_end_of_y_sect + (((y/2)*cam_fmt_w) + (x/2)) as usize;
-
-
-          let frame_y = cam_pixels[camera_y_px_offset];
-          let frame_u = 0; //(frame_yuv_buf[camera_u_px_offset] & camera_u_px_mask1) + ((frame_yuv_buf[camera_u_px_offset] & camera_u_px_mask2) << 2);
-          let frame_v = 0; //frame_yuv_buf[camera_v_px_offset] & camera_v_px_mask;
-
-          // Used conversion constants from https://stackoverflow.com/a/6959465
-
-          // Normalize to between 0.0 and 1.0
-          let y = (frame_y as f64) / 255.0;
-          let u = 0.0; // (frame_u as f64) / 127.0;
-          let v = 0.0; // (frame_v as f64) / 127.0;
-
-          let r_idx = cam_rgb_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-          let g_idx = cam_rgb_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-          let b_idx = cam_rgb_fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
-
-          // cam_rgb_buf[r_idx] = ((y + (1.139837398373983740*v) )*255.0) as u8;
-          // cam_rgb_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
-          // cam_rgb_buf[b_idx] = ((y + 2.032110091743119266*u)*255.0) as u8;
-
-          cam_rgb_buf[r_idx] = cam_pixels[jpeg_px_offset + 0];
-          cam_rgb_buf[g_idx] = cam_pixels[jpeg_px_offset + 1];
-          cam_rgb_buf[b_idx] = cam_pixels[jpeg_px_offset + 2];
-
         }
       }
 
@@ -238,7 +172,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           embed_fb.set_pixel(
             embedded_graphics::geometry::Point { x: x as i32, y: y as i32 },
             embedded_graphics::pixelcolor::Bgr888::new(
-              //cam_rgb_buf[r_idx], cam_rgb_buf[g_idx], cam_rgb_buf[b_idx]
               cam_pixels[jpeg_px_offset+2], cam_pixels[jpeg_px_offset+1], cam_pixels[jpeg_px_offset+0] // wierd - these look perfect, but imply the MJPG format is using BGR24!
             )
           );
@@ -266,14 +199,21 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
 
       // send to framebuffer!
+      let mut fb_mem = match fb.map() {
+        Ok(m) => m,
+        Err(e) => {
+          println!("fb.map() e = {:?}", e);
+          return Ok(());
+        }
+      };
+
       let embed_fb_data = embed_fb.data();
       for y in 0..fb_h {
         for x in 0..fb_w {
 
           let fb_px_offset = ( ((y*fb_w) + x) * fb_bpp) as usize;
 
-          //let embed_fb_px_offset = (((y*EMBED_FB_W) + x) * EMBED_FB_BPP) as usize;
-          // Conditionally flip if compiling on the pi
+          // Conditionally flip what we're reading from if compiling on the pi
           let embed_fb_px_offset = if cfg!(target_arch="aarch64") || cfg!(target_arch="arm") {
             (( ((fb_h-1)-y) *EMBED_FB_W) + ((fb_w-1)-x) ) * EMBED_FB_BPP
           }
@@ -285,6 +225,36 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let embed_fb_g_idx = embed_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let embed_fb_b_idx = embed_fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
+          if y < fb_h && y < EMBED_FB_H && x < fb_w && x < EMBED_FB_W {
+            // Handle all observed bit cases the same way - we use a 1/2/3/4-byte unsigned integer to collect
+            // bits, then mask them onto the 1/2/3/4 bytes in fb_mem.
+            if fb_bpp == 2 {
+              let mut pixels: u16 = 0;
+
+
+              fb_mem[fb_px_offset + 0] = 0x00;
+              fb_mem[fb_px_offset + 1] = 0x00;
+            }
+            else if fb_bpp == 3 || fb_bpp == 4 { // 4 just means "RGBA", which can be treated as rgb
+              let mut pixels: u32 = 0;
+
+              pixels |= (embed_fb_data[embed_fb_r_idx] as u32) << fb_pxlyt.red.offset;
+              pixels |= (embed_fb_data[embed_fb_g_idx] as u32) << fb_pxlyt.green.offset;
+              pixels |= (embed_fb_data[embed_fb_b_idx] as u32) << fb_pxlyt.blue.offset;
+
+              fb_mem[fb_px_offset + 0] = ((pixels >> fb_pxlyt.blue.offset) & 0xff) as u8; // fb_mem[ + 0 ] is blue channel
+              fb_mem[fb_px_offset + 1] = ((pixels >> fb_pxlyt.green.offset) & 0xff) as u8; // fb_mem[ +1 ] is green channel
+              fb_mem[fb_px_offset + 2] = ((pixels >> fb_pxlyt.red.offset) & 0xff) as u8; //  fb_mem[ +2 ] is red channel
+            }
+          }
+          else {
+            // Just write 0s for all N bytes
+            for i in 0..fb_bpp {
+              fb_mem[fb_px_offset + i] = 0x00;
+            }
+          }
+
+          /*
           let fb_r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
           let fb_g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let fb_b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
@@ -299,6 +269,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             fb_mem[fb_g_idx] = 0x00;
             fb_mem[fb_b_idx] = 0x00;
           }
+          */
         }
       }
 
