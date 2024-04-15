@@ -23,6 +23,10 @@ const GPIO_MOTOR_KEYS_IN_DIR: &'static str = "/tmp/gpio_motor_keys_in";
 
 
 fn main() {
+  // Attempt to chvt 7
+  let unused = std::process::Command::new("chvt")
+    .args(&["7"])
+    .status();
   loop {
     if let Err(e) = do_camera_loop() {
       println!("[ do_camera_loop exited ] {:?}", e);
