@@ -186,6 +186,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
           let camera_y_px_offset = (((y*cam_fmt_w) + x) * img_bpp) as usize;
 
+          let jpeg_px_offset = (((y*cam_fmt_w) + x) * 3) as usize;
+
           /*
           let camera_u_px_offset = camera_end_of_y_sect + ((((y/2)*cam_fmt_w) + (x/2) ) * 1) as usize;
           let camera_u_px_mask = if y % 2 == 0 { 0x0f } else { 0xf0 };
@@ -214,9 +216,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           // cam_rgb_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
           // cam_rgb_buf[b_idx] = ((y + 2.032110091743119266*u)*255.0) as u8;
 
-          cam_rgb_buf[r_idx] = cam_pixels[camera_y_px_offset + 0];
-          cam_rgb_buf[g_idx] = cam_pixels[camera_y_px_offset + 1];
-          cam_rgb_buf[b_idx] = cam_pixels[camera_y_px_offset + 2];
+          cam_rgb_buf[r_idx] = cam_pixels[jpeg_px_offset + 0];
+          cam_rgb_buf[g_idx] = cam_pixels[jpeg_px_offset + 1];
+          cam_rgb_buf[b_idx] = cam_pixels[jpeg_px_offset + 2];
 
         }
       }
@@ -231,10 +233,13 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
+          let jpeg_px_offset = (((y*cam_fmt_w) + x) * 3) as usize;
+
           embed_fb.set_pixel(
             embedded_graphics::geometry::Point { x: x as i32, y: y as i32 },
             embedded_graphics::pixelcolor::Bgr888::new(
-              cam_rgb_buf[r_idx], cam_rgb_buf[g_idx], cam_rgb_buf[b_idx]
+              //cam_rgb_buf[r_idx], cam_rgb_buf[g_idx], cam_rgb_buf[b_idx]
+              cam_pixels[jpeg_px_offset+2], cam_pixels[jpeg_px_offset+1], cam_pixels[jpeg_px_offset+0] // wierd - these look perfect, but imply the MJPG format is using BGR24!
             )
           );
         }
