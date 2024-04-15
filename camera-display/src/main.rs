@@ -27,6 +27,10 @@ fn main() {
   let unused = std::process::Command::new("chvt")
     .args(&["7"])
     .status();
+  let unused = std::process::Command::new("sysctl") // From https://bbs.archlinux.org/viewtopic.php?id=284267
+    .args(&["kernel.printk=0 4 0 4"])
+    .status();
+
   loop {
     if let Err(e) = do_camera_loop() {
       println!("[ do_camera_loop exited ] {:?}", e);
