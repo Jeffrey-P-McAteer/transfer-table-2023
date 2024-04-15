@@ -155,6 +155,11 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       let cam_pixels = jpeg_decoder.decode()?;
 
+      if loop_i % 20 == 0 { // We pretty much always see RGB24
+        if let Some(jpg_info) = jpeg_decoder.info() {
+          println!("jpg_info = {:?}", jpg_info);
+        }
+      }
 
       let mut fb_mem = match fb.map() {
         Ok(m) => m,
