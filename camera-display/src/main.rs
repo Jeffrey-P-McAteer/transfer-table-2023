@@ -1,4 +1,7 @@
 
+use std::io::BufReader;
+use jpeg_decoder::Decoder;
+
 use v4l::buffer::Type;
 use v4l::io::mmap::Stream;
 use v4l::io::traits::CaptureStream;
@@ -49,13 +52,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   let mut fmt = dev.format()?;
   fmt.width = 640;
   fmt.height = 480;
-  fmt.fourcc = FourCC::new(b"YUYV"); // YCbCr 4:2:2 pixels
-  // See https://fourcc.org/pixel-format/yuv-yuy2/
-
-  // fmt.fourcc = FourCC::new(b"MJPG"); // Slow!
+  fmt.fourcc = FourCC::new(b"MJPG");
 
   let fmt = dev.set_format(&fmt)?;
-
 
   // The actual format chosen by the device driver may differ from what we
   // requested! Print it out to get an idea of what is actually used now.
@@ -141,16 +140,21 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         loop_i = 0;
       }
 
-      let (frame_yuv_buf, meta) = stream.next()?;
+      let (frame_mjpg_buf, meta) = stream.next()?;
 
       if loop_i % 20 == 0 {
         println!(
             "Buffer size: {}, seq: {}, timestamp: {}",
-            frame_yuv_buf.len(),
+            frame_mjpg_buf.len(),
             meta.sequence,
             meta.timestamp
         );
       }
+
+      let mut jpeg_decoder = jpeg_decoder::Decoder::new(BufReader::new(frame_mjpg_buf));
+
+      let cam_pixels = jpeg_decoder.decode()?;
+
 
       let mut fb_mem = match fb.map() {
         Ok(m) => m,
@@ -186,7 +190,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let camera_leaved_offset = camera_end_of_y_sect + (((y/2)*cam_fmt_w) + (x/2)) as usize;
 
 
-          let frame_y = frame_yuv_buf[camera_y_px_offset];
+          let frame_y = cam_pixels[camera_y_px_offset];
           let frame_u = 0; //(frame_yuv_buf[camera_u_px_offset] & camera_u_px_mask1) + ((frame_yuv_buf[camera_u_px_offset] & camera_u_px_mask2) << 2);
           let frame_v = 0; //frame_yuv_buf[camera_v_px_offset] & camera_v_px_mask;
 
@@ -201,9 +205,13 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let g_idx = cam_rgb_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let b_idx = cam_rgb_fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
 
-          cam_rgb_buf[r_idx] = ((y + (1.139837398373983740*v) )*255.0) as u8;
-          cam_rgb_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
-          cam_rgb_buf[b_idx] = ((y + 2.032110091743119266*u)*255.0) as u8;
+          // cam_rgb_buf[r_idx] = ((y + (1.139837398373983740*v) )*255.0) as u8;
+          // cam_rgb_buf[g_idx] = ((y - (0.3946517043589703515*u) - (0.5805986066674976801*v))*255.0) as u8;
+          // cam_rgb_buf[b_idx] = ((y + 2.032110091743119266*u)*255.0) as u8;
+
+          cam_rgb_buf[r_idx] = cam_pixels[camera_y_px_offset + 0];
+          cam_rgb_buf[g_idx] = cam_pixels[camera_y_px_offset + 1];
+          cam_rgb_buf[b_idx] = cam_pixels[camera_y_px_offset + 2];
 
         }
       }

@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 linuxfb = "0.3"
 embedded-graphics = "0.8"
-
+jpeg-decoder = "0.3"
 
 [dependencies.v4l]
 version = "0.14"
