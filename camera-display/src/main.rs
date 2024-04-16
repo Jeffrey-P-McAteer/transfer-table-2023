@@ -253,12 +253,14 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let fb_px_offset = ( ((y*fb_w) + x) * fb_bpp) as usize;
 
           // Conditionally flip what we're reading from if compiling on the pi
-          let embed_fb_px_offset = if cfg!(target_arch="aarch64") || cfg!(target_arch="arm") {
+          /*let embed_fb_px_offset = if cfg!(target_arch="aarch64") || cfg!(target_arch="arm") {
             (( ((fb_h-1)-y) *EMBED_FB_W) + ((fb_w-1)-x) ) * EMBED_FB_BPP
           }
           else {
             ((y*EMBED_FB_W) + x) * EMBED_FB_BPP
-          } as usize;
+          } as usize;*/
+
+          let embed_fb_px_offset = (((y*EMBED_FB_W) + x) * EMBED_FB_BPP) as usize;
 
           let embed_fb_r_idx = embed_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
           let embed_fb_g_idx = embed_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
