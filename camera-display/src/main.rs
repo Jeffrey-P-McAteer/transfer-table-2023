@@ -281,10 +281,26 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               let b_mask = u16::MAX >> (16 - fb_pxlyt.blue.length);
               let b_max_val: u16 = 2u16.pow(fb_pxlyt.blue.length);
 
+              if fb_pxlyt.red.length == 5 {
+                pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_r_idx] as usize] ) as u16) << fb_pxlyt.red.offset;
+              }
+              else if fb_pxlyt.red.length == 6 {
+                pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_r_idx] as usize] ) as u16) << fb_pxlyt.red.offset;
+              }
 
-              pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[((embed_fb_data[embed_fb_r_idx] as u16) & r_mask) as usize] ) as u16) << fb_pxlyt.red.offset;
-              pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[((embed_fb_data[embed_fb_g_idx] as u16) & g_mask) as usize] ) as u16) << fb_pxlyt.green.offset;
-              pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[((embed_fb_data[embed_fb_b_idx] as u16) & b_mask) as usize] ) as u16) << fb_pxlyt.blue.offset;
+              if fb_pxlyt.green.length == 5 {
+                pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_g_idx] as usize] ) as u16) << fb_pxlyt.green.offset;
+              }
+              else if fb_pxlyt.green.length == 6 {
+                pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_g_idx] as usize] ) as u16) << fb_pxlyt.green.offset;
+              }
+
+              if fb_pxlyt.blue.length == 5 {
+                pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_b_idx] as usize] ) as u16) << fb_pxlyt.blue.offset;
+              }
+              else if fb_pxlyt.blue.length == 6 {
+                pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_b_idx] as usize] ) as u16) << fb_pxlyt.blue.offset;
+              }
 
               //pixels |= ((embed_fb_data[embed_fb_g_idx] as u16) & g_mask) << fb_px[lyt.green.offset;
               //pixels |= ((embed_fb_data[embed_fb_b_idx] as u16) & b_mask) << fb_pxlyt.blue.offset;
