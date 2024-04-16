@@ -42,6 +42,45 @@ fn main() {
   }
 }
 
+const EIGHT_TO_FIVE_BIT_TABLE: [u8; 256] = [
+  0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2,
+  2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,4,4,
+  4,4,4,4,4,4,5,5,5,5,5,5,5,5,6,6,6,
+  6,6,6,6,6,7,7,7,7,7,7,7,7,8,8,8,8,
+  8,8,8,8,9,9,9,9,9,9,9,9,10,10,10,10,10,
+  10,10,10,11,11,11,11,11,11,11,11,12,12,12,12,12,12,
+  12,12,13,13,13,13,13,13,13,13,14,14,14,14,14,14,14,
+  14,15,15,15,15,15,15,15,15,16,16,16,16,16,16,16,16,
+  17,17,17,17,17,17,17,17,18,18,18,18,18,18,18,18,19,
+  19,19,19,19,19,19,19,20,20,20,20,20,20,20,20,21,21,
+  21,21,21,21,21,21,22,22,22,22,22,22,22,22,23,23,23,
+  23,23,23,23,23,24,24,24,24,24,24,24,24,25,25,25,25,
+  25,25,25,25,26,26,26,26,26,26,26,26,27,27,27,27,27,
+  27,27,27,28,28,28,28,28,28,28,28,29,29,29,29,29,29,
+  29,29,30,30,30,30,30,30,30,30,31,31,31,31,31,31,31,
+  31,
+];
+
+
+const EIGHT_TO_SIX_BIT_TABLE: [u8; 256] = [
+  0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,
+  4,4,4,5,5,5,5,6,6,6,6,7,7,7,7,8,8,
+  8,8,9,9,9,9,10,10,10,10,11,11,11,11,12,12,12,
+  12,13,13,13,13,14,14,14,14,15,15,15,15,16,16,16,16,
+  17,17,17,17,18,18,18,18,19,19,19,19,20,20,20,20,21,
+  21,21,21,22,22,22,22,23,23,23,23,24,24,24,24,25,25,
+  25,25,26,26,26,26,27,27,27,27,28,28,28,28,29,29,29,
+  29,30,30,30,30,31,31,31,31,32,32,32,32,33,33,33,33,
+  34,34,34,34,35,35,35,35,36,36,36,36,37,37,37,37,38,
+  38,38,38,39,39,39,39,40,40,40,40,41,41,41,41,42,42,
+  42,42,43,43,43,43,44,44,44,44,45,45,45,45,46,46,46,
+  46,47,47,47,47,48,48,48,48,49,49,49,49,50,50,50,50,
+  51,51,51,51,52,52,52,52,53,53,53,53,54,54,54,54,55,
+  55,55,55,56,56,56,56,57,57,57,57,58,58,58,58,59,59,
+  59,59,60,60,60,60,61,61,61,61,62,62,62,62,63,63,63,
+  63,
+];
+
 
 // Ought to run infinitely, returns result so we can handle hardware disconnect & re-connects
 #[allow(unreachable_code)]
@@ -243,9 +282,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               let b_max_val: u16 = 2u16.pow(fb_pxlyt.blue.length);
 
 
-              pixels |= ((embed_fb_data[embed_fb_r_idx] as u16 / r_max_val) & r_mask) << fb_pxlyt.red.offset;
-              pixels |= ((embed_fb_data[embed_fb_g_idx] as u16 / g_max_val) & g_mask) << fb_pxlyt.green.offset;
-              pixels |= ((embed_fb_data[embed_fb_b_idx] as u16 / b_max_val) & b_mask) << fb_pxlyt.blue.offset;
+              pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[((embed_fb_data[embed_fb_r_idx] as u16) & r_mask) as usize] ) as u16) << fb_pxlyt.red.offset;
+              pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[((embed_fb_data[embed_fb_g_idx] as u16) & g_mask) as usize] ) as u16) << fb_pxlyt.green.offset;
+              pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[((embed_fb_data[embed_fb_b_idx] as u16) & b_mask) as usize] ) as u16) << fb_pxlyt.blue.offset;
+
+              //pixels |= ((embed_fb_data[embed_fb_g_idx] as u16) & g_mask) << fb_px[lyt.green.offset;
+              //pixels |= ((embed_fb_data[embed_fb_b_idx] as u16) & b_mask) << fb_pxlyt.blue.offset;
 
               fb_mem[fb_px_offset + 0] = ((pixels >> 0) & 0xff) as u8;
               fb_mem[fb_px_offset + 1] = ((pixels >> 8) & 0xff) as u8;
@@ -288,6 +330,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         }
       }
 
+
+      // Give system 2ms of delay after each frame
+      std::thread::sleep(std::time::Duration::from_millis(2));
 
   }
 
