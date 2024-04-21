@@ -279,7 +279,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       const rail_pair_width_px: usize = 106; // measured using debug txt
 
 
-      const rail_max_err: usize = 1; // Allow one rail center to be eg x1=50 and x2=51 without moving table, but x=52 will cause movement!
+      const rail_max_err: usize = 2; // Allow one rail center to be eg x1=50 and x2=51 without moving table, but x=52 will cause movement!
 
       let mut rail_dbg_txt = "".to_string();
 
