@@ -414,16 +414,27 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
+        embed_fb.set_pixel(
           embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
+        embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
 
         embed_fb.set_pixel(
           embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
+        embed_fb.set_pixel(
           embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
-
+        embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
 
         // Compute state info
         let rail_diff: i32 = table_rail_x as i32 - layout_rail_x as i32;
@@ -449,6 +460,43 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         rail_msg_style = red_font_style;
       }
 
+      // Read table info - are we moving? How long since table last moved?
+      let mut motor_is_moving = true;
+      let mut motor_has_not_moved_recently = true;
+      let mut motor_state_msg = "NO MOTOR DATA".to_string();
+      let mut motor_state_msg_style = red_font_style;
+      let mut automove_active = false;
+
+      if std::path::Path::new("/tmp/gpio_motor_is_active").exists() {
+        motor_state_msg = "MOTOR MOVING\nAUTOMOVE OFF".to_string();
+        motor_state_msg_style = red_font_style;
+        motor_is_moving = true;
+        automove_active = false;
+      }
+      else {
+        motor_is_moving = false;
+        motor_state_msg = "MOTOR STOPPED\nAUTOMOVE ACTIVE".to_string();
+        motor_state_msg_style = yellow_font_style;
+        automove_active = true;
+      }
+
+      if let Ok(meta) = std::fs::metadata("/tmp/gpio_motor_last_active_mtime") {
+        if let Ok(gpio_motor_last_active_mtime) = meta.modified() {
+          let seconds_since_table_motion = std::time::SystemTime::now().duration_since(gpio_motor_last_active_mtime);
+          if let Ok(seconds_since_table_motion) = seconds_since_table_motion {
+            if seconds_since_table_motion.as_millis() > 9000 {
+              motor_state_msg = "MOTOR STOPPED\nAUTOMOVE OFF".to_string();
+              motor_state_msg_style = green_font_style;
+              automove_active = false;
+            }
+          }
+        }
+      }
+
+      if automove_active {
+        // Make decisions!
+
+      }
 
 
       // Black rectangle over remaining rightmost screen area
@@ -461,9 +509,11 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         .draw(&mut embed_fb)?;
 
       let fps_txt = format!("FPS: {:.2}", rolling_fps_val);
-      Text::new(&fps_txt, Point::new(EMBED_FB_W as i32 - 140, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
+      Text::new(&fps_txt, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
 
-      Text::new(&rail_msg, Point::new(EMBED_FB_W as i32 - 140, EMBED_FB_H as i32 - 120), rail_msg_style).draw(&mut embed_fb)?;
+      Text::new(&rail_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 100), rail_msg_style).draw(&mut embed_fb)?;
+
+      Text::new(&motor_state_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 160), motor_state_msg_style).draw(&mut embed_fb)?;
 
 
       // send to framebuffer!
