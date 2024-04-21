@@ -270,10 +270,16 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       const rail_max_err: usize = 2; // Allow one rail center to be eg x1=50 and x2=52 without moving table, but x=53 will cause movement!
 
       // Draw table_rail_y debug line
+      Line::new(Point::new(0, (table_rail_y-1) as i32), Point::new(cam_fmt_w as i32, (table_rail_y-1) as i32))
+        .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_DARK_MAGENTA, 1))
+        .draw(&mut embed_fb)?;
       Line::new(Point::new(0, table_rail_y as i32), Point::new(cam_fmt_w as i32, table_rail_y as i32))
         .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_DARK_MAGENTA, 1))
         .draw(&mut embed_fb)?;
 
+      Line::new(Point::new(0, (layout_rail_y-1) as i32), Point::new(cam_fmt_w as i32, (layout_rail_y-1) as i32))
+        .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_HOT_PINK, 1))
+        .draw(&mut embed_fb)?;
       Line::new(Point::new(0, layout_rail_y as i32), Point::new(cam_fmt_w as i32, layout_rail_y as i32))
         .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_HOT_PINK, 1))
         .draw(&mut embed_fb)?;
@@ -471,14 +477,14 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       let mut automove_active = false;
 
       if std::path::Path::new("/tmp/gpio_motor_is_active").exists() {
-        motor_state_msg = "MOTOR MOVING\nAUTOMOVE OFF".to_string();
+        motor_state_msg = "MOTOR MOVING\nAUTO-MOVE OFF".to_string();
         motor_state_msg_style = red_font_style;
         motor_is_moving = true;
         automove_active = false;
       }
       else {
         motor_is_moving = false;
-        motor_state_msg = "MOTOR STOPPED\nAUTOMOVE ACTIVE".to_string();
+        motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE ON".to_string();
         motor_state_msg_style = yellow_font_style;
         automove_active = true;
       }
