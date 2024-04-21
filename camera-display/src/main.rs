@@ -366,14 +366,15 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
       // Now we pick the first offset where layout_maybe_rails[x + rail_pair_width_px] is ALSO a maybe rail.
+      const skipped_edge_pixels: usize = 80;
       let mut table_rail_x: Option<u32> = None;
       let mut layout_rail_x: Option<u32> = None;
-      for x in 0..(cam_fmt_w-rail_pair_width_px) {
+      for x in skipped_edge_pixels..((cam_fmt_w-rail_pair_width_px)-skipped_edge_pixels) {
 
         // Write debug message for _all_ where we go from !table_maybe_rails[x] -> table_maybe_rails[x] && [x+1] (all black -> 2x white px)
-        if x >= 1 && x <(cam_fmt_w-1) && !table_maybe_rails[x-1] && table_maybe_rails[x] && table_maybe_rails[x+1] {
+        /*if x >= 1 && x <(cam_fmt_w-1) && !table_maybe_rails[x-1] && table_maybe_rails[x] && table_maybe_rails[x+1] {
           rail_dbg_txt = format!("{}\n{}", &rail_dbg_txt.clone(), x );
-        }
+        }*/
 
         if table_rail_x.is_none() && table_maybe_rails[x] && table_maybe_rails[x+rail_pair_width_px] {
           // Found it! Seek forwards until !table_maybe_rails[x+n] and record the CENTER of left-most rail.
@@ -471,7 +472,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             // Debug triangle
             Triangle::new(
                   Point::new(table_rail_x as i32,                       (table_rail_y - 48) as i32 ),
-                  Point::new((table_rail_x as i32 - rail_diff) as i32,  (table_rail_y - 40) as i32 ),
+                  Point::new((table_rail_x as i32 - rail_diff.abs()) as i32,  (table_rail_y - 40) as i32 ),
                   Point::new(table_rail_x as i32,                       (table_rail_y - 32) as i32 )
               )
               .into_styled(dbg_arrow_solid_green_style)
@@ -486,7 +487,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             // Debug triangle
             Triangle::new(
                   Point::new(table_rail_x as i32,                       (table_rail_y - 48) as i32 ),
-                  Point::new((table_rail_x as i32 + rail_diff) as i32,  (table_rail_y - 40) as i32 ),
+                  Point::new((table_rail_x as i32 + rail_diff.abs()) as i32,  (table_rail_y - 40) as i32 ),
                   Point::new(table_rail_x as i32,                       (table_rail_y - 32) as i32 )
               )
               .into_styled(dbg_arrow_solid_green_style)
