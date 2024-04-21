@@ -15,7 +15,7 @@ use embedded_graphics::{
     pixelcolor::{raw::LittleEndian},
     mono_font,
     mono_font::{MonoTextStyle},
-    primitives::{PrimitiveStyle, Line},
+    primitives::{PrimitiveStyle, PrimitiveStyleBuilder, Line, Rectangle},
     pixelcolor::{Rgb888, Bgr888},
     prelude::*,
     text::Text,
@@ -166,6 +166,15 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   const EMBED_FB_BPP: usize = 3; // Assumed
   let mut embed_fb = Framebuffer::<Bgr888, _, LittleEndian, EMBED_FB_W, EMBED_FB_H, { buffer_size::<Bgr888>(EMBED_FB_W, EMBED_FB_H) }>::new();
 
+  let txt_bg_style = PrimitiveStyleBuilder::new()
+    .stroke_color(Bgr888::BLACK)
+    .stroke_width(0)
+    .fill_color(Bgr888::BLACK)
+    .build();
+
+  let mut last_n_frame_times: [std::time::SystemTime; 8] = [std::time::SystemTime::now(); 8];
+  // vv re-calculated off last_n_frame_times at regular intervals
+  let mut rolling_fps_val: f32 = 0.0;
 
   let mut loop_i = 0;
   loop {
@@ -176,7 +185,21 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       let (frame_mjpg_buf, meta) = stream.next()?;
 
-      if loop_i % 20 == 0 {
+      last_n_frame_times[loop_i % last_n_frame_times.len()] = std::time::SystemTime::now();
+
+      if loop_i % 2 == 0 {
+        let mut frames_total_ms: f32 = 0.0;
+        for i in 0..(last_n_frame_times.len()-1) {
+          if let Ok(frame_t_dist) = last_n_frame_times[i+1].duration_since(last_n_frame_times[i]) {
+            frames_total_ms += frame_t_dist.as_millis() as f32;
+          }
+        }
+        rolling_fps_val = last_n_frame_times.len() as f32 / frames_total_ms; // frames-per-millisecond
+        rolling_fps_val *= 1000.0; // frames-per-second
+        println!("rolling_fps_val = {:?}", rolling_fps_val);
+      }
+
+      if loop_i % 25 == 0 {
         println!(
             "Buffer size: {}, seq: {}, timestamp: {}",
             frame_mjpg_buf.len(),
@@ -185,12 +208,20 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         );
       }
 
+      if loop_i % 100 == 0 {
+        // Ensure screen is on
+        if let Err(e) = fb.blank(linuxfb::BlankingLevel::Unblank) {
+          println!("fb.blank() e = {:?}", e);
+        }
+      }
+
+
       let mut jpeg_decoder = jpeg_decoder::Decoder::new(BufReader::new(frame_mjpg_buf));
 
       let cam_pixels = jpeg_decoder.decode()?;
       const cam_bpp: usize = 3; // Cam pixels is always in RGB24 format! Yay! \o/
 
-      if loop_i % 20 == 0 { // We pretty much always see RGB24
+      if loop_i % 25 == 0 { // We pretty much always see RGB24
         if let Some(jpg_info) = jpeg_decoder.info() {
           println!("jpg_info = {:?}", jpg_info);
         }
@@ -231,10 +262,17 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         .into_styled(PrimitiveStyle::with_stroke(Bgr888::BLUE, 1))
         .draw(&mut embed_fb)?;
 
+      // Black rectangle over remaining rightmost screen area
 
+      Rectangle::new(
+          Point::new(cam_fmt_w as i32,                      0),
+          Size::new(EMBED_FB_W as u32 - cam_fmt_h as u32,   EMBED_FB_H as u32)
+        )
+        .into_styled(txt_bg_style)
+        .draw(&mut embed_fb)?;
 
-
-      Text::new("Text Render\nTest", Point::new(EMBED_FB_W as i32 - 140, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
+      let fps_txt = format!("FPS: {:.2}", rolling_fps_val);
+      Text::new(&fps_txt, Point::new(EMBED_FB_W as i32 - 140, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
 
 
       // send to framebuffer!
