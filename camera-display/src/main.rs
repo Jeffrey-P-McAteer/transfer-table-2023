@@ -190,7 +190,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   // Used to allow the layout rail, which is ASSUMED STATIONARY, to not need
   // to always be detected. If we do not detect it, the average of values >=0 in
   // this array will be used for targeting the table's corrected position.
-  let mut last_n_layout_rail_x_positions: [i32; 32] = [-1; 32];
+  let mut last_n_layout_rail_x_positions: [i32; 24] = [-1; 24];
 
   const NUM_MOVES_ALLOWED_FOR_CORRECTION: isize = 32;
   let mut num_remaining_correction_moves: isize = NUM_MOVES_ALLOWED_FOR_CORRECTION;
