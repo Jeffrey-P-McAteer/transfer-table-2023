@@ -576,7 +576,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
       if !automove_active {
-        safe_to_move_msg = "[ SAFE TO MOVE ]".to_string();
+        safe_to_move_msg = "[SAFE TO MOVE]".to_string();
       }
 
 
