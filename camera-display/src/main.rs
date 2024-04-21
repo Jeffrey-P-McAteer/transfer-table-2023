@@ -584,6 +584,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               let b_mask = u16::MAX >> (16 - fb_pxlyt.blue.length);
               let b_max_val: u16 = 2u16.pow(fb_pxlyt.blue.length);
 
+              // fb_pxlyt = PixelLayout { // Observed off HW
+              //   red: PixelLayoutChannel { offset: 11, length: 5, msb_right: false },
+              //   green: PixelLayoutChannel { offset: 5, length: 6, msb_right: false },
+              //   blue: PixelLayoutChannel { offset: 0, length: 5, msb_right: false },
+              //   alpha: PixelLayoutChannel { offset: 0, length: 0, msb_right: false } }
+
               if fb_pxlyt.red.length == 5 {
                 pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_r_idx] as usize] ) as u16) << fb_pxlyt.red.offset;
               }
