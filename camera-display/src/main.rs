@@ -269,6 +269,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       const rail_pair_width_px: usize = 96; // measured center-to-center
       const rail_max_err: usize = 2; // Allow one rail center to be eg x1=50 and x2=52 without moving table, but x=53 will cause movement!
 
+      let mut rail_dbg_txt = "".to_string();
+
       // Draw table_rail_y debug line
       Line::new(Point::new(0, (table_rail_y-1) as i32), Point::new(cam_fmt_w as i32, (table_rail_y-1) as i32))
         .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_DARK_MAGENTA, 1))
@@ -368,6 +370,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       let mut table_rail_x: Option<u32> = None;
       let mut layout_rail_x: Option<u32> = None;
       for x in 0..(cam_fmt_w-rail_pair_width_px) {
+
+        // Write debug message for _all_ where we go from !table_maybe_rails[x] -> table_maybe_rails[x] && [x+1] (all black -> 2x white px)
+        if x >= 1 && x <(cam_fmt_w-1) && !table_maybe_rails[x-1] && table_maybe_rails[x] && table_maybe_rails[x+1] {
+          rail_dbg_txt = format!("{}\n{}", &rail_dbg_txt.clone(), x );
+        }
+
         if table_rail_x.is_none() && table_maybe_rails[x] && table_maybe_rails[x+rail_pair_width_px] {
           // Found it! Seek forwards until !table_maybe_rails[x+n] and record the CENTER of left-most rail.
           let mut x_end = x;
@@ -520,6 +528,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         )
         .into_styled(txt_bg_style)
         .draw(&mut embed_fb)?;
+
+      // rail_dbg_txt
+      Text::new(&rail_dbg_txt, Point::new(EMBED_FB_W as i32 - 150, 10 ), font_style).draw(&mut embed_fb)?;
 
       let fps_txt = format!("FPS: {:.2}", rolling_fps_val);
       Text::new(&fps_txt, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
