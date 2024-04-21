@@ -523,14 +523,13 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         motor_is_moving = true;
         automove_active = false;
         num_remaining_correction_moves = NUM_MOVES_ALLOWED_FOR_CORRECTION;
-        have_saved_this_correction_pos = true;
+        have_saved_this_correction_pos = false;
       }
       else {
         motor_is_moving = false;
         motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE ON".to_string();
         motor_state_msg_style = yellow_font_style;
         automove_active = true;
-        have_saved_this_correction_pos = false;
       }
 
       if let Ok(meta) = std::fs::metadata("/tmp/gpio_motor_last_active_mtime") {
