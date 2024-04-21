@@ -263,19 +263,19 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       //const table_rail_y: usize = 330; // Measures OK by photos from webserver.py, but wrong by hardware measurement.
       //const layout_rail_y: usize = 350;
 
-      const table_rail_y: usize = 350;
-      const layout_rail_y: usize = 370;
+      const table_rail_y: usize = 346;
+      const layout_rail_y: usize = 366;
 
       const rail_pair_width_px: usize = 96; // measured center-to-center
       const rail_max_err: usize = 2; // Allow one rail center to be eg x1=50 and x2=52 without moving table, but x=53 will cause movement!
 
       // Draw table_rail_y debug line
       Line::new(Point::new(0, table_rail_y as i32), Point::new(cam_fmt_w as i32, table_rail_y as i32))
-        .into_styled(PrimitiveStyle::with_stroke(Bgr888::RED, 1))
+        .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_DARK_MAGENTA, 1))
         .draw(&mut embed_fb)?;
 
       Line::new(Point::new(0, layout_rail_y as i32), Point::new(cam_fmt_w as i32, layout_rail_y as i32))
-        .into_styled(PrimitiveStyle::with_stroke(Bgr888::BLUE, 1))
+        .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_HOT_PINK, 1))
         .draw(&mut embed_fb)?;
 
 
