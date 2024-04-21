@@ -325,8 +325,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
       // Now we do a boolean on the brightness measures, selecting the top 15% of pixels as "potential rails"
-      let lowest_table_rail_brightness = ((max_table_rail_brightness as f32) - ((max_table_rail_brightness as f32) * 0.12)) as u8;
-      let lowest_layout_rail_brightness = ((max_layout_rail_brightness as f32) - ((max_layout_rail_brightness as f32) * 0.12)) as u8;
+      let lowest_table_rail_brightness = ((max_table_rail_brightness as f32) - ((max_table_rail_brightness as f32) * 0.13)) as u8;
+      let lowest_layout_rail_brightness = ((max_layout_rail_brightness as f32) - ((max_layout_rail_brightness as f32) * 0.13)) as u8;
 
       let mut table_maybe_rails: Vec<bool> = vec![false; cam_fmt_w];
       let mut layout_maybe_rails: Vec<bool> = vec![false; cam_fmt_w];
