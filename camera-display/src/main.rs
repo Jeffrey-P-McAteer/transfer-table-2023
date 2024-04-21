@@ -236,6 +236,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(jpg_info) = jpeg_decoder.info() {
           println!("jpg_info = {:?}", jpg_info);
         }
+        println!("fb_pxlyt = {:?}", fb_pxlyt);
       }
 
       // Process the BGR/RGB/whatevs pixels, drawing onto &mut embed_fb
@@ -622,8 +623,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               //fb_mem[fb_px_offset + 2] = ((pixels >> fb_pxlyt.red.offset) & 0xff) as u8; //  fb_mem[ +2 ] is red channel
 
               fb_mem[fb_px_offset + 0] = ((pixels >> fb_pxlyt.blue.offset) & 0xff) as u8; // fb_mem[ + 0 ] is blue channel
-              fb_mem[fb_px_offset + 2] = ((pixels >> fb_pxlyt.green.offset) & 0xff) as u8; // fb_mem[ +1 ] is RED channel
-              fb_mem[fb_px_offset + 1] = ((pixels >> fb_pxlyt.red.offset) & 0xff) as u8; //  fb_mem[ +2 ] is GREEN channel
+              fb_mem[fb_px_offset + 1] = ((pixels >> fb_pxlyt.green.offset) & 0xff) as u8; // fb_mem[ +1 ] is RED channel
+              fb_mem[fb_px_offset + 2] = ((pixels >> fb_pxlyt.red.offset) & 0xff) as u8; //  fb_mem[ +2 ] is GREEN channel
             }
           }
           else {

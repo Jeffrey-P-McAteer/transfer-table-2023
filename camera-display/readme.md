@@ -10,5 +10,8 @@ cargo build --release && sudo timeout 10 ./target/release/camera-display ; sudo 
 
 sudo systemctl stop camera-display.service && cargo build --release && sudo systemctl start camera-display.service
 
+sudo systemctl stop camera-display.service && cargo build --release && sudo systemctl start camera-display.service ; journalctl -f -u camera-display.service
+
+
 ```
 
