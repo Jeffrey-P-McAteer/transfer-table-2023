@@ -261,7 +261,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           embed_fb.set_pixel(
             embedded_graphics::geometry::Point { x: x as i32, y: y as i32 },
             embedded_graphics::pixelcolor::Bgr888::new(
-              cam_pixels[jpeg_px_offset+2], cam_pixels[jpeg_px_offset+1], cam_pixels[jpeg_px_offset+0] // wierd - these look perfect, but imply the MJPG format is using BGR24!
+              //cam_pixels[jpeg_px_offset+2], cam_pixels[jpeg_px_offset+1], cam_pixels[jpeg_px_offset+0] // wierd - these look perfect, but imply the MJPG format is using BGR24!
+              cam_pixels[jpeg_px_offset+0], cam_pixels[jpeg_px_offset+1], cam_pixels[jpeg_px_offset+2]
             )
           );
         }
@@ -590,9 +591,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
           let embed_fb_px_offset = (((y*EMBED_FB_W) + x) * EMBED_FB_BPP) as usize;
 
-          let embed_fb_r_idx = embed_fb_px_offset + (2) as usize;
+          let embed_fb_r_idx = embed_fb_px_offset + (0) as usize;
           let embed_fb_g_idx = embed_fb_px_offset + (1) as usize;
-          let embed_fb_b_idx = embed_fb_px_offset + (0) as usize;
+          let embed_fb_b_idx = embed_fb_px_offset + (2) as usize;
 
           if y < fb_h && y < EMBED_FB_H && x < fb_w && x < EMBED_FB_W {
             // Handle all observed bit cases the same way - we use a 1/2/3/4-byte unsigned integer to collect
