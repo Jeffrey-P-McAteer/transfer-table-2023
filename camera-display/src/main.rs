@@ -275,16 +275,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       let mut rail_dbg_txt = "".to_string();
 
       // Draw table_rail_y debug line
-      Line::new(Point::new(0, (table_rail_y-1) as i32), Point::new(cam_fmt_w as i32, (table_rail_y-1) as i32))
-        .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_DARK_MAGENTA, 1))
-        .draw(&mut embed_fb)?;
       Line::new(Point::new(0, table_rail_y as i32), Point::new(cam_fmt_w as i32, table_rail_y as i32))
         .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_DARK_MAGENTA, 1))
         .draw(&mut embed_fb)?;
 
-      Line::new(Point::new(0, (layout_rail_y-1) as i32), Point::new(cam_fmt_w as i32, (layout_rail_y-1) as i32))
-        .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_HOT_PINK, 1))
-        .draw(&mut embed_fb)?;
       Line::new(Point::new(0, layout_rail_y as i32), Point::new(cam_fmt_w as i32, layout_rail_y as i32))
         .into_styled(PrimitiveStyle::with_stroke(Bgr888::CSS_HOT_PINK, 1))
         .draw(&mut embed_fb)?;
@@ -429,33 +423,33 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       let mut table_control_code_to_write: Option<usize> = None;
 
       if let Some(table_rail_x) = table_rail_x {
-        // Write debug red pixels
+        // Write debug BLACK pixels
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
       }
       if let Some(layout_rail_x) = layout_rail_x {
-        // Write debug red pixels
+        // Write debug BLACK pixels
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
         );
       }
 
@@ -623,9 +617,13 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               pixels |= (embed_fb_data[embed_fb_g_idx] as u32) << fb_pxlyt.green.offset;
               pixels |= (embed_fb_data[embed_fb_b_idx] as u32) << fb_pxlyt.blue.offset;
 
+              //fb_mem[fb_px_offset + 0] = ((pixels >> fb_pxlyt.blue.offset) & 0xff) as u8; // fb_mem[ + 0 ] is blue channel
+              //fb_mem[fb_px_offset + 1] = ((pixels >> fb_pxlyt.green.offset) & 0xff) as u8; // fb_mem[ +1 ] is green channel
+              //fb_mem[fb_px_offset + 2] = ((pixels >> fb_pxlyt.red.offset) & 0xff) as u8; //  fb_mem[ +2 ] is red channel
+
               fb_mem[fb_px_offset + 0] = ((pixels >> fb_pxlyt.blue.offset) & 0xff) as u8; // fb_mem[ + 0 ] is blue channel
-              fb_mem[fb_px_offset + 1] = ((pixels >> fb_pxlyt.green.offset) & 0xff) as u8; // fb_mem[ +1 ] is green channel
-              fb_mem[fb_px_offset + 2] = ((pixels >> fb_pxlyt.red.offset) & 0xff) as u8; //  fb_mem[ +2 ] is red channel
+              fb_mem[fb_px_offset + 2] = ((pixels >> fb_pxlyt.green.offset) & 0xff) as u8; // fb_mem[ +1 ] is RED channel
+              fb_mem[fb_px_offset + 1] = ((pixels >> fb_pxlyt.red.offset) & 0xff) as u8; //  fb_mem[ +2 ] is GREEN channel
             }
           }
           else {
