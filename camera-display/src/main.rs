@@ -531,7 +531,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let seconds_since_table_motion = std::time::SystemTime::now().duration_since(gpio_motor_last_active_mtime);
           if let Ok(seconds_since_table_motion) = seconds_since_table_motion {
             if seconds_since_table_motion.as_millis() > 9000 {
-              motor_state_msg = "MOTOR STOPPED\nAUTOMOVE OFF".to_string();
+              motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE OFF".to_string();
               motor_state_msg_style = green_font_style;
               automove_active = false;
             }
@@ -555,7 +555,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         .draw(&mut embed_fb)?;
 
       // rail_dbg_txt
-      Text::new(&rail_dbg_txt, Point::new(EMBED_FB_W as i32 - 150, 10 ), font_style).draw(&mut embed_fb)?;
+      Text::new(&rail_dbg_txt, Point::new(EMBED_FB_W as i32 - 150, 10 ), red_font_style).draw(&mut embed_fb)?;
 
       Text::new(&motor_state_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 120), motor_state_msg_style).draw(&mut embed_fb)?;
 
@@ -590,9 +590,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
           let embed_fb_px_offset = (((y*EMBED_FB_W) + x) * EMBED_FB_BPP) as usize;
 
-          let embed_fb_r_idx = embed_fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-          let embed_fb_g_idx = embed_fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-          let embed_fb_b_idx = embed_fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+          let embed_fb_r_idx = embed_fb_px_offset + (2) as usize;
+          let embed_fb_g_idx = embed_fb_px_offset + (1) as usize;
+          let embed_fb_b_idx = embed_fb_px_offset + (0) as usize;
 
           if y < fb_h && y < EMBED_FB_H && x < fb_w && x < EMBED_FB_W {
             // Handle all observed bit cases the same way - we use a 1/2/3/4-byte unsigned integer to collect
