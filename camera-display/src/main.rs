@@ -600,17 +600,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             if fb_bpp == 2 {
               let mut pixels: u16 = 0;
 
-              // Because of <8 bits, we must construct custom masks for each operation as 0xff is too wide!
-              // .length specifies number of bits
-              let r_mask = u16::MAX >> (16 - fb_pxlyt.red.length);
-              let r_max_val: u16 = 2u16.pow(fb_pxlyt.red.length);
-
-              let g_mask = u16::MAX >> (16 - fb_pxlyt.green.length);
-              let g_max_val: u16 = 2u16.pow(fb_pxlyt.green.length);
-
-              let b_mask = u16::MAX >> (16 - fb_pxlyt.blue.length);
-              let b_max_val: u16 = 2u16.pow(fb_pxlyt.blue.length);
-
               // fb_pxlyt = PixelLayout { // Observed off HW
               //   red: PixelLayoutChannel { offset: 11, length: 5, msb_right: false },
               //   green: PixelLayoutChannel { offset: 5, length: 6, msb_right: false },
