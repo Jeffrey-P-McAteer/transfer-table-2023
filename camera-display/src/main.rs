@@ -427,31 +427,31 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       if let Some(table_rail_x) = table_rail_x {
         // Write debug BLACK pixels
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: (table_rail_x+1) as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
       }
       if let Some(layout_rail_x) = layout_rail_x {
         // Write debug BLACK pixels
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
         embed_fb.set_pixel(
-          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::BLACK
+          embedded_graphics::geometry::Point { x: (layout_rail_x+1) as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
         );
       }
 
