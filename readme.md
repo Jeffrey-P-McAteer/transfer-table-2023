@@ -95,6 +95,24 @@ find /tmp -maxdepth 1 -iname 'int_*' -print -exec sh -c 'cat {} ; echo ' \;
 
 sudo ffmpeg -i /dev/video0 -vf fps=fps=1/20 -update 1 /tmp/img.jpg
 
+# More backup commands
+sudo rsync --exclude='/dev/*' \
+    --exclude='/proc/*' \
+    --exclude='/sys/*' \
+    --exclude='/tmp/*' \
+    --exclude='/run/*' \
+    --exclude='/mnt/*' \
+    --exclude='/j/infra/ai/ai-disk/*' \
+    --exclude='/web/*' \
+    --exclude='/media/*' \
+    --exclude='/lost+found' \
+    --exclude='build/*' \
+    --exclude='cache/*' \
+    --exclude='.cache/*' \
+    --exclude='.m2/*' \
+    --exclude='.gradle/*' \
+    --exclude='target/*' \
+    --rsync-path="sudo rsync" --size-only -azPv user@192.168.0.2:/ /j/proj/table-sd-card-backup
 
 
 ```
