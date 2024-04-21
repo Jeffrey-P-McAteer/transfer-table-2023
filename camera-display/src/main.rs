@@ -553,9 +553,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           let txt_file_num = rand::random::<u32>();
           let txt_file_path = format!("{}/{}.txt", GPIO_MOTOR_KEYS_IN_DIR, txt_file_num);
           let codes_str = format!("{}", key_code);
-          rail_dbg_txt = codes_str;
-          if let Err(e) = std::fs::write(txt_file_path, &codes_str) {
-            println!("Error writing to {}: {:?}",txt_file_path, e);
+          rail_dbg_txt = codes_str.clone();
+          if let Err(e) = std::fs::write(&txt_file_path, &codes_str) {
+            println!("Error writing to {}: {:?}", &txt_file_path, e);
           }
 
         }
@@ -566,8 +566,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         let knob_down_and_equals_codes = "113,14";
         let txt_file_num = rand::random::<u32>();
         let txt_file_path = format!("{}/{}.txt", GPIO_MOTOR_KEYS_IN_DIR, txt_file_num);
-        if let Err(e) = std::fs::write(txt_file_path, knob_down_and_equals_codes) {
-          println!("Error writing to {}: {:?}",txt_file_path, e);
+        if let Err(e) = std::fs::write(&txt_file_path, knob_down_and_equals_codes) {
+          println!("Error writing to {}: {:?}", &txt_file_path, e);
         }
         rail_dbg_txt = knob_down_and_equals_codes.to_string();
         have_saved_this_correction_pos = true;
