@@ -472,7 +472,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             // Debug triangle
             Triangle::new(
                   Point::new(table_rail_x as i32,                       (table_rail_y - 48) as i32 ),
-                  Point::new((table_rail_x as i32 - rail_diff.abs()) as i32,  (table_rail_y - 40) as i32 ),
+                  Point::new((table_rail_x as i32 + rail_diff.abs()) as i32,  (table_rail_y - 40) as i32 ),
                   Point::new(table_rail_x as i32,                       (table_rail_y - 32) as i32 )
               )
               .into_styled(dbg_arrow_solid_green_style)
@@ -487,7 +487,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             // Debug triangle
             Triangle::new(
                   Point::new(table_rail_x as i32,                       (table_rail_y - 48) as i32 ),
-                  Point::new((table_rail_x as i32 + rail_diff.abs()) as i32,  (table_rail_y - 40) as i32 ),
+                  Point::new((table_rail_x as i32 - rail_diff.abs()) as i32,  (table_rail_y - 40) as i32 ),
                   Point::new(table_rail_x as i32,                       (table_rail_y - 32) as i32 )
               )
               .into_styled(dbg_arrow_solid_green_style)
