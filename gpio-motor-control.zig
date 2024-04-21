@@ -624,6 +624,9 @@ pub fn move_to_position(pos_num: u8) void {
     step_n(@intCast(num_steps_to_move), @intCast(RAMP_UP_STEPS), HIGH);
   }
 
+  // Write mtime at END of movement as well!
+  create_motor_active_file();
+
   // Even if we're emergency-stopped, record where we think we are.
   pmem.logical_position = pos_num-1;
   num_input_buffer = 0;
