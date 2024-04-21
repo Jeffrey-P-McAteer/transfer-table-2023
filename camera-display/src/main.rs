@@ -157,14 +157,14 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
     println!("fb.blank() e = {:?}", e);
   }
 
-  // See https://docs.rs/embedded-graphics/latest/embedded_graphics/mono_font/ascii/index.html
-  let font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::WHITE);
-
   // 800x480 is the design size of the Pi's monitor
   const EMBED_FB_H: usize = 480;
   const EMBED_FB_W: usize = 800;
   const EMBED_FB_BPP: usize = 3; // Assumed
   let mut embed_fb = Framebuffer::<Bgr888, _, LittleEndian, EMBED_FB_W, EMBED_FB_H, { buffer_size::<Bgr888>(EMBED_FB_W, EMBED_FB_H) }>::new();
+
+  // See https://docs.rs/embedded-graphics/latest/embedded_graphics/mono_font/ascii/index.html
+  let font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::WHITE);
 
   let txt_bg_style = PrimitiveStyleBuilder::new()
     .stroke_color(Bgr888::BLACK)
