@@ -15,7 +15,7 @@ use embedded_graphics::{
     pixelcolor::{raw::LittleEndian},
     mono_font,
     mono_font::{MonoTextStyle},
-    primitives::{PrimitiveStyle, PrimitiveStyleBuilder, Line, Rectangle},
+    primitives::{PrimitiveStyle, PrimitiveStyleBuilder, Line, Rectangle, Triangle},
     pixelcolor::{Rgb888, Bgr888},
     prelude::*,
     text::Text,
@@ -173,6 +173,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
     .stroke_color(Bgr888::BLACK)
     .stroke_width(0)
     .fill_color(Bgr888::BLACK)
+    .build();
+
+  let dbg_arrow_solid_green_style = PrimitiveStyleBuilder::new()
+    .stroke_color(Bgr888::CSS_DARK_GREEN)
+    .stroke_width(1)
+    .fill_color(Bgr888::GREEN)
     .build();
 
   let mut last_n_frame_times: [std::time::SystemTime; 8] = [std::time::SystemTime::now(); 8];
@@ -466,11 +472,32 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             rail_msg = "MOVING LEFT".to_string();
             rail_msg_style = yellow_font_style;
             table_control_code_to_write = Some(115); // TODO may be baclwards; if so just swap directions / codes
+
+            // Debug triangle
+            Triangle::new(
+                  Point::new(table_rail_x as i32,                       (table_rail_y - 48) as i32 ),
+                  Point::new((table_rail_x as i32 - rail_diff) as i32,  (table_rail_y - 40) as i32 ),
+                  Point::new(table_rail_x as i32,                       (table_rail_y - 32) as i32 )
+              )
+              .into_styled(dbg_arrow_solid_green_style)
+              .draw(&mut embed_fb)?;
+
           }
           else {
             rail_msg = "MOVING RIGHT".to_string();
             rail_msg_style = yellow_font_style;
             table_control_code_to_write = Some(114);
+
+            // Debug triangle
+            Triangle::new(
+                  Point::new(table_rail_x as i32,                       (table_rail_y - 48) as i32 ),
+                  Point::new((table_rail_x as i32 + rail_diff) as i32,  (table_rail_y - 40) as i32 ),
+                  Point::new(table_rail_x as i32,                       (table_rail_y - 32) as i32 )
+              )
+              .into_styled(dbg_arrow_solid_green_style)
+              .draw(&mut embed_fb)?;
+
+
           }
         }
       }
@@ -590,11 +617,11 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               //   blue: PixelLayoutChannel { offset: 0, length: 5, msb_right: false },
               //   alpha: PixelLayoutChannel { offset: 0, length: 0, msb_right: false } }
 
-              if fb_pxlyt.red.length == 5 {
-                pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_r_idx] as usize] ) as u16) << fb_pxlyt.red.offset;
+              if fb_pxlyt.blue.length == 5 {
+                pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_b_idx] as usize] ) as u16) << fb_pxlyt.blue.offset;
               }
-              else if fb_pxlyt.red.length == 6 {
-                pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_r_idx] as usize] ) as u16) << fb_pxlyt.red.offset;
+              else if fb_pxlyt.blue.length == 6 {
+                pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_b_idx] as usize] ) as u16) << fb_pxlyt.blue.offset;
               }
 
               if fb_pxlyt.green.length == 5 {
@@ -604,11 +631,11 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
                 pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_g_idx] as usize] ) as u16) << fb_pxlyt.green.offset;
               }
 
-              if fb_pxlyt.blue.length == 5 {
-                pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_b_idx] as usize] ) as u16) << fb_pxlyt.blue.offset;
+              if fb_pxlyt.red.length == 5 {
+                pixels |= (( EIGHT_TO_FIVE_BIT_TABLE[ embed_fb_data[embed_fb_r_idx] as usize] ) as u16) << fb_pxlyt.red.offset;
               }
-              else if fb_pxlyt.blue.length == 6 {
-                pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_b_idx] as usize] ) as u16) << fb_pxlyt.blue.offset;
+              else if fb_pxlyt.red.length == 6 {
+                pixels |= (( EIGHT_TO_SIX_BIT_TABLE[ embed_fb_data[embed_fb_r_idx] as usize] ) as u16) << fb_pxlyt.red.offset;
               }
 
               //pixels |= ((embed_fb_data[embed_fb_g_idx] as u16) & g_mask) << fb_px[lyt.green.offset;
