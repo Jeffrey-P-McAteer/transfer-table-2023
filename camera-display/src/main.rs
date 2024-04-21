@@ -21,6 +21,8 @@ use embedded_graphics::{
     text::Text,
 };
 
+use rand::prelude::*;
+
 
 const GPIO_MOTOR_KEYS_IN_DIR: &'static str = "/tmp/gpio_motor_keys_in";
 
@@ -190,10 +192,15 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   // this array will be used for targeting the table's corrected position.
   let mut last_n_layout_rail_x_positions: [i32; 8] = [-1; 8];
 
+  const NUM_MOVES_ALLOWED_FOR_CORRECTION: isize = 32;
+  let mut num_remaining_correction_moves: isize = NUM_MOVES_ALLOWED_FOR_CORRECTION;
+
+  let mut have_saved_this_correction_pos: bool = false;
+
   let mut loop_i = 0;
   loop {
       loop_i += 1;
-      if loop_i > 1000 {
+      if loop_i > 100000000 {
         loop_i = 0;
       }
 
@@ -272,7 +279,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       const rail_pair_width_px: usize = 106; // measured using debug txt
 
 
-      const rail_max_err: usize = 2; // Allow one rail center to be eg x1=50 and x2=52 without moving table, but x=53 will cause movement!
+      const rail_max_err: usize = 1; // Allow one rail center to be eg x1=50 and x2=51 without moving table, but x=52 will cause movement!
 
       let mut rail_dbg_txt = "".to_string();
 
@@ -514,12 +521,15 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         motor_state_msg_style = red_font_style;
         motor_is_moving = true;
         automove_active = false;
+        num_remaining_correction_moves = NUM_MOVES_ALLOWED_FOR_CORRECTION;
+        have_saved_this_correction_pos = true;
       }
       else {
         motor_is_moving = false;
         motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE ON".to_string();
         motor_state_msg_style = yellow_font_style;
         automove_active = true;
+        have_saved_this_correction_pos = false;
       }
 
       if let Ok(meta) = std::fs::metadata("/tmp/gpio_motor_last_active_mtime") {
@@ -530,14 +540,37 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE OFF".to_string();
               motor_state_msg_style = green_font_style;
               automove_active = false;
+              num_remaining_correction_moves = NUM_MOVES_ALLOWED_FOR_CORRECTION;
             }
           }
         }
       }
 
-      if automove_active {
-        // Make decisions!
+      // Make decisions if allowed to!
+      if !motor_is_moving && automove_active && num_remaining_correction_moves >= 1 {
+        if let Some(key_code) = table_control_code_to_write {
+          num_remaining_correction_moves -= 1;
+          let txt_file_num = rand::random::<u32>();
+          let txt_file_path = format!("{}/{}.txt", GPIO_MOTOR_KEYS_IN_DIR, txt_file_num);
+          let codes_str = format!("{}", key_code);
+          rail_dbg_txt = codes_str;
+          if let Err(e) = std::fs::write(txt_file_path, &codes_str) {
+            println!("Error writing to {}: {:?}",txt_file_path, e);
+          }
 
+        }
+      }
+
+      // If we finished moving, and did not run OUT of correction moved, write '=' keyvode to save table pos
+      if !motor_is_moving && !automove_active && !have_saved_this_correction_pos && num_remaining_correction_moves > 1 {
+        let knob_down_and_equals_codes = "113,14";
+        let txt_file_num = rand::random::<u32>();
+        let txt_file_path = format!("{}/{}.txt", GPIO_MOTOR_KEYS_IN_DIR, txt_file_num);
+        if let Err(e) = std::fs::write(txt_file_path, knob_down_and_equals_codes) {
+          println!("Error writing to {}: {:?}",txt_file_path, e);
+        }
+        rail_dbg_txt = knob_down_and_equals_codes.to_string();
+        have_saved_this_correction_pos = true;
       }
 
 
