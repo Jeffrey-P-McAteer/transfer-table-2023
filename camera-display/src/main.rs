@@ -165,6 +165,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
   // See https://docs.rs/embedded-graphics/latest/embedded_graphics/mono_font/ascii/index.html
   let font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::WHITE);
+  let green_font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::GREEN);
+  let red_font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::RED);
+  let yellow_font_style = MonoTextStyle::new(&mono_font::ascii::FONT_9X18_BOLD, Bgr888::YELLOW);
 
   let txt_bg_style = PrimitiveStyleBuilder::new()
     .stroke_color(Bgr888::BLACK)
@@ -192,7 +195,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       last_n_frame_times[loop_i % last_n_frame_times.len()] = std::time::SystemTime::now();
 
-      if loop_i % 2 == 0 {
+      {
         let mut frames_total_ms: f32 = 0.0;
         for i in 0..(last_n_frame_times.len()-1) {
           if let Ok(frame_t_dist) = last_n_frame_times[i+1].duration_since(last_n_frame_times[i]) {
@@ -201,7 +204,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         }
         rolling_fps_val = last_n_frame_times.len() as f32 / frames_total_ms; // frames-per-millisecond
         rolling_fps_val *= 1000.0; // frames-per-second
-        println!("rolling_fps_val = {:?}", rolling_fps_val);
+
+        if loop_i % 25 == 0 {
+          println!("rolling_fps_val = {:?}", rolling_fps_val);
+        }
       }
 
       if loop_i % 25 == 0 {
@@ -236,11 +242,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       for y in 0..cam_fmt_h {
         for x in 0..cam_fmt_w {
-          let fb_px_offset = ( ((y*cam_fmt_w) + x) * fb_bpp) as usize;
+          /*let fb_px_offset = ( ((y*cam_fmt_w) + x) * fb_bpp) as usize;
 
           let r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
           let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
           let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
+          */
 
           let jpeg_px_offset = (((y*cam_fmt_w) + x) * 3) as usize;
 
@@ -257,6 +264,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       const table_rail_y: usize = 330;
       const layout_rail_y: usize = 350;
       const rail_pair_width_px: usize = 96; // measured center-to-center
+      const rail_max_err: usize = 2; // Allow one rail center to be eg x1=50 and x2=52 without moving table, but x=53 will cause movement!
 
       // Draw table_rail_y debug line
       Line::new(Point::new(0, table_rail_y as i32), Point::new(cam_fmt_w as i32, table_rail_y as i32))
@@ -269,11 +277,177 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
 
       let mut table_rail_brightness: Vec<u8> = vec![0; cam_fmt_w];
+      let mut max_table_rail_brightness: u8 = 0;
       let mut layout_rail_brightnesses: Vec<u8> = vec![0; cam_fmt_w];
-      println!("table_rail_brightness.len() = {} cam_fmt_w = {}", table_rail_brightness.len(), cam_fmt_w);
+      let mut max_layout_rail_brightness: u8 = 0;
+
+      for x in 0..cam_fmt_w {
+        let jpeg_px_offset = (((table_rail_y*cam_fmt_w) + x) * 3) as usize;
+        let b = brightness_from_px(
+          cam_pixels[jpeg_px_offset+0] as f32, // R
+          cam_pixels[jpeg_px_offset+1] as f32, // G
+          cam_pixels[jpeg_px_offset+2] as f32  // B
+        );
+        table_rail_brightness[x] = b;
+        if b > max_table_rail_brightness {
+          max_table_rail_brightness = b;
+        }
+      }
+
+      for x in 0..cam_fmt_w {
+        let jpeg_px_offset = (((layout_rail_y*cam_fmt_w) + x) * 3) as usize;
+        let b = brightness_from_px(
+          cam_pixels[jpeg_px_offset+0] as f32, // R
+          cam_pixels[jpeg_px_offset+1] as f32, // G
+          cam_pixels[jpeg_px_offset+2] as f32  // B
+        );
+        layout_rail_brightnesses[x] = b;
+        if b > max_layout_rail_brightness {
+          max_layout_rail_brightness = b;
+        }
+      }
+
+      // Now we do a boolean on the brightness measures, selecting the top 15% of pixels as "potential rails"
+      let lowest_table_rail_brightness = ((max_table_rail_brightness as f32) - ((max_table_rail_brightness as f32) * 0.15)) as u8;
+      let lowest_layout_rail_brightness = ((max_layout_rail_brightness as f32) - ((max_layout_rail_brightness as f32) * 0.15)) as u8;
+
+      let mut table_maybe_rails: Vec<bool> = vec![false; cam_fmt_w];
+      let mut layout_maybe_rails: Vec<bool> = vec![false; cam_fmt_w];
+
+      for x in 0..cam_fmt_w {
+        if table_rail_brightness[x] >= lowest_table_rail_brightness {
+          table_maybe_rails[x] = true;
+        }
+        if layout_rail_brightnesses[x] >= lowest_layout_rail_brightness {
+          layout_maybe_rails[x] = true;
+        }
+      }
+
+      { // Add a debug line for the maybe_rails results
+        for x in 0..cam_fmt_w {
+          let table_color =  if table_maybe_rails[x] {
+            embedded_graphics::pixelcolor::Bgr888::WHITE
+          }
+          else {
+            embedded_graphics::pixelcolor::Bgr888::BLACK
+          };
+          embed_fb.set_pixel(
+            embedded_graphics::geometry::Point { x: x as i32, y: (table_rail_y+1) as i32 }, table_color
+          );
+          embed_fb.set_pixel(
+            embedded_graphics::geometry::Point { x: x as i32, y: (table_rail_y+2) as i32 }, table_color
+          );
+
+          let layout_color =  if layout_maybe_rails[x] {
+            embedded_graphics::pixelcolor::Bgr888::WHITE
+          }
+          else {
+            embedded_graphics::pixelcolor::Bgr888::BLACK
+          };
+          embed_fb.set_pixel(
+            embedded_graphics::geometry::Point { x: x as i32, y: (layout_rail_y+1) as i32 }, layout_color
+          );
+          embed_fb.set_pixel(
+            embedded_graphics::geometry::Point { x: x as i32, y: (layout_rail_y+2) as i32 }, layout_color
+          );
 
 
+        }
+      }
 
+      // Now we pick the first offset where layout_maybe_rails[x + rail_pair_width_px] is ALSO a maybe rail.
+      let mut table_rail_x: Option<u32> = None;
+      let mut layout_rail_x: Option<u32> = None;
+      for x in 0..(cam_fmt_w-rail_pair_width_px) {
+        if table_rail_x.is_none() && table_maybe_rails[x] && table_maybe_rails[x+rail_pair_width_px] {
+          // Found it! Seek forwards until !table_maybe_rails[x+n] and record the CENTER of left-most rail.
+          let mut x_end = x;
+          for n in x..cam_fmt_w {
+            if !table_maybe_rails[n] {
+              x_end = n;
+              break;
+            }
+          }
+          table_rail_x = Some( ((x + x_end) / 2) as u32 );
+        }
+        if layout_rail_x.is_none() && layout_maybe_rails[x] && layout_maybe_rails[x+rail_pair_width_px] {
+          // Found it! Seek forwards until !layout_maybe_rails[x+n] and record the CENTER of left-most rail.
+          let mut x_end = x;
+          for n in x..cam_fmt_w {
+            if !layout_maybe_rails[n] {
+              x_end = n;
+              break;
+            }
+          }
+          layout_rail_x = Some( ((x + x_end) / 2) as u32 );
+        }
+      }
+
+      if let Some(measured_layout_rail_x) = layout_rail_x {
+        // Record for book-keeping
+        last_n_layout_rail_x_positions[loop_i % last_n_layout_rail_x_positions.len()] = measured_layout_rail_x as i32;
+      }
+      else {
+        // Allow for prior layout_rail_x values to be assigned in IF we do not have a real measurement to use.
+        let mut avg_last_n_layout_rail_x_positions: i32 = -1;
+        let mut num_last_n_layout_rail_x_positions: i32 = 0;
+        for i in 0..last_n_layout_rail_x_positions.len() {
+          if last_n_layout_rail_x_positions[i] > 0 {
+            avg_last_n_layout_rail_x_positions += last_n_layout_rail_x_positions[i];
+          }
+        }
+        if num_last_n_layout_rail_x_positions > 0 {
+          avg_last_n_layout_rail_x_positions /= num_last_n_layout_rail_x_positions;
+          layout_rail_x = Some( avg_last_n_layout_rail_x_positions as u32 );
+        }
+      }
+
+      // Did we find rails?
+      let mut rail_msg = "[ NO RAIL ]".to_string();
+      let mut rail_msg_style = red_font_style;
+
+      let mut table_control_code_to_write: Option<usize> = None;
+
+      if let (Some(table_rail_x), Some(layout_rail_x)) = (table_rail_x, layout_rail_x)  {
+        // Write debug red pixels
+        embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
+        embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: table_rail_x as i32, y: (table_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
+
+        embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+2) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
+        embed_fb.set_pixel(
+          embedded_graphics::geometry::Point { x: layout_rail_x as i32, y: (layout_rail_y+3) as i32 }, embedded_graphics::pixelcolor::Bgr888::RED
+        );
+
+
+        // Compute state info
+        let rail_diff: i32 = table_rail_x as i32 - layout_rail_x as i32;
+        if rail_diff.abs() <= rail_max_err as i32 {
+          rail_msg = "RAILS ALIGNED".to_string();
+          rail_msg_style = green_font_style;
+        }
+        else {
+          if rail_diff < 0 {
+            rail_msg = "MOVING LEFT".to_string();
+            rail_msg_style = yellow_font_style;
+            table_control_code_to_write = Some(115); // TODO may be baclwards; if so just swap directions / codes
+          }
+          else {
+            rail_msg = "MOVING RIGHT".to_string();
+            rail_msg_style = yellow_font_style;
+            table_control_code_to_write = Some(114);
+          }
+        }
+      }
+      else {
+        rail_msg = "[ NO RAIL ]".to_string();
+        rail_msg_style = red_font_style;
+      }
 
 
 
@@ -288,6 +462,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       let fps_txt = format!("FPS: {:.2}", rolling_fps_val);
       Text::new(&fps_txt, Point::new(EMBED_FB_W as i32 - 140, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
+
+      Text::new(&rail_msg, Point::new(EMBED_FB_W as i32 - 140, EMBED_FB_H as i32 - 120), rail_msg_style).draw(&mut embed_fb)?;
 
 
       // send to framebuffer!
@@ -394,7 +570,18 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   Ok(())
 }
 
-
+fn brightness_from_px(r:f32, g:f32, b:f32) -> u8 {
+  // Fast approx from https://stackoverflow.com/a/596241
+  let weighted_sum: f32 = r+r+r+b+g+g+g+g;
+  let mut val: f32 = weighted_sum / 6.0;
+  if val > 255.0 {
+    val = 255.0;
+  }
+  else if val < 0.0 {
+    val = 0.0;
+  }
+  return val as u8;
+}
 
 
 
