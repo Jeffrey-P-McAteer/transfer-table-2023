@@ -510,6 +510,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         rail_msg_style = red_font_style;
       }
 
+      let mut safe_to_move_msg = "".to_string();
+
       // Read table info - are we moving? How long since table last moved?
       let mut motor_is_moving = true;
       let mut motor_has_not_moved_recently = true;
@@ -573,6 +575,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         have_saved_this_correction_pos = true;
       }
 
+      if !automove_active {
+        safe_to_move_msg = "[ SAFE TO MOVE ]".to_string();
+      }
+
 
       // Black rectangle over remaining rightmost screen area
 
@@ -585,6 +591,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       // rail_dbg_txt
       Text::new(&rail_dbg_txt, Point::new(EMBED_FB_W as i32 - 150, 10 ), red_font_style).draw(&mut embed_fb)?;
+
+      Text::new(&safe_to_move_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 160), green_font_style).draw(&mut embed_fb)?;
 
       Text::new(&motor_state_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 120), motor_state_msg_style).draw(&mut embed_fb)?;
 
