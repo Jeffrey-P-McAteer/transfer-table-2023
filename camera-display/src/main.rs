@@ -176,6 +176,11 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   // vv re-calculated off last_n_frame_times at regular intervals
   let mut rolling_fps_val: f32 = 0.0;
 
+  // Used to allow the layout rail, which is ASSUMED STATIONARY, to not need
+  // to always be detected. If we do not detect it, the average of values >=0 in
+  // this array will be used for targeting the table's corrected position.
+  let mut last_n_layout_rail_x_positions: [i32; 8] = [-1; 8];
+
   let mut loop_i = 0;
   loop {
       loop_i += 1;
@@ -261,6 +266,16 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       Line::new(Point::new(0, layout_rail_y as i32), Point::new(cam_fmt_w as i32, layout_rail_y as i32))
         .into_styled(PrimitiveStyle::with_stroke(Bgr888::BLUE, 1))
         .draw(&mut embed_fb)?;
+
+
+      let mut table_rail_brightness: Vec<u8> = vec![0; cam_fmt_w];
+      let mut layout_rail_brightnesses: Vec<u8> = vec![0; cam_fmt_w];
+      println!("table_rail_brightness.len() = {} cam_fmt_w = {}", table_rail_brightness.len(), cam_fmt_w);
+
+
+
+
+
 
       // Black rectangle over remaining rightmost screen area
 
@@ -367,22 +382,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
             }
           }
 
-          /*
-          let fb_r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-          let fb_g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-          let fb_b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
-
-          if y < fb_h && y < EMBED_FB_H && x < fb_w && x < EMBED_FB_W {
-            fb_mem[fb_r_idx] = embed_fb_data[embed_fb_r_idx];
-            fb_mem[fb_g_idx] = embed_fb_data[embed_fb_g_idx];
-            fb_mem[fb_b_idx] = embed_fb_data[embed_fb_b_idx];
-          }
-          else {
-            fb_mem[fb_r_idx] = 0x00;
-            fb_mem[fb_g_idx] = 0x00;
-            fb_mem[fb_b_idx] = 0x00;
-          }
-          */
         }
       }
 
