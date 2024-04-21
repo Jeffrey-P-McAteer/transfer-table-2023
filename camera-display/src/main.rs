@@ -383,7 +383,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           rail_dbg_txt = format!("{}\n{}", &rail_dbg_txt.clone(), x );
         }*/
 
-        if table_rail_x.is_none() && table_maybe_rails[x] && table_maybe_rails[x+rail_pair_width_px] {
+        if table_rail_x.is_none() && table_maybe_rails[x] && table_maybe_rails[x+1] && table_maybe_rails[x+rail_pair_width_px] {
           // Found it! Seek forwards until !table_maybe_rails[x+n] and record the CENTER of left-most rail.
           let mut x_end = x;
           for n in x..cam_fmt_w {
@@ -394,7 +394,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           }
           table_rail_x = Some( ((x + x_end) / 2) as u32 );
         }
-        if layout_rail_x.is_none() && layout_maybe_rails[x] && layout_maybe_rails[x+rail_pair_width_px] {
+        if layout_rail_x.is_none() && layout_maybe_rails[x] && layout_maybe_rails[x+1] && layout_maybe_rails[x+rail_pair_width_px] {
           // Found it! Seek forwards until !layout_maybe_rails[x+n] and record the CENTER of left-most rail.
           let mut x_end = x;
           for n in x..cam_fmt_w {
