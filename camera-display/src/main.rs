@@ -532,12 +532,12 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       // rail_dbg_txt
       Text::new(&rail_dbg_txt, Point::new(EMBED_FB_W as i32 - 150, 10 ), font_style).draw(&mut embed_fb)?;
 
+      Text::new(&motor_state_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 120), motor_state_msg_style).draw(&mut embed_fb)?;
+
+      Text::new(&rail_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 60), rail_msg_style).draw(&mut embed_fb)?;
+
       let fps_txt = format!("FPS: {:.2}", rolling_fps_val);
-      Text::new(&fps_txt, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 60), font_style).draw(&mut embed_fb)?;
-
-      Text::new(&rail_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 100), rail_msg_style).draw(&mut embed_fb)?;
-
-      Text::new(&motor_state_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 160), motor_state_msg_style).draw(&mut embed_fb)?;
+      Text::new(&fps_txt, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 20), font_style).draw(&mut embed_fb)?;
 
 
       // send to framebuffer!
