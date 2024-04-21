@@ -249,12 +249,6 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
       for y in 0..cam_fmt_h {
         for x in 0..cam_fmt_w {
-          /*let fb_px_offset = ( ((y*cam_fmt_w) + x) * fb_bpp) as usize;
-
-          let r_idx = fb_px_offset + (fb_pxlyt.red.offset / 8) as usize;
-          let g_idx = fb_px_offset + (fb_pxlyt.green.offset / 8) as usize;
-          let b_idx = fb_px_offset + (fb_pxlyt.blue.offset / 8) as usize;
-          */
 
           let jpeg_px_offset = (((y*cam_fmt_w) + x) * 3) as usize;
 
