@@ -550,7 +550,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
           if let Ok(movement_duration) = last_gpio_motor_is_active_end_s.duration_since(last_gpio_motor_is_active_begin_s) {
             if movement_duration.as_millis() < 1200 {
-              automove_disengage_ms = 1100;
+              automove_disengage_ms = 900;
             }
             else if movement_duration.as_millis() < 4000 {
               automove_disengage_ms = 3600;
