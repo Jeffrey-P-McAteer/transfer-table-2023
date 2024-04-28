@@ -203,6 +203,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   // We use the presence of /tmp/gpio_motor_is_active to measure "movement duration",
   // when the motor stops moving ("/tmp/gpio_motor_is_active" is removed) we calculate
   // a automove_disengage_ms based off the total motor movement duration.
+  let mut last_frame_motor_is_moving = false;
   let mut last_gpio_motor_is_active_begin_s = std::time::SystemTime::now();
   let mut last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
 
@@ -532,10 +533,11 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       let mut automove_active = false;
 
       if std::path::Path::new("/tmp/gpio_motor_is_active").exists() {
-        if !motor_is_moving {
+        if !last_frame_motor_is_moving {
           last_gpio_motor_is_active_begin_s = std::time::SystemTime::now(); // Motor was previously NOT moving, began moving, record timestamp!
         }
         motor_is_moving = true;
+        last_frame_motor_is_moving = true;
         automove_active = false;
         motor_state_msg = "MOTOR MOVING\nAUTO-MOVE OFF".to_string();
         motor_state_msg_style = red_font_style;
@@ -543,7 +545,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         have_saved_this_correction_pos = false;
       }
       else {
-        if motor_is_moving {
+        if last_frame_motor_is_moving {
           // Motor was previously moving, and now is NOT. record timestamp & calculate dwell time!
           last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
           if let Ok(movement_duration) = last_gpio_motor_is_active_end_s.duration_since(last_gpio_motor_is_active_begin_s) {
@@ -565,6 +567,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           }
         }
         motor_is_moving = false;
+        last_frame_motor_is_moving = false;
         motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE ON".to_string();
         motor_state_msg_style = yellow_font_style;
         automove_active = true;
@@ -615,7 +618,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         safe_to_move_msg = "[SAFE TO MOVE]".to_string();
       }
 
-      rail_dbg_txt = format!("{}\ndisengage ms:{}", rail_dbg_txt, automove_disengage_ms);
+      // Debug stuff
+      rail_dbg_txt = format!("{}\nstop ms:{}", rail_dbg_txt, automove_disengage_ms);
 
 
       // Black rectangle over remaining rightmost screen area
