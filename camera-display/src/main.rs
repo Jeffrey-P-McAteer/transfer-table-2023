@@ -197,6 +197,15 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
 
   let mut have_saved_this_correction_pos: bool = false;
 
+  // Used to be constant, now we assign lower values if table motion data is less.
+  let mut automove_disengage_ms = 8500;
+
+  // We use the presence of /tmp/gpio_motor_is_active to measure "movement duration",
+  // when the motor stops moving ("/tmp/gpio_motor_is_active" is removed) we calculate
+  // a automove_disengage_ms based off the total motor movement duration.
+  let mut last_gpio_motor_is_active_begin_s = std::time::SystemTime::now();
+  let mut last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
+
   let mut loop_i = 0;
   loop {
       loop_i += 1;
@@ -520,14 +529,38 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       let mut automove_active = false;
 
       if std::path::Path::new("/tmp/gpio_motor_is_active").exists() {
-        motor_state_msg = "MOTOR MOVING\nAUTO-MOVE OFF".to_string();
-        motor_state_msg_style = red_font_style;
+        if !motor_is_moving {
+          last_gpio_motor_is_active_begin_s = std::time::SystemTime::now(); // Motor was previously NOT moving, began moving, record timestamp!
+        }
         motor_is_moving = true;
         automove_active = false;
+        motor_state_msg = "MOTOR MOVING\nAUTO-MOVE OFF".to_string();
+        motor_state_msg_style = red_font_style;
         num_remaining_correction_moves = NUM_MOVES_ALLOWED_FOR_CORRECTION;
         have_saved_this_correction_pos = false;
       }
       else {
+        if motor_is_moving {
+          // Motor was previously moving, and now is NOT. record timestamp & calculate dwell time!
+          last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
+          if let Ok(movement_duration) = last_gpio_motor_is_active_end_s.duration_since(last_gpio_motor_is_active_begin_s) {
+            if movement_duration.as_millis() < 1200 {
+              automove_disengage_ms = 900;
+            }
+            else if movement_duration.as_millis() < 4000 {
+              automove_disengage_ms = 3600;
+            }
+            else if movement_duration.as_millis() < 6000 {
+              automove_disengage_ms = 5000;
+            }
+            else if movement_duration.as_millis() < 9000 {
+              automove_disengage_ms = 6000;
+            }
+            else {
+              automove_disengage_ms = 8500;
+            }
+          }
+        }
         motor_is_moving = false;
         motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE ON".to_string();
         motor_state_msg_style = yellow_font_style;
@@ -538,7 +571,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(gpio_motor_last_active_mtime) = meta.modified() {
           let seconds_since_table_motion = std::time::SystemTime::now().duration_since(gpio_motor_last_active_mtime);
           if let Ok(seconds_since_table_motion) = seconds_since_table_motion {
-            if seconds_since_table_motion.as_millis() > 9000 {
+            if seconds_since_table_motion.as_millis() > automove_disengage_ms {
               motor_state_msg = "MOTOR STOPPED\nAUTO-MOVE OFF".to_string();
               motor_state_msg_style = green_font_style;
               automove_active = false;
