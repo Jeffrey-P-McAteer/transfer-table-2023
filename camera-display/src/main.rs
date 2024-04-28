@@ -281,7 +281,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       //const table_rail_y: usize = 330; // Measures OK by photos from webserver.py, but wrong by hardware measurement.
       //const layout_rail_y: usize = 350;
 
-      const table_rail_y: usize = 346;
+      //const table_rail_y: usize = 346; // Was correct for a long time, but on 2024-04-28 discovered the camera had moved and was missing the table-side rail!
+      //const layout_rail_y: usize = 368;
+
+      const table_rail_y: usize = 335;
       const layout_rail_y: usize = 368;
 
       //const rail_pair_width_px: usize = 96; // measured center-to-center
@@ -545,7 +548,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
           if let Ok(movement_duration) = last_gpio_motor_is_active_end_s.duration_since(last_gpio_motor_is_active_begin_s) {
             if movement_duration.as_millis() < 1200 {
-              automove_disengage_ms = 900;
+              automove_disengage_ms = 1100;
             }
             else if movement_duration.as_millis() < 4000 {
               automove_disengage_ms = 3600;
