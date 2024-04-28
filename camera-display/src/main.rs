@@ -615,6 +615,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         safe_to_move_msg = "[SAFE TO MOVE]".to_string();
       }
 
+      rail_dbg_txt = format!("{}\ndisengage ms:{}", rail_dbg_txt, automove_disengage_ms);
+
 
       // Black rectangle over remaining rightmost screen area
 
