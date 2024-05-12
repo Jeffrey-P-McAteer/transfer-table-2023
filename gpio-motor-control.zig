@@ -334,7 +334,7 @@ pub fn injectForeignKeypresses() void {
         };
     }
 
-    const dir = std.fs.openDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR, .{}) catch |err| {
+    const dir = std.fs.openDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR, .{.iterate = true}) catch |err| {
         std.debug.print("openDirAbsolute failed: {}\n", .{err});
         return;
     };
