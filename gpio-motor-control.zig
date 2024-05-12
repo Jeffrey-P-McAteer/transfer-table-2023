@@ -471,7 +471,8 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
     var code = event.code;
     if (code == 1 or code == 15 or code == 51 or code == 83 or
         code == clinuxinputeventcodes.KEY_KPPLUS or code == clinuxinputeventcodes.KEY_KPMINUS or code == clinuxinputeventcodes.KEY_KPDOT or
-        code == clinuxinputeventcodes.KEY_SLASH or code == clinuxinputeventcodes.KEY_NUMERIC_STAR) {
+        code == clinuxinputeventcodes.KEY_SLASH or code == clinuxinputeventcodes.KEY_NUMERIC_STAR or
+        code == 98 or code == 55) { // 98 is '/' and 55 is * on the keypad
         // escape, tab, 000 key, decimal key are all mapped to immediate halt
         motor_stop_requested = true;
         std.debug.print("Motor stop requested! (code={d})\n", .{code});

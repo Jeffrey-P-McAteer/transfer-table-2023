@@ -652,6 +652,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       if autodetect_is_emergency_stopped {
         Text::new("EMERGENCY STOP\nDISABLED\nAUTO-MOVE\nENTER '99' TO\nRE-ENABLE", Point::new(EMBED_FB_W as i32 - 150, 60 ), red_font_style).draw(&mut embed_fb)?;
       }
+      else {
+        Text::new("EMERGENCY STOP\nKEYS:\n - '-'\n - '+'\n - '.'", Point::new(EMBED_FB_W as i32 - 150, 60 ), font_style).draw(&mut embed_fb)?;
+      }
 
       Text::new(&safe_to_move_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 160), green_font_style).draw(&mut embed_fb)?;
 
