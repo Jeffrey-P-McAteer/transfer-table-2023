@@ -595,7 +595,9 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
       if std::path::Path::new(GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE).exists() {
         autodetect_is_emergency_stopped = false;
-        std::fs::remove_file(GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE);
+        if let Err(e) = std::fs::remove_file(GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE) {
+          println!("removing GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE e = {:?}", e);
+        }
       }
 
       // Make decisions if allowed to!
