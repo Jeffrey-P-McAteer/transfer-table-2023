@@ -2,11 +2,11 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 // See https://ziglearn.org/chapter-3/
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const t_arch = target.getCpuArch();
+    const t_arch = target.result.cpu.arch;
 
     const motor_control_exe = b.addExecutable(.{
         .name = "gpio-motor-control",

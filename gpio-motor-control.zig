@@ -70,6 +70,9 @@ const GPIO_MOTOR_KEYS_IN_DIR = "/tmp/gpio_motor_keys_in";
 // When this file exists, other programs should assume the table is being driven and ought NOT perform analysis routines.
 const GPIO_MOTOR_ACTIVE_FLAG_FILE = "/tmp/gpio_motor_is_active";
 const GPIO_MOTOR_ACTIVE_MTIME_FILE = "/tmp/gpio_motor_last_active_mtime";
+const GPIO_MOTOR_EMERGENCY_STOP_FLAG_FILE = "/tmp/emergency_stop_occurred";
+const GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE = "/tmp/emergency_stop_cleared";
+
 
 // Hardware Constants
 const PREFERRED_CPU = 3;
@@ -151,10 +154,11 @@ pub fn main() !void {
         std.time.sleep(6000000); // 6ms
 
         if (motor_stop_requested) {
-          if (num_ticks_with_motor_stop_requested > 338) { // approx 2 seconds
+          if (num_ticks_with_motor_stop_requested > 676) { // approx 4 seconds
             std.debug.print("Allowing motor to run again...\n", .{});
             motor_stop_requested = false; // reset it
             num_ticks_with_motor_stop_requested = 0;
+            delete_emergency_stop_file();
           }
           else {
             num_ticks_with_motor_stop_requested += 1;
@@ -220,14 +224,43 @@ pub fn main() !void {
 }
 
 
-pub fn create_motor_active_file() void {
-    var fd = cfcntl.open(GPIO_MOTOR_ACTIVE_FLAG_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
+pub fn create_emergency_stop_cleared_file() void {
+    const fd = cfcntl.open(GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
     if (fd >= 0) {
         const active_file_bytes = "---";
         _ = cunistd.write(fd, active_file_bytes, @sizeOf(@TypeOf(active_file_bytes)));
         _ = cunistd.close(fd);
     }
-    var fd2 = cfcntl.open(GPIO_MOTOR_ACTIVE_MTIME_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
+}
+
+pub fn create_emergency_stop_file() void {
+    const fd = cfcntl.open(GPIO_MOTOR_EMERGENCY_STOP_FLAG_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
+    if (fd >= 0) {
+        const active_file_bytes = "---";
+        _ = cunistd.write(fd, active_file_bytes, @sizeOf(@TypeOf(active_file_bytes)));
+        _ = cunistd.close(fd);
+    }
+}
+
+pub fn delete_emergency_stop_file() void {
+    std.fs.accessAbsolute(GPIO_MOTOR_EMERGENCY_STOP_FLAG_FILE, .{ .mode = std.fs.File.OpenMode.read_only }) catch {
+        return; // If we cannot access the path, it does not exist!
+    };
+    std.fs.deleteFileAbsolute(GPIO_MOTOR_EMERGENCY_STOP_FLAG_FILE) catch |err| {
+        std.debug.print("deleteFileAbsolute failed: {}\n", .{err});
+    };
+}
+
+
+
+pub fn create_motor_active_file() void {
+    const fd = cfcntl.open(GPIO_MOTOR_ACTIVE_FLAG_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
+    if (fd >= 0) {
+        const active_file_bytes = "---";
+        _ = cunistd.write(fd, active_file_bytes, @sizeOf(@TypeOf(active_file_bytes)));
+        _ = cunistd.close(fd);
+    }
+    const fd2 = cfcntl.open(GPIO_MOTOR_ACTIVE_MTIME_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
     if (fd2 >= 0) {
         const active_file_bytes = "---";
         _ = cunistd.write(fd2, active_file_bytes, @sizeOf(@TypeOf(active_file_bytes)));
@@ -253,6 +286,7 @@ pub fn motorControlSignalHandler(sig_val: c_int) callconv(.C) void {
         motor_stop_requested = true;
         std.debug.print("Motor stop requested! (sig_val={d})\n", .{sig_val});
         _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL); // IMMEDIATELY pull power from motor
+        create_emergency_stop_file();
 
         return;
     }
@@ -273,10 +307,10 @@ pub fn openAnyNewKeyboardFds() void {
     for (0..num_keyboard_fds) |i| {
         if (keyboard_fds[i] < 0) {
             var event_file_buff: [36:0]u8 = .{@as(u8, 0)} ** 36;
-            var event_file = std.fmt.bufPrint(&event_file_buff, "/dev/input/event{}", .{i}) catch &event_file_buff;
+            const event_file = std.fmt.bufPrint(&event_file_buff, "/dev/input/event{}", .{i}) catch &event_file_buff;
 
-            var stat_buf: std.os.Stat = undefined;
-            const result = std.os.system.stat(&event_file_buff, &stat_buf);
+            var stat_buf: std.posix.Stat = undefined;
+            const result = std.posix.system.stat(&event_file_buff, &stat_buf);
             if (result == 0) {
                 std.debug.print("Opening {s}\n", .{event_file});
                 keyboard_fds[i] = cfcntl.open(&event_file_buff, cfcntl.O_RDONLY | cfcntl.O_NONBLOCK);
@@ -290,8 +324,8 @@ pub fn injectForeignKeypresses() void {
     // For each file in a folder, read content as int & construct a
     // input_event.type == clinuxinputeventcodes.EV_KEY && input_event.value == 1
     // struct with event.code == the ASCII number in the file.s
-    var stat_buf: std.os.Stat = undefined;
-    const result = std.os.system.stat(GPIO_MOTOR_KEYS_IN_DIR, &stat_buf);
+    var stat_buf: std.posix.Stat = undefined;
+    const result = std.posix.system.stat(GPIO_MOTOR_KEYS_IN_DIR, &stat_buf);
     if (result != 0) { // if dir does not exist, create it!
         std.debug.print("Creating {s}\n", .{GPIO_MOTOR_KEYS_IN_DIR});
         std.fs.makeDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR) catch |err| {
@@ -300,8 +334,8 @@ pub fn injectForeignKeypresses() void {
         };
     }
 
-    const dir = std.fs.openIterableDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR, .{}) catch |err| {
-        std.debug.print("openIterableDirAbsolute failed: {}\n", .{err});
+    const dir = std.fs.openDirAbsolute(GPIO_MOTOR_KEYS_IN_DIR, .{}) catch |err| {
+        std.debug.print("openDirAbsolute failed: {}\n", .{err});
         return;
     };
     var iterator = dir.iterate();
@@ -310,10 +344,10 @@ pub fn injectForeignKeypresses() void {
             break;
         }
         else {
-            var file_name = file.?.name;
+            const file_name = file.?.name;
             std.debug.print("file = {s}\n", .{ file.?.name });
 
-            var open_f = dir.dir.openFile(file_name, .{}) catch |err| {
+            var open_f = dir.openFile(file_name, .{}) catch |err| {
                 std.debug.print("openFile failed: {}\n", .{err});
                 continue;
             };
@@ -370,7 +404,7 @@ pub fn injectForeignKeypresses() void {
 
 
             // Finally delete the file, we're done with it
-            dir.dir.deleteFile(file_name) catch |err| {
+            dir.deleteFile(file_name) catch |err| {
                 std.debug.print("deleteFile failed: {}\n", .{err});
                 continue;
             };
@@ -387,14 +421,14 @@ pub fn asyncReadKeyboardFds() void {
     for (0..num_keyboard_fds) |i| {
         if (keyboard_fds[i] >= 0) {
             var input_event: clinuxinput.input_event = undefined;
-            var num_bytes_read = cunistd.read(keyboard_fds[i], &input_event, @sizeOf(clinuxinput.input_event));
+            const num_bytes_read = cunistd.read(keyboard_fds[i], &input_event, @sizeOf(clinuxinput.input_event));
             if (num_bytes_read >= 0) {
                 //std.debug.print("read {d} bytes, input_event = {}\n", .{ num_bytes_read, input_event });
                 if (input_events_i >= num_input_events) {
                     input_events_i = 0;
                 }
-                var is_keypress = input_event.type == clinuxinputeventcodes.EV_KEY;
-                var is_key_down = input_event.value == 1;
+                const is_keypress = input_event.type == clinuxinputeventcodes.EV_KEY;
+                const is_key_down = input_event.value == 1;
                 if (is_keypress and is_key_down) {
                   input_events[input_events_i] = input_event;
                   input_events_i += 1;
@@ -402,10 +436,10 @@ pub fn asyncReadKeyboardFds() void {
                 }
             } else {
                 //var errno = @as(c_int, @intFromEnum(std.c.getErrno(c_int)));
-                var errno: c_int = creal_errno.get_errno();
-                var resource_unavailable_nonfatal = errno == 11;
+                const errno: c_int = creal_errno.get_errno();
+                const resource_unavailable_nonfatal = errno == 11;
                 if (!resource_unavailable_nonfatal and errno != 0) {
-                    var err_cstring = cstring.strerror(errno);
+                    const err_cstring = cstring.strerror(errno);
                     std.debug.print("fd {d} read gave error {d} ({s}), closing...\n", .{ i, errno, err_cstring });
                     _ = cunistd.close(keyboard_fds[i]);
                     keyboard_fds[i] = -1;
@@ -419,8 +453,8 @@ pub fn performInputEvents(immediate_pass: bool) void {
     for (0..num_input_events) |i| {
         if (input_events[i]) |one_nonempty_input_event| {
             // See https://www.kernel.org/doc/html/latest/input/event-codes.html
-            var is_keypress = one_nonempty_input_event.type == clinuxinputeventcodes.EV_KEY;
-            var is_key_down = one_nonempty_input_event.value == 1;
+            const is_keypress = one_nonempty_input_event.type == clinuxinputeventcodes.EV_KEY;
+            const is_key_down = one_nonempty_input_event.value == 1;
             if (is_keypress and is_key_down) {
                 performOneInputEvent(immediate_pass, one_nonempty_input_event);
             }
@@ -440,6 +474,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
         motor_stop_requested = true;
         std.debug.print("Motor stop requested! (code={d})\n", .{code});
         _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL); // IMMEDIATELY pull power from motor
+        create_emergency_stop_file();
         return;
     }
     if (!immediate_pass) {
@@ -583,6 +618,9 @@ pub fn perform_num_input_buffer(num: i32) void {
     else if (num == 90) {
         zero_pmem_struct();
     }
+    else if (num == 99) {
+        create_emergency_stop_cleared_file();
+    }
     else if (num >= 1001 and num <= 1800) {
         // Set dial sensitivity to num - 1000 steps per click
         var num_steps_per_click: i32 = num - 1000;
@@ -608,10 +646,10 @@ pub fn move_to_position(pos_num: u8) void {
 
   create_motor_active_file();
 
-  var target_position: i32 = pmem.positions[pos_num-1].step_position;
+  const target_position: i32 = pmem.positions[pos_num-1].step_position;
   std.debug.print("Moving from pmem.step_position = {d} to target_position = {d}\n", .{pmem.step_position, target_position});
 
-  var num_steps_to_move: i32 = pmem.step_position - pmem.positions[pos_num-1].step_position;
+  const num_steps_to_move: i32 = pmem.step_position - pmem.positions[pos_num-1].step_position;
 
   std.debug.print("Sending abs({d}) steps to motor in direction of magnitude\n", .{num_steps_to_move});
 
@@ -651,14 +689,14 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
     fastest_us = FASTEST_US; // TODO calculate ideal off N + some math
   }
 
-  var ramp_down_begin_n: i32 = @intCast(n - ramp_up_end_n);
-  var slow_fast_us_dist: f32 = @floatFromInt(@as(u32, SLOWEST_US - fastest_us));
-  var half_pi: f32 = std.math.pi / 2.0;
-  var wavelength: f32 = std.math.pi / (@as(f32, @floatFromInt(ramp_up_end_n))); // formula is actually 2pi/wavelength, but I want to double ramp_up_end_n so instead removed the existing 2.0.
+  const ramp_down_begin_n: i32 = @intCast(n - ramp_up_end_n);
+  const slow_fast_us_dist: f32 = @floatFromInt(@as(u32, SLOWEST_US - fastest_us));
+  const half_pi: f32 = std.math.pi / 2.0;
+  const wavelength: f32 = std.math.pi / (@as(f32, @floatFromInt(ramp_up_end_n))); // formula is actually 2pi/wavelength, but I want to double ramp_up_end_n so instead removed the existing 2.0.
 
   // Ramp up on a sinusoid
   for (0..@as(usize, @intCast(ramp_up_end_n))) |i| {
-    var delay_us_d: f32 = @as(f32, @floatFromInt(fastest_us) ) + (
+    const delay_us_d: f32 = @as(f32, @floatFromInt(fastest_us) ) + (
       slow_fast_us_dist * (@sin((wavelength *  @as(f32, @floatFromInt(i) ) ) + half_pi) + 1.0)
     );
 
@@ -696,8 +734,8 @@ pub fn step_n(n: u32, ramp_up_end_n_arg: u32, level: c_uint) void {
 
   // Ramp down on a sinusoid
   for (@as(usize, @intCast(ramp_down_begin_n))..@as(usize, @intCast(n))) |j| {
-    var i = n - j;
-    var delay_us_d: f32 = @as(f32, @floatFromInt(fastest_us) ) + (
+    const i = n - j;
+    const delay_us_d: f32 = @as(f32, @floatFromInt(fastest_us) ) + (
       slow_fast_us_dist * (@sin((wavelength *  @as(f32, @floatFromInt(i) ) ) + half_pi) + 1.0)
     );
 
@@ -829,10 +867,10 @@ pub fn zero_pmem_struct() void {
 
 
 pub fn read_pmem_from_file() void {
-  var fd = cfcntl.open(PMEM_FILE, cfcntl.O_RDONLY);
+  const fd = cfcntl.open(PMEM_FILE, cfcntl.O_RDONLY);
   var read_success = false;
   if (fd >= 0) {
-    var num_bytes_read = cunistd.read(fd, &pmem, @sizeOf(@TypeOf(pmem)));
+    const num_bytes_read = cunistd.read(fd, &pmem, @sizeOf(@TypeOf(pmem)));
     if (num_bytes_read >= 0) {
       read_success = true;
     }
@@ -845,11 +883,11 @@ pub fn read_pmem_from_file() void {
 }
 
 pub fn write_pmem_to_file_iff_diff() void {
-  var p_hash = pmem_hash();
+  const p_hash = pmem_hash();
   if (p_hash == last_written_pmem_hash) {
     return;
   }
-  var fd = cfcntl.open(PMEM_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
+  const fd = cfcntl.open(PMEM_FILE, cfcntl.O_RDWR | cfcntl.O_CREAT);
   if (fd >= 0) {
     _ = cunistd.write(fd, &pmem, @sizeOf(@TypeOf(pmem)));
     _ = cunistd.close(fd);
@@ -864,7 +902,7 @@ pub fn sync_disks() void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    const result = std.ChildProcess.exec(.{
+    const result = std.ChildProcess.run(.{
         .allocator = allocator,
         .argv = &[_][]const u8{ "sync" },
     }) catch |err| {

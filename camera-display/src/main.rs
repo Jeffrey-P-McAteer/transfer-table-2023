@@ -25,7 +25,8 @@ use rand::prelude::*;
 
 
 const GPIO_MOTOR_KEYS_IN_DIR: &'static str = "/tmp/gpio_motor_keys_in";
-
+const GPIO_MOTOR_EMERGENCY_STOP_FLAG_FILE: &'static str = "/tmp/emergency_stop_occurred";
+const GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE: &'static str = "/tmp/emergency_stop_cleared";
 
 fn main() {
   // Attempt to chvt 7
@@ -198,7 +199,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   let mut have_saved_this_correction_pos: bool = false;
 
   // Used to be constant, now we assign lower values if table motion data is less.
-  let mut automove_disengage_ms = 8500;
+  let mut automove_disengage_ms = 3500;
 
   // We use the presence of /tmp/gpio_motor_is_active to measure "movement duration",
   // when the motor stops moving ("/tmp/gpio_motor_is_active" is removed) we calculate
@@ -206,6 +207,8 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   let mut last_frame_motor_is_moving = false;
   let mut last_gpio_motor_is_active_begin_s = std::time::SystemTime::now();
   let mut last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
+
+  let mut autodetect_is_emergency_stopped = false;
 
   let mut loop_i = 0;
   loop {
@@ -553,16 +556,16 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               automove_disengage_ms = 900;
             }
             else if movement_duration.as_millis() < 4000 {
-              automove_disengage_ms = 3600;
+              automove_disengage_ms = 2400;
             }
             else if movement_duration.as_millis() < 6000 {
-              automove_disengage_ms = 5000;
+              automove_disengage_ms = 2600;
             }
             else if movement_duration.as_millis() < 9000 {
-              automove_disengage_ms = 6000;
+              automove_disengage_ms = 2800;
             }
             else {
-              automove_disengage_ms = 8500;
+              automove_disengage_ms = 3500;
             }
           }
         }
@@ -587,8 +590,15 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         }
       }
 
+      if std::path::Path::new(GPIO_MOTOR_EMERGENCY_STOP_FLAG_FILE).exists() {
+        autodetect_is_emergency_stopped = true;
+      }
+      if std::path::Path::new(GPIO_MOTOR_EMERGENCY_STOP_CLEARED_FLAG_FILE).exists() {
+        autodetect_is_emergency_stopped = false;
+      }
+
       // Make decisions if allowed to!
-      if !motor_is_moving && automove_active && num_remaining_correction_moves >= 1 {
+      if !autodetect_is_emergency_stopped &&  !motor_is_moving && automove_active && num_remaining_correction_moves >= 1 {
         if let Some(key_code) = table_control_code_to_write {
           num_remaining_correction_moves -= 1;
           let txt_file_num = rand::random::<u32>();
@@ -603,7 +613,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       }
 
       // If we finished moving, and did not run OUT of correction moved, write '=' keyvode to save table pos
-      if !motor_is_moving && !automove_active && !have_saved_this_correction_pos && num_remaining_correction_moves > 1 {
+      if !autodetect_is_emergency_stopped && !motor_is_moving && !automove_active && !have_saved_this_correction_pos && num_remaining_correction_moves > 1 {
         let knob_down_and_equals_codes = "113,14";
         let txt_file_num = rand::random::<u32>();
         let txt_file_path = format!("{}/{}.txt", GPIO_MOTOR_KEYS_IN_DIR, txt_file_num);
@@ -632,7 +642,13 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
         .draw(&mut embed_fb)?;
 
       // rail_dbg_txt
-      Text::new(&rail_dbg_txt, Point::new(EMBED_FB_W as i32 - 150, 10 ), red_font_style).draw(&mut embed_fb)?;
+      if !autodetect_is_emergency_stopped {
+        Text::new(&rail_dbg_txt, Point::new(EMBED_FB_W as i32 - 150, 10 ), red_font_style).draw(&mut embed_fb)?;
+      }
+
+      if autodetect_is_emergency_stopped {
+        Text::new("EMERGENCY STOP\nDISABLED\nAUTO-MOVE\nENTER '99' TO\nRE-ENABLE", Point::new(EMBED_FB_W as i32 - 150, 60 ), red_font_style).draw(&mut embed_fb)?;
+      }
 
       Text::new(&safe_to_move_msg, Point::new(EMBED_FB_W as i32 - 150, EMBED_FB_H as i32 - 160), green_font_style).draw(&mut embed_fb)?;
 
