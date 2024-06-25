@@ -288,7 +288,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       //const table_rail_y: usize = 346; // Was correct for a long time, but on 2024-04-28 discovered the camera had moved and was missing the table-side rail!
       //const layout_rail_y: usize = 368;
 
-      const table_rail_y: usize = 325;
+      const table_rail_y: usize = 315;
       const layout_rail_y: usize = 368;
 
       //const rail_pair_width_px: usize = 96; // measured center-to-center
