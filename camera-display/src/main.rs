@@ -193,7 +193,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   // this array will be used for targeting the table's corrected position.
   let mut last_n_layout_rail_x_positions: [i32; 24] = [-1; 24];
 
-  const NUM_MOVES_ALLOWED_FOR_CORRECTION: isize = 32;
+  const NUM_MOVES_ALLOWED_FOR_CORRECTION: isize = 12;
   let mut num_remaining_correction_moves: isize = NUM_MOVES_ALLOWED_FOR_CORRECTION;
 
   let mut have_saved_this_correction_pos: bool = false;
