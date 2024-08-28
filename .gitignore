@@ -21,6 +21,8 @@ __pycache__/*
 .py-env/*
 target
 target/*
+.zig-cache
+.zig-cache/*
 
 
 
