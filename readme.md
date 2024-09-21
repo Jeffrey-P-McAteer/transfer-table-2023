@@ -62,9 +62,11 @@ make run
 cp gpio-motor-control.service /etc/systemd/system/gpio-motor-control.service
 cp gpio-motor-control-watcher.path /etc/systemd/system/gpio-motor-control-watcher.path
 cp gpio-motor-control-watcher.service /etc/systemd/system/gpio-motor-control-watcher.service
+cp camera-display/camera-display.service /etc/systemd/system/camera-display.service
 
 sudo systemctl enable --now gpio-motor-control
 sudo systemctl enable --now gpio-motor-control-watcher
+sudo systemctl enable --now camera-display
 
 ```
 
