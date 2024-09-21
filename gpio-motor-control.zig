@@ -147,6 +147,18 @@ pub fn main() !void {
 
     read_pmem_from_file();
 
+    // Do an open-close open-close loop on keyboard inputs in an attempt to ensure they are all opened & being listened to
+    openAnyNewKeyboardFds();
+    std.time.sleep(6000000); // 6ms
+    closeAllHidFds();
+    std.time.sleep(6000000); // 6ms
+    openAnyNewKeyboardFds();
+    std.time.sleep(6000000); // 6ms
+    closeAllHidFds();
+    std.time.sleep(6000000); // 6ms
+    openAnyNewKeyboardFds();
+    std.time.sleep(6000000); // 6ms
+
     var evt_loop_i: u32 = 0;
     var num_ticks_with_motor_stop_requested: u32 = 0;
     while (!exit_requested) {
