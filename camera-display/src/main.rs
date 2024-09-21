@@ -1,4 +1,12 @@
 
+#![allow(unused_mut)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
+#![allow(non_upper_case_globals)]
+
+
 use std::io::BufReader;
 use jpeg_decoder::Decoder;
 
@@ -204,7 +212,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
   // We use the presence of /tmp/gpio_motor_is_active to measure "movement duration",
   // when the motor stops moving ("/tmp/gpio_motor_is_active" is removed) we calculate
   // a automove_disengage_ms based off the total motor movement duration.
-  let mut last_frame_motor_is_moving = false;
+  let mut last_frame_motor_is_moving = true;
   let mut last_gpio_motor_is_active_begin_s = std::time::SystemTime::now();
   let mut last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
 
