@@ -10,19 +10,19 @@ pub fn build(b: *std.Build) void {
 
     const motor_control_exe = b.addExecutable(.{
         .name = "gpio-motor-control",
-        .root_source_file = .{ .path = "gpio-motor-control.zig" },
+        .root_source_file = b.path("gpio-motor-control.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
     motor_control_exe.linkSystemLibrary("c");
-    motor_control_exe.addIncludePath(.{ .path = "zig_c_code" });
+    motor_control_exe.addIncludePath(b.path("zig_c_code"));
 
     if (t_arch.isARM() or t_arch.isAARCH64()) {
         motor_control_exe.linkSystemLibrary("pigpio");
     } else {
         // Link a shim we compile from C-land on x86 machines
-        motor_control_exe.addIncludePath(.{ .path = "shims" });
+        motor_control_exe.addIncludePath(b.path("shims"));
     }
 
     b.installArtifact(motor_control_exe);

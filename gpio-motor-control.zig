@@ -917,7 +917,7 @@ pub fn sync_disks() void {
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
-    const result = std.ChildProcess.run(.{
+    const result = std.process.Child.run(.{
         .allocator = allocator,
         .argv = &[_][]const u8{ "sync" },
     }) catch |err| {
