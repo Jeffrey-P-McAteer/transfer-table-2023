@@ -300,7 +300,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
       const layout_rail_y: usize = 368;
 
       //const rail_pair_width_px: usize = 96; // measured center-to-center
-      const rail_pair_width_px: usize = 106; // measured using debug txt
+      const rail_pair_width_px: usize = 105; // measured using debug txt
 
 
       const rail_max_err: usize = 1; // Allow one rail center to be eg x1=50 and x2=51 without moving table, but x=52 will cause movement!
@@ -416,7 +416,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               break;
             }
           }
-          table_rail_x = Some( ((x + x_end) / 2) as u32 );
+          table_rail_x = Some( x_end as u32 ); // going left-to-right, x_end is the interior edge of the left-most rail.
         }
         if layout_rail_x.is_none() && layout_maybe_rails[x] && layout_maybe_rails[x+1] && layout_maybe_rails[x+rail_pair_width_px] {
           // Found it! Seek forwards until !layout_maybe_rails[x+n] and record the CENTER of left-most rail.
@@ -427,7 +427,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
               break;
             }
           }
-          layout_rail_x = Some( ((x + x_end) / 2) as u32 );
+          layout_rail_x = Some( x_end as u32 ); // going left-to-right, x_end is the interior edge of the left-most rail.
         }
       }
 
@@ -561,19 +561,19 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           last_gpio_motor_is_active_end_s = std::time::SystemTime::now();
           if let Ok(movement_duration) = last_gpio_motor_is_active_end_s.duration_since(last_gpio_motor_is_active_begin_s) {
             if movement_duration.as_millis() < 1200 {
-              automove_disengage_ms = 900;
+              automove_disengage_ms = 940;
             }
             else if movement_duration.as_millis() < 4000 {
-              automove_disengage_ms = 2400;
+              automove_disengage_ms = 2200;
             }
             else if movement_duration.as_millis() < 6000 {
-              automove_disengage_ms = 2600;
+              automove_disengage_ms = 2400;
             }
             else if movement_duration.as_millis() < 9000 {
-              automove_disengage_ms = 2800;
+              automove_disengage_ms = 2600;
             }
             else {
-              automove_disengage_ms = 3500;
+              automove_disengage_ms = 3200;
             }
           }
         }
@@ -619,11 +619,10 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           if let Err(e) = std::fs::write(&txt_file_path, &codes_str) {
             println!("Error writing to {}: {:?}", &txt_file_path, e);
           }
-
         }
       }
 
-      // If we finished moving, and did not run OUT of correction moved, write '=' keyvode to save table pos
+      // If we finished moving, and did not run OUT of correction moved, write '=' keycode to save table pos
       if !autodetect_is_emergency_stopped && !motor_is_moving && !automove_active && !have_saved_this_correction_pos && num_remaining_correction_moves > 1 {
         let knob_down_and_equals_codes = "113,14";
         let txt_file_num = rand::random::<u32>();
