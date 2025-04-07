@@ -7,8 +7,10 @@ clean:
 
 gpio-motor-control: gpio-motor-control.zig
 	# gcc -Wall -Werror -ffast-math -g -O2 -o gpio-motor-control gpio-motor-control.c -lm -lpigpio -lrt -lpthread
+	sudo systemctl stop gpio-motor-control || true
 	zig build
 	cp ./zig-out/bin/gpio-motor-control gpio-motor-control
+	echo "gpio-motor-control.service was stopped if it existed; execute 'systemctl start gpio-motor-control' to re-start the service."
 
 camera-display:
 	sudo systemctl stop camera-display.service || true
