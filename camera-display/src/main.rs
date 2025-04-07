@@ -499,7 +499,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           if rail_diff < 0 {
             rail_msg = "MOVING LEFT".to_string();
             rail_msg_style = yellow_font_style;
-            table_control_code_to_write = Some(114); // TODO may be baclwards; if so just swap directions / codes
+            table_control_code_to_write = Some(115); // TODO may be baclwards; if so just swap directions / codes
 
             // Debug triangle
             Triangle::new(
@@ -514,7 +514,7 @@ fn do_camera_loop() -> Result<(), Box<dyn std::error::Error>> {
           else {
             rail_msg = "MOVING RIGHT".to_string();
             rail_msg_style = yellow_font_style;
-            table_control_code_to_write = Some(115);
+            table_control_code_to_write = Some(114);
 
             // Debug triangle
             Triangle::new(

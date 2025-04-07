@@ -594,7 +594,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           write_pmem_to_file_iff_diff();
 
         }
-        else if (code == 114) {
+        else if (code == 115) {
           // Clockwise dial spin
           create_motor_active_file();
           std.debug.print("Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
@@ -607,7 +607,7 @@ pub fn performOneInputEvent(immediate_pass: bool, event: clinuxinput.input_event
           }
           _ = cpigpio.gpioWrite(MOTOR_ENABLE_PIN,     MOTOR_DISABLE_SIGNAL);
         }
-        else if (code == 115) {
+        else if (code == 114) {
           // Counter-Clockwise dial spin
           create_motor_active_file();
           std.debug.print("Counter-Clockwise dial spin {d} times\n", .{dial_num_steps_per_click});
